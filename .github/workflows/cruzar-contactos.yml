@@ -25,4 +25,6 @@ jobs:
         env:
           GOOGLE_SHEET_ID:        ${{ secrets.GOOGLE_SHEET_ID }}
           GOOGLE_SHEET_GID:       ${{ secrets.GOOGLE_SHEET_GID }}
+          CONSOLIDADO_SHEET_ID:   ${{ secrets.CONSOLIDADO_SHEET_ID }}
+          CONSOLIDADO_SHEET_GID:  ${{ secrets.CONSOLIDADO_SHEET_GID }}
           GOOGLE_CREDENTIALS_B64: ${{ secrets.GOOGLE_CREDENTIALS_B64 }}

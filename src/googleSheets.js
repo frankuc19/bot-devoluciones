@@ -118,4 +118,43 @@ async function escribirTelefonos(updates) {
   });
 }
 
-module.exports = { leerDevoluciones, marcarFilas, asegurarEncabezados, obtenerNombreHoja, escribirTelefonos };
+/**
+ * Lee el consolidado de conductores desde Google Sheets.
+ * Devuelve mapa { PATENTE_NORM: telefono }
+ */
+async function leerConsolidado() {
+  const sheetId  = process.env.CONSOLIDADO_SHEET_ID;
+  const sheetGid = process.env.CONSOLIDADO_SHEET_GID || '0';
+  if (!sheetId) throw new Error('CONSOLIDADO_SHEET_ID no definido en .env');
+
+  const tabName = await obtenerNombreHoja(sheetId, sheetGid);
+  const sheets  = google.sheets({ version: 'v4', auth: getAuth() });
+
+  const res = await sheets.spreadsheets.values.get({
+    spreadsheetId: sheetId,
+    range: `${tabName}!A:Z`,
+  });
+
+  const rows = res.data.values || [];
+  if (rows.length < 2) return {};
+
+  const headers = rows[0].map(h => String(h).trim().toUpperCase());
+  const iPatente   = headers.findIndex(h => h === 'PATENTE');
+  const iTelefono  = headers.findIndex(h => h === 'TELEFONO');
+
+  if (iPatente === -1 || iTelefono === -1) {
+    throw new Error(`Columnas no encontradas. Headers: ${headers.join(', ')}`);
+  }
+
+  const contactos = {};
+  for (const row of rows.slice(1)) {
+    const pat = String(row[iPatente] || '').trim().toUpperCase().replace(/-/g, '');
+    const tel = String(row[iTelefono] || '').replace(/[+\s\-]/g, '');
+    if (pat && /^\d{10,15}$/.test(tel)) contactos[pat] = tel;
+  }
+
+  console.log(`Consolidado leido: ${Object.keys(contactos).length} contactos desde "${tabName}"`);
+  return contactos;
+}
+
+module.exports = { leerDevoluciones, marcarFilas, asegurarEncabezados, obtenerNombreHoja, escribirTelefonos, leerConsolidado };
