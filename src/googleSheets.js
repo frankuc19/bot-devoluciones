@@ -19,9 +19,19 @@ function getAuth() {
 // Obtiene el nombre de la pestaña a partir del gid numérico
 async function obtenerNombreHoja(sheetId, gid) {
   const sheets = google.sheets({ version: 'v4', auth: getAuth() });
-  const res = await sheets.spreadsheets.get({ spreadsheetId: sheetId });
+  let res;
+  try {
+    res = await sheets.spreadsheets.get({ spreadsheetId: sheetId });
+  } catch (e) {
+    if (e.code === 404 || e.message?.includes('not found'))
+      throw new Error(`Sheet no encontrado (${sheetId}). Verifica que la Service Account tenga acceso.`);
+    if (e.code === 403)
+      throw new Error(`Sin permiso para leer el Sheet (${sheetId}). Comparte con la Service Account como Lector.`);
+    throw e;
+  }
+  const tabs = res.data.sheets.map(s => `${s.properties.title} (gid=${s.properties.sheetId})`);
   const hoja = res.data.sheets.find(s => s.properties.sheetId === parseInt(gid));
-  if (!hoja) throw new Error(`No se encontró la pestaña con gid=${gid}`);
+  if (!hoja) throw new Error(`Pestaña gid=${gid} no encontrada. Pestanas disponibles: ${tabs.join(', ')}`);
   return hoja.properties.title;
 }
 
