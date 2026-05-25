@@ -1,0 +1,28 @@
+name: Cruzar contactos
+
+on:
+  schedule:
+    - cron: '0 12 * * *'   # 09:00 Chile (UTC-3)
+    - cron: '0 21 * * *'   # 18:00 Chile (UTC-3)
+  workflow_dispatch:        # ejecucion manual desde GitHub
+
+jobs:
+  cruzar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Cruzar contactos y actualizar Sheet
+        run: node scripts/cruzarContactos.js
+        env:
+          GOOGLE_SHEET_ID:        ${{ secrets.GOOGLE_SHEET_ID }}
+          GOOGLE_SHEET_GID:       ${{ secrets.GOOGLE_SHEET_GID }}
+          GOOGLE_CREDENTIALS_B64: ${{ secrets.GOOGLE_CREDENTIALS_B64 }}

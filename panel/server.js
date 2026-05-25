@@ -128,7 +128,7 @@ async function cargarDatos() {
   mensajes = [];
 
   for (const [patente, filasPatente] of grupos.entries()) {
-    const numero  = contactos[patente] || null;
+    const numero  = primera['TELEFONO'] || contactos[patente] || null;
     const primera = filasPatente[0];
     mensajes.push({
       patente,

@@ -1,8 +1,9 @@
 const { google } = require('googleapis');
 const path = require('path');
 
-const COL_ESTADO = 'N'; // ESTADO_WHATSAPP
-const COL_FECHA  = 'O'; // FECHA_ENVIO
+const COL_ESTADO    = 'N'; // ESTADO_WHATSAPP
+const COL_FECHA     = 'O'; // FECHA_ENVIO
+const COL_TELEFONO  = 'P'; // TELEFONO (cruzado desde contactos)
 
 function getAuth() {
   const keyFile = path.resolve(
@@ -39,7 +40,7 @@ async function leerDevoluciones() {
 
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId: sheetId,
-    range: `${tabName}!A:O`,
+    range: `${tabName}!A:P`,
   });
 
   const rows = res.data.values || [];
@@ -77,8 +78,7 @@ async function marcarFilas(tabName, rowIndices, estado = 'ENVIADO') {
 }
 
 /**
- * Escribe los encabezados ESTADO_WHATSAPP y FECHA_ENVIO en N1:O1
- * solo si esas celdas están vacías.
+ * Escribe los encabezados en N1:P1 si están vacíos.
  */
 async function asegurarEncabezados(tabName) {
   const sheetId = process.env.GOOGLE_SHEET_ID;
@@ -86,17 +86,36 @@ async function asegurarEncabezados(tabName) {
 
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId: sheetId,
-    range: `${tabName}!${COL_ESTADO}1:${COL_FECHA}1`,
+    range: `${tabName}!${COL_ESTADO}1:${COL_TELEFONO}1`,
   });
   const vals = res.data.values?.[0] || [];
-  if (!vals[0] || !vals[1]) {
+  if (!vals[0] || !vals[1] || !vals[2]) {
     await sheets.spreadsheets.values.update({
       spreadsheetId: sheetId,
-      range: `${tabName}!${COL_ESTADO}1:${COL_FECHA}1`,
+      range: `${tabName}!${COL_ESTADO}1:${COL_TELEFONO}1`,
       valueInputOption: 'USER_ENTERED',
-      requestBody: { values: [['ESTADO_WHATSAPP', 'FECHA_ENVIO']] },
+      requestBody: { values: [['ESTADO_WHATSAPP', 'FECHA_ENVIO', 'TELEFONO']] },
     });
   }
 }
 
-module.exports = { leerDevoluciones, marcarFilas, asegurarEncabezados, obtenerNombreHoja };
+/**
+ * Escribe teléfonos en columna P para las filas indicadas.
+ * @param {Array<{rowIndex: number, tabName: string, telefono: string}>} updates
+ */
+async function escribirTelefonos(updates) {
+  const sheetId = process.env.GOOGLE_SHEET_ID;
+  const sheets  = google.sheets({ version: 'v4', auth: getAuth() });
+
+  const data = updates.map(({ rowIndex, tabName, telefono }) => ({
+    range: `${tabName}!${COL_TELEFONO}${rowIndex}`,
+    values: [[telefono]],
+  }));
+
+  await sheets.spreadsheets.values.batchUpdate({
+    spreadsheetId: sheetId,
+    requestBody: { valueInputOption: 'USER_ENTERED', data },
+  });
+}
+
+module.exports = { leerDevoluciones, marcarFilas, asegurarEncabezados, obtenerNombreHoja, escribirTelefonos };
