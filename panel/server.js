@@ -273,28 +273,7 @@ function iniciarWhatsApp() {
   waEstado = 'conectando';
   io.emit('wa_estado', { estado: 'conectando' });
 
-  const puppeteerArgs = {
-    headless: true,
-    args: [
-      '--no-sandbox', '--disable-setuid-sandbox',
-      '--disable-dev-shm-usage',      // usa /tmp en vez de /dev/shm (evita crash en Docker)
-      '--disable-gpu',
-      '--no-first-run',
-      '--no-zygote',
-      '--single-process',             // mayor ahorro de RAM (~100-150 MB menos)
-      '--disable-extensions',
-      '--disable-background-networking',
-      '--disable-default-apps',
-      '--disable-sync',
-      '--disable-translate',
-      '--mute-audio',
-      '--hide-scrollbars',
-      '--disk-cache-size=1',
-      '--disable-backgrounding-occluded-windows',
-      '--disable-renderer-backgrounding',
-      '--disable-ipc-flooding-protection',
-    ],
-  };
+  const puppeteerArgs = { headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] };
   if (process.env.PUPPETEER_EXECUTABLE_PATH)
     puppeteerArgs.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
 
