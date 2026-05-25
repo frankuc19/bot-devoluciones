@@ -16,7 +16,7 @@ const { agruparPorPatente }                        = require('../src/agruparPorP
 const { generarMensaje }                           = require('../src/generarMensaje');
 const { cargarContactos, cargarNombres, limpiarCache } = require('../config/contactos');
 const { leerDevoluciones, marcarFilas,
-        asegurarEncabezados }                      = require('../src/googleSheets');
+        asegurarEncabezados, leerConsolidado }     = require('../src/googleSheets');
 
 const DELAY_MS   = 5000;
 const PORT       = process.env.PORT || 3000;
@@ -33,6 +33,29 @@ if (process.env.GOOGLE_CREDENTIALS_B64) {
     fs.writeFileSync(credPath, Buffer.from(process.env.GOOGLE_CREDENTIALS_B64, 'base64').toString('utf8'));
     console.log('Credenciales de Google escritas desde variable de entorno');
   }
+}
+
+// ─── Cache consolidado ────────────────────────────────────────────────────────
+let _consolidadoCache  = null;
+let _consolidadoCacheTs = 0;
+const CONSOLIDADO_TTL  = 5 * 60 * 1000; // 5 minutos
+
+async function obtenerContactos() {
+  const ahora = Date.now();
+  if (_consolidadoCache && (ahora - _consolidadoCacheTs) < CONSOLIDADO_TTL) {
+    return _consolidadoCache;
+  }
+  try {
+    const deSheet = await leerConsolidado();        // consolidado Google Sheets
+    const locales  = cargarContactos();             // CSV local + .env (prioridad)
+    _consolidadoCache  = { ...deSheet, ...locales };
+    _consolidadoCacheTs = ahora;
+    console.log(`Contactos actualizados: ${Object.keys(_consolidadoCache).length} patentes`);
+  } catch (e) {
+    console.error('No se pudo leer consolidado, usando cache anterior:', e.message);
+    if (!_consolidadoCache) _consolidadoCache = cargarContactos();
+  }
+  return _consolidadoCache;
 }
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
@@ -100,7 +123,7 @@ let mensajes = [];
 
 // ─── Cargar datos (Google Sheets o CSV local) ─────────────────────────────────
 async function cargarDatos() {
-  const contactos = cargarContactos();
+  const contactos = await obtenerContactos();
   const nombres   = cargarNombres();
   let filas, rowMap = {};
 
