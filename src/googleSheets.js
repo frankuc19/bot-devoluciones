@@ -40,8 +40,8 @@ async function obtenerNombreHoja(sheetId, gid) {
  * Devuelve array de { rowIndex (1-based, fila real en Sheet), data: {...columnas} }
  */
 async function leerDevoluciones() {
-  const sheetId  = process.env.GOOGLE_SHEET_ID;
-  const sheetGid = process.env.GOOGLE_SHEET_GID || '0';
+  const sheetId  = (process.env.GOOGLE_SHEET_ID  || '').trim();
+  const sheetGid = (process.env.GOOGLE_SHEET_GID || '0').trim();
 
   if (!sheetId) throw new Error('GOOGLE_SHEET_ID no definido en .env');
 
@@ -72,7 +72,7 @@ async function leerDevoluciones() {
  * @param {string} estado  'ENVIADO' | 'SIN NÚMERO'
  */
 async function marcarFilas(tabName, rowIndices, estado = 'ENVIADO') {
-  const sheetId = process.env.GOOGLE_SHEET_ID;
+  const sheetId = (process.env.GOOGLE_SHEET_ID || '').trim();
   const sheets  = google.sheets({ version: 'v4', auth: getAuth() });
   const fecha   = new Date().toLocaleString('es-CL', { timeZone: 'America/Santiago' });
 
@@ -91,7 +91,7 @@ async function marcarFilas(tabName, rowIndices, estado = 'ENVIADO') {
  * Escribe los encabezados en N1:P1 si están vacíos.
  */
 async function asegurarEncabezados(tabName) {
-  const sheetId = process.env.GOOGLE_SHEET_ID;
+  const sheetId = (process.env.GOOGLE_SHEET_ID || '').trim();
   const sheets  = google.sheets({ version: 'v4', auth: getAuth() });
 
   const res = await sheets.spreadsheets.values.get({
@@ -114,7 +114,7 @@ async function asegurarEncabezados(tabName) {
  * @param {Array<{rowIndex: number, tabName: string, telefono: string}>} updates
  */
 async function escribirTelefonos(updates) {
-  const sheetId = process.env.GOOGLE_SHEET_ID;
+  const sheetId = (process.env.GOOGLE_SHEET_ID || '').trim();
   const sheets  = google.sheets({ version: 'v4', auth: getAuth() });
 
   const data = updates.map(({ rowIndex, tabName, telefono }) => ({
