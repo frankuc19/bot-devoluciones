@@ -350,7 +350,10 @@ async function recargarDatos() {
   document.getElementById('tabla-body').innerHTML =
     '<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--muted)">Cargando…</td></tr>';
   try {
-    const res = await fetch('/api/datos').then(r => r.json());
+    const raw = await fetch('/api/datos');
+    if (!raw.ok) { addLog('err', `Error HTTP ${raw.status}`); return; }
+    let res;
+    try { res = await raw.json(); } catch { addLog('err', 'Respuesta invalida del servidor — reintentando en breve'); return; }
     if (!res.ok) { addLog('err', 'Error: ' + res.error); return; }
     datos    = res.datos;
     waEstado = res.waEstado;
