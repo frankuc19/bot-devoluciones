@@ -133,8 +133,8 @@ async function escribirTelefonos(updates) {
  * Devuelve mapa { PATENTE_NORM: telefono }
  */
 async function leerConsolidado() {
-  const sheetId  = process.env.CONSOLIDADO_SHEET_ID;
-  const sheetGid = process.env.CONSOLIDADO_SHEET_GID || '0';
+  const sheetId  = (process.env.CONSOLIDADO_SHEET_ID  || '').trim();
+  const sheetGid = (process.env.CONSOLIDADO_SHEET_GID || '0').trim();
   if (!sheetId) throw new Error('CONSOLIDADO_SHEET_ID no definido en .env');
 
   const tabName = await obtenerNombreHoja(sheetId, sheetGid);
