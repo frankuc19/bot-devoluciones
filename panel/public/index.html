@@ -155,9 +155,13 @@
         <h1>Bot Devoluciones — Falabella</h1>
         <div style="font-size:.75rem; color:var(--muted); margin-top:1px">Panel de control y pruebas</div>
       </div>
-      <div style="margin-left:auto; display:flex; gap:8px;">
+      <div style="margin-left:auto; display:flex; gap:8px; align-items:center;">
         <a href="https://docs.google.com/spreadsheets/d/1bQqJ2GAXkgaMBWiVTrNwZCb-Q70xvKgWOmIAbsXsG9E/edit?gid=1099007443#gid=1099007443"
            target="_blank" class="btn btn-outline btn-sm">Abrir Sheet</a>
+        <label class="btn btn-outline btn-sm" style="cursor:pointer" title="Subir contactos_conductores.csv">
+          Subir contactos
+          <input type="file" accept=".csv" style="display:none" onchange="subirContactos(this)">
+        </label>
         <button class="btn btn-outline btn-sm" onclick="recargarDatos()">Recargar</button>
         <form method="POST" action="/logout" style="margin:0">
           <button type="submit" class="btn btn-outline btn-sm" style="color:var(--muted)">Salir</button>
@@ -641,6 +645,25 @@ function formatTel(t) {
   if (s.startsWith('56') && s.length === 11)
     return `+56 ${s[2]} ${s.slice(3,7)} ${s.slice(7)}`;
   return '+' + s;
+}
+
+// ── Upload contactos ──────────────────────────────────────────────────────────
+async function subirContactos(input) {
+  const file = input.files[0];
+  if (!file) return;
+  addLog('info', `Subiendo ${file.name}…`);
+  input.value = '';
+  try {
+    const res = await fetch('/api/upload/contactos', {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/csv' },
+      body: file,
+    }).then(r => r.json());
+    if (res.ok) addLog('ok', 'Contactos cargados correctamente');
+    else        addLog('err', 'Error al subir contactos: ' + res.error);
+  } catch (e) {
+    addLog('err', 'Error de red: ' + e.message);
+  }
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────────

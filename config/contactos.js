@@ -94,4 +94,8 @@ function cargarNombres() {
   return cargarDesdeCSV().nombres;
 }
 
-module.exports = { cargarContactos, cargarNombres, normalizarPatente };
+function limpiarCache() {
+  _csvCache = null;
+}
+
+module.exports = { cargarContactos, cargarNombres, normalizarPatente, limpiarCache };

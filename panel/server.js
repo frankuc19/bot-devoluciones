@@ -14,7 +14,7 @@ const ENV_PATH = path.join(__dirname, '..', '.env');
 const { leerArchivo }                              = require('../src/leerArchivo');
 const { agruparPorPatente }                        = require('../src/agruparPorPatente');
 const { generarMensaje }                           = require('../src/generarMensaje');
-const { cargarContactos, cargarNombres }            = require('../config/contactos');
+const { cargarContactos, cargarNombres, limpiarCache } = require('../config/contactos');
 const { leerDevoluciones, marcarFilas,
         asegurarEncabezados }                      = require('../src/googleSheets');
 
@@ -209,6 +209,20 @@ app.delete('/api/contactos/manual/:patente', requireAuthApi, async (req, res) =>
   const datos = await cargarDatos();
   io.emit('datos_actualizados', { datos });
   res.json({ ok: true });
+});
+
+app.post('/api/upload/contactos', requireAuthApi, (req, res) => {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+  const dest = path.join(DATA_DIR, 'contactos_conductores.csv');
+  const ws   = fs.createWriteStream(dest);
+  req.pipe(ws);
+  ws.on('finish', async () => {
+    limpiarCache();
+    const datos = await cargarDatos();
+    io.emit('datos_actualizados', { datos });
+    res.json({ ok: true });
+  });
+  ws.on('error', (e) => res.status(500).json({ ok: false, error: e.message }));
 });
 
 app.post('/api/enviar', requireAuthApi, async (req, res) => {
