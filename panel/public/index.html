@@ -163,6 +163,7 @@
           <input type="file" accept=".csv" style="display:none" onchange="subirContactos(this)">
         </label>
         <button class="btn btn-outline btn-sm" onclick="recargarDatos()">Recargar</button>
+        <span id="auto-badge" style="font-size:.72rem; color:var(--muted)"></span>
         <form method="POST" action="/logout" style="margin:0">
           <button type="submit" class="btn btn-outline btn-sm" style="color:var(--muted)">Salir</button>
         </form>
@@ -666,8 +667,31 @@ async function subirContactos(input) {
   }
 }
 
+// ── Auto-recarga ──────────────────────────────────────────────────────────────
+const AUTO_INTERVAL_MS = 5 * 60 * 1000; // 5 minutos
+let autoTimer = null;
+let proximaRecarga = null;
+
+function iniciarAutoRecarga() {
+  if (autoTimer) clearInterval(autoTimer);
+  proximaRecarga = Date.now() + AUTO_INTERVAL_MS;
+  autoTimer = setInterval(() => {
+    recargarDatos();
+    proximaRecarga = Date.now() + AUTO_INTERVAL_MS;
+  }, AUTO_INTERVAL_MS);
+}
+
+setInterval(() => {
+  if (!proximaRecarga) return;
+  const resta = Math.max(0, Math.round((proximaRecarga - Date.now()) / 1000));
+  const m = String(Math.floor(resta / 60)).padStart(2, '0');
+  const s = String(resta % 60).padStart(2, '0');
+  document.getElementById('auto-badge').textContent = `Auto ${m}:${s}`;
+}, 1000);
+
 // ── Init ──────────────────────────────────────────────────────────────────────
 recargarDatos();
+iniciarAutoRecarga();
 </script>
 </body>
 </html>
