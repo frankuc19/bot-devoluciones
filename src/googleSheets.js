@@ -1,0 +1,102 @@
+const { google } = require('googleapis');
+const path = require('path');
+
+const COL_ESTADO = 'N'; // ESTADO_WHATSAPP
+const COL_FECHA  = 'O'; // FECHA_ENVIO
+
+function getAuth() {
+  const keyFile = path.resolve(
+    process.env.GOOGLE_CREDENTIALS_PATH ||
+    path.join(__dirname, '..', 'config', 'google-credentials.json')
+  );
+  return new google.auth.GoogleAuth({
+    keyFile,
+    scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+  });
+}
+
+// Obtiene el nombre de la pestaña a partir del gid numérico
+async function obtenerNombreHoja(sheetId, gid) {
+  const sheets = google.sheets({ version: 'v4', auth: getAuth() });
+  const res = await sheets.spreadsheets.get({ spreadsheetId: sheetId });
+  const hoja = res.data.sheets.find(s => s.properties.sheetId === parseInt(gid));
+  if (!hoja) throw new Error(`No se encontró la pestaña con gid=${gid}`);
+  return hoja.properties.title;
+}
+
+/**
+ * Lee todas las filas del Sheet de devoluciones.
+ * Devuelve array de { rowIndex (1-based, fila real en Sheet), data: {...columnas} }
+ */
+async function leerDevoluciones() {
+  const sheetId  = process.env.GOOGLE_SHEET_ID;
+  const sheetGid = process.env.GOOGLE_SHEET_GID || '0';
+
+  if (!sheetId) throw new Error('GOOGLE_SHEET_ID no definido en .env');
+
+  const tabName = await obtenerNombreHoja(sheetId, sheetGid);
+  const sheets  = google.sheets({ version: 'v4', auth: getAuth() });
+
+  const res = await sheets.spreadsheets.values.get({
+    spreadsheetId: sheetId,
+    range: `${tabName}!A:O`,
+  });
+
+  const rows = res.data.values || [];
+  if (rows.length < 2) return [];
+
+  const headers = rows[0].map(h => String(h).trim());
+
+  return rows.slice(1).map((row, i) => {
+    const data = {};
+    headers.forEach((h, j) => { data[h] = row[j] !== undefined ? String(row[j]).trim() : ''; });
+    return { rowIndex: i + 2, tabName, data }; // rowIndex 2 = primera fila de datos
+  }).filter(r => r.data['SUBORDEN']); // ignorar filas vacías
+}
+
+/**
+ * Escribe ENVIADO + fecha en las columnas N y O para las filas indicadas.
+ * @param {string} tabName  nombre de la pestaña
+ * @param {number[]} rowIndices  filas a marcar (1-based)
+ * @param {string} estado  'ENVIADO' | 'SIN NÚMERO'
+ */
+async function marcarFilas(tabName, rowIndices, estado = 'ENVIADO') {
+  const sheetId = process.env.GOOGLE_SHEET_ID;
+  const sheets  = google.sheets({ version: 'v4', auth: getAuth() });
+  const fecha   = new Date().toLocaleString('es-CL', { timeZone: 'America/Santiago' });
+
+  const data = rowIndices.map(i => ({
+    range: `${tabName}!${COL_ESTADO}${i}:${COL_FECHA}${i}`,
+    values: [[estado, estado === 'ENVIADO' ? fecha : '']],
+  }));
+
+  await sheets.spreadsheets.values.batchUpdate({
+    spreadsheetId: sheetId,
+    requestBody: { valueInputOption: 'USER_ENTERED', data },
+  });
+}
+
+/**
+ * Escribe los encabezados ESTADO_WHATSAPP y FECHA_ENVIO en N1:O1
+ * solo si esas celdas están vacías.
+ */
+async function asegurarEncabezados(tabName) {
+  const sheetId = process.env.GOOGLE_SHEET_ID;
+  const sheets  = google.sheets({ version: 'v4', auth: getAuth() });
+
+  const res = await sheets.spreadsheets.values.get({
+    spreadsheetId: sheetId,
+    range: `${tabName}!${COL_ESTADO}1:${COL_FECHA}1`,
+  });
+  const vals = res.data.values?.[0] || [];
+  if (!vals[0] || !vals[1]) {
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: sheetId,
+      range: `${tabName}!${COL_ESTADO}1:${COL_FECHA}1`,
+      valueInputOption: 'USER_ENTERED',
+      requestBody: { values: [['ESTADO_WHATSAPP', 'FECHA_ENVIO']] },
+    });
+  }
+}
+
+module.exports = { leerDevoluciones, marcarFilas, asegurarEncabezados, obtenerNombreHoja };
