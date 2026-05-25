@@ -21,6 +21,19 @@ const { leerDevoluciones, marcarFilas,
 const DELAY_MS   = 5000;
 const PORT       = process.env.PORT || 3000;
 const USA_SHEETS = !!process.env.GOOGLE_SHEET_ID;
+const DATA_DIR   = process.env.DATA_DIR   || path.join(__dirname, '..', 'data');
+const WA_AUTH_DIR = process.env.WA_AUTH_DIR || path.join(__dirname, '..', '.wwebjs_auth');
+
+// Escribir google-credentials.json desde variable de entorno (para Render/cloud)
+if (process.env.GOOGLE_CREDENTIALS_B64) {
+  const credPath = path.resolve(process.env.GOOGLE_CREDENTIALS_PATH ||
+    path.join(__dirname, '..', 'config', 'google-credentials.json'));
+  fs.mkdirSync(path.dirname(credPath), { recursive: true });
+  if (!fs.existsSync(credPath)) {
+    fs.writeFileSync(credPath, Buffer.from(process.env.GOOGLE_CREDENTIALS_B64, 'base64').toString('utf8'));
+    console.log('Credenciales de Google escritas desde variable de entorno');
+  }
+}
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 const PANEL_USER   = process.env.PANEL_USER     || 'admin';
@@ -210,7 +223,7 @@ app.post('/api/enviar', requireAuthApi, async (req, res) => {
 
 // ─── WhatsApp ─────────────────────────────────────────────────────────────────
 function limpiarSingletonLock() {
-  const sessionDir = path.join(__dirname, '..', '.wwebjs_auth', 'session');
+  const sessionDir = path.join(WA_AUTH_DIR, 'session');
   for (const f of ['SingletonLock', 'SingletonCookie', 'SingletonSocket']) {
     const ruta = path.join(sessionDir, f);
     try { if (fs.existsSync(ruta)) fs.unlinkSync(ruta); } catch {}
@@ -223,9 +236,13 @@ function iniciarWhatsApp() {
   waEstado = 'conectando';
   io.emit('wa_estado', { estado: 'conectando' });
 
+  const puppeteerArgs = { headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] };
+  if (process.env.PUPPETEER_EXECUTABLE_PATH)
+    puppeteerArgs.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
+
   waClient = new Client({
-    authStrategy: new LocalAuth({ dataPath: path.join(__dirname, '..', '.wwebjs_auth') }),
-    puppeteer: { headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] },
+    authStrategy: new LocalAuth({ dataPath: WA_AUTH_DIR }),
+    puppeteer: puppeteerArgs,
   });
 
   waClient.on('qr', async (qr) => {
@@ -253,7 +270,6 @@ function iniciarWhatsApp() {
 async function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
 function limpiarArchivosLocales() {
-  const DATA_DIR = path.join(__dirname, '..', 'data');
   const archivos = ['devoluciones.csv', 'devoluciones.xlsx'];
   const eliminados = [];
 

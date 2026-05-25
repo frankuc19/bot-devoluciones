@@ -3,7 +3,8 @@ require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
 
-const CSV_CONTACTOS = path.join(__dirname, '..', 'data', 'contactos_conductores.csv');
+const DATA_DIR      = process.env.DATA_DIR || path.join(__dirname, '..', 'data');
+const CSV_CONTACTOS = path.join(DATA_DIR, 'contactos_conductores.csv');
 
 // Normaliza patente para usarla como clave de lookup (sin guiones, mayúsculas)
 function normalizarPatente(valor) {
