@@ -7,7 +7,8 @@ const QRCode     = require('qrcode');
 const path       = require('path');
 const fs         = require('fs');
 const crypto     = require('crypto');
-const { Client, LocalAuth } = require('whatsapp-web.js');
+const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion } = require('@whiskeysockets/baileys');
+const pino = require('pino');
 
 const ENV_PATH = path.join(__dirname, '..', '.env');
 
@@ -117,9 +118,10 @@ app.use(requireAuth);
 app.use(express.static(path.join(__dirname, 'public')));
 
 // ─── Estado global ────────────────────────────────────────────────────────────
-let waClient = null;
-let waEstado = 'desconectado';
-let mensajes = [];
+let waClient        = null;
+let waEstado        = 'desconectado';
+let mensajes        = [];
+let _reconectarAuto = true;
 
 // ─── Cargar datos (Google Sheets o CSV local) ─────────────────────────────────
 async function cargarDatos() {
@@ -193,8 +195,9 @@ app.post('/api/whatsapp/conectar', requireAuthApi, (req, res) => {
 });
 
 app.post('/api/whatsapp/desconectar', requireAuthApi, async (req, res) => {
+  _reconectarAuto = false;
   if (waClient) {
-    await waClient.destroy().catch(() => {});
+    await waClient.logout().catch(() => {});
     waClient = null;
     waEstado = 'desconectado';
     io.emit('wa_estado', { estado: 'desconectado' });
@@ -259,49 +262,54 @@ app.post('/api/enviar', requireAuthApi, async (req, res) => {
 });
 
 // ─── WhatsApp ─────────────────────────────────────────────────────────────────
-function limpiarSingletonLock() {
-  const sessionDir = path.join(WA_AUTH_DIR, 'session');
-  for (const f of ['SingletonLock', 'SingletonCookie', 'SingletonSocket']) {
-    const ruta = path.join(sessionDir, f);
-    try { if (fs.existsSync(ruta)) fs.unlinkSync(ruta); } catch {}
-  }
-}
-
-function iniciarWhatsApp() {
+async function iniciarWhatsApp() {
   if (waEstado !== 'desconectado') return;
-  limpiarSingletonLock();
+  _reconectarAuto = true;
   waEstado = 'conectando';
   io.emit('wa_estado', { estado: 'conectando' });
 
-  const puppeteerArgs = { headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] };
-  if (process.env.PUPPETEER_EXECUTABLE_PATH)
-    puppeteerArgs.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
+  try {
+    const { state, saveCreds } = await useMultiFileAuthState(WA_AUTH_DIR);
+    const { version }          = await fetchLatestBaileysVersion();
 
-  waClient = new Client({
-    authStrategy: new LocalAuth({ dataPath: WA_AUTH_DIR }),
-    puppeteer: puppeteerArgs,
-  });
+    const sock = makeWASocket({
+      version,
+      auth:               state,
+      printQRInTerminal:  false,
+      logger:             pino({ level: 'silent' }),
+    });
 
-  waClient.on('qr', async (qr) => {
-    waEstado = 'qr';
-    io.emit('wa_estado', { estado: 'qr', qr: await QRCode.toDataURL(qr) });
-  });
-  waClient.on('loading_screen', (p) => io.emit('wa_estado', { estado: 'conectando', progreso: p }));
-  waClient.on('authenticated',  ()  => io.emit('wa_estado', { estado: 'autenticado' }));
-  waClient.on('ready', () => {
-    waEstado = 'listo';
-    io.emit('wa_estado', { estado: 'listo' });
-    console.log('WhatsApp listo');
-  });
-  waClient.on('disconnected', () => {
-    waEstado = 'desconectado'; waClient = null;
-    io.emit('wa_estado', { estado: 'desconectado' });
-  });
-  waClient.on('auth_failure', (msg) => {
-    waEstado = 'desconectado'; waClient = null;
-    io.emit('wa_estado', { estado: 'error', msg });
-  });
-  waClient.initialize();
+    waClient = sock;
+    sock.ev.on('creds.update', saveCreds);
+
+    sock.ev.on('connection.update', async ({ connection, lastDisconnect, qr }) => {
+      if (qr) {
+        waEstado = 'qr';
+        io.emit('wa_estado', { estado: 'qr', qr: await QRCode.toDataURL(qr) });
+      }
+      if (connection === 'open') {
+        waEstado = 'listo';
+        io.emit('wa_estado', { estado: 'listo' });
+        console.log('WhatsApp listo');
+      }
+      if (connection === 'close') {
+        const code      = lastDisconnect?.error?.output?.statusCode;
+        const loggedOut = code === DisconnectReason.loggedOut;
+        waClient  = null;
+        waEstado  = 'desconectado';
+        io.emit('wa_estado', { estado: 'desconectado' });
+        if (_reconectarAuto && !loggedOut) {
+          console.log('Reconectando WhatsApp...');
+          setTimeout(iniciarWhatsApp, 3000);
+        }
+      }
+    });
+  } catch (err) {
+    console.error('Error iniciando WhatsApp:', err.message);
+    waEstado = 'desconectado';
+    waClient = null;
+    io.emit('wa_estado', { estado: 'error', msg: err.message });
+  }
 }
 
 async function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
@@ -343,7 +351,7 @@ async function enviarConProgreso(lista) {
     }
 
     try {
-      await waClient.sendMessage(`${numero}@c.us`, mensaje);
+      await waClient.sendMessage(`${numero}@s.whatsapp.net`, { text: mensaje });
       io.emit('envio_log', { patente, ok: true, numero, msg: 'Enviado', i: i + 1, total: lista.length });
       enviados++;
 
@@ -376,8 +384,6 @@ io.use((socket, next) => {
 io.on('connection', (socket) => socket.emit('wa_estado', { estado: waEstado }));
 
 // ─── Start ────────────────────────────────────────────────────────────────────
-limpiarSingletonLock();
-
 server.listen(PORT, () => {
   console.log(`\nPanel de control: http://localhost:${PORT}`);
   console.log(`Fuente de datos: ${USA_SHEETS ? 'Google Sheets' : 'archivo local CSV'}`);
