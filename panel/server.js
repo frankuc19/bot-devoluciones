@@ -6,6 +6,7 @@ const { Server } = require('socket.io');
 const QRCode     = require('qrcode');
 const path       = require('path');
 const fs         = require('fs');
+const crypto     = require('crypto');
 const { Client, LocalAuth } = require('whatsapp-web.js');
 
 const ENV_PATH = path.join(__dirname, '..', '.env');
@@ -17,9 +18,36 @@ const { cargarContactos, cargarNombres }            = require('../config/contact
 const { leerDevoluciones, marcarFilas,
         asegurarEncabezados }                      = require('../src/googleSheets');
 
-const DELAY_MS = 5000;
-const PORT     = 3000;
+const DELAY_MS   = 5000;
+const PORT       = process.env.PORT || 3000;
 const USA_SHEETS = !!process.env.GOOGLE_SHEET_ID;
+
+// ─── Auth ─────────────────────────────────────────────────────────────────────
+const PANEL_USER   = process.env.PANEL_USER     || 'admin';
+const PANEL_PASS   = process.env.PANEL_PASSWORD || 'changeme';
+const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex');
+const VALID_TOKEN  = crypto.createHmac('sha256', SESSION_SECRET)
+                           .update(`${PANEL_USER}:${PANEL_PASS}`)
+                           .digest('hex');
+
+function parseCookies(req) {
+  const cookies = {};
+  (req.headers.cookie || '').split(';').forEach(c => {
+    const idx = c.indexOf('=');
+    if (idx > 0) cookies[c.slice(0, idx).trim()] = decodeURIComponent(c.slice(idx + 1).trim());
+  });
+  return cookies;
+}
+
+function requireAuth(req, res, next) {
+  if (parseCookies(req).token === VALID_TOKEN) return next();
+  res.redirect('/login');
+}
+
+function requireAuthApi(req, res, next) {
+  if (parseCookies(req).token === VALID_TOKEN) return next();
+  res.status(401).json({ ok: false, error: 'No autenticado' });
+}
 
 // ─── Express ──────────────────────────────────────────────────────────────────
 const app    = express();
@@ -27,26 +55,46 @@ const server = http.createServer(app);
 const io     = new Server(server);
 
 app.use(express.json());
+app.use(express.urlencoded({ extended: false }));
+
+// ─── Login (rutas publicas) ───────────────────────────────────────────────────
+app.get('/login', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'login.html'));
+});
+
+app.post('/login', (req, res) => {
+  const { user, password } = req.body;
+  if (user === PANEL_USER && password === PANEL_PASS) {
+    res.setHeader('Set-Cookie', `token=${VALID_TOKEN}; HttpOnly; Path=/; SameSite=Strict`);
+    return res.redirect('/');
+  }
+  res.redirect('/login?error=1');
+});
+
+app.post('/logout', (req, res) => {
+  res.setHeader('Set-Cookie', 'token=; HttpOnly; Path=/; Max-Age=0');
+  res.redirect('/login');
+});
+
+// ─── Rutas protegidas ─────────────────────────────────────────────────────────
+app.use(requireAuth);
 app.use(express.static(path.join(__dirname, 'public')));
 
 // ─── Estado global ────────────────────────────────────────────────────────────
 let waClient = null;
 let waEstado = 'desconectado';
-// mensajes: [{ patente, numero, folios, monto, mensaje, rowIndices, tabName }]
 let mensajes = [];
 
 // ─── Cargar datos (Google Sheets o CSV local) ─────────────────────────────────
 async function cargarDatos() {
   const contactos = cargarContactos();
   const nombres   = cargarNombres();
-  let filas, rowMap = {}; // rowMap: patente → [rowIndices en el Sheet]
+  let filas, rowMap = {};
 
   if (USA_SHEETS) {
-    // Leer desde Google Sheets y asegurar encabezados de estado
     const registros = await leerDevoluciones();
     filas = registros.map(r => r.data);
 
-    // Construir mapa patente → rowIndices
     const { normalizarPatente } = require('../config/contactos');
     for (const r of registros) {
       const p = normalizarPatente(r.data['PATENTE']);
@@ -54,7 +102,6 @@ async function cargarDatos() {
       rowMap[p].indices.push(r.rowIndex);
     }
 
-    // Asegurar encabezados ESTADO_WHATSAPP / FECHA_ENVIO en la primera fila
     const tabName = registros[0]?.tabName;
     if (tabName) await asegurarEncabezados(tabName).catch(() => {});
 
@@ -88,7 +135,7 @@ async function cargarDatos() {
 }
 
 // ─── API REST ─────────────────────────────────────────────────────────────────
-app.get('/api/datos', async (req, res) => {
+app.get('/api/datos', requireAuthApi, async (req, res) => {
   try {
     const datos = await cargarDatos();
     res.json({ ok: true, datos, waEstado, usaSheets: USA_SHEETS });
@@ -97,19 +144,19 @@ app.get('/api/datos', async (req, res) => {
   }
 });
 
-app.get('/api/mensaje/:patente', (req, res) => {
+app.get('/api/mensaje/:patente', requireAuthApi, (req, res) => {
   const item = mensajes.find(m => m.patente === req.params.patente);
   if (!item) return res.json({ ok: false, error: 'Patente no encontrada' });
   res.json({ ok: true, mensaje: item.mensaje, patente: item.patente, numero: item.numero });
 });
 
-app.post('/api/whatsapp/conectar', (req, res) => {
+app.post('/api/whatsapp/conectar', requireAuthApi, (req, res) => {
   if (waEstado === 'listo') return res.json({ ok: true, estado: 'ya conectado' });
   iniciarWhatsApp();
   res.json({ ok: true, estado: 'iniciando' });
 });
 
-app.post('/api/whatsapp/desconectar', async (req, res) => {
+app.post('/api/whatsapp/desconectar', requireAuthApi, async (req, res) => {
   if (waClient) {
     await waClient.destroy().catch(() => {});
     waClient = null;
@@ -119,13 +166,12 @@ app.post('/api/whatsapp/desconectar', async (req, res) => {
   res.json({ ok: true });
 });
 
-// Guarda número manual en .env
-app.post('/api/contactos/manual', async (req, res) => {
+app.post('/api/contactos/manual', requireAuthApi, async (req, res) => {
   const { patente, telefono } = req.body || {};
   if (!patente) return res.json({ ok: false, error: 'Patente requerida' });
   const tel = String(telefono || '').replace(/[+\s\-]/g, '');
   if (!/^\d{10,15}$/.test(tel))
-    return res.json({ ok: false, error: 'Número inválido — usa formato 56912345678' });
+    return res.json({ ok: false, error: 'Numero invalido — usa formato 56912345678' });
   const clave = `PATENTE_${patente.toUpperCase()}`;
   let contenido = fs.existsSync(ENV_PATH) ? fs.readFileSync(ENV_PATH, 'utf8') : '';
   const regex = new RegExp(`^${clave}=.*$`, 'm');
@@ -139,8 +185,7 @@ app.post('/api/contactos/manual', async (req, res) => {
   res.json({ ok: true, patente, telefono: tel });
 });
 
-// Elimina override manual del .env
-app.delete('/api/contactos/manual/:patente', async (req, res) => {
+app.delete('/api/contactos/manual/:patente', requireAuthApi, async (req, res) => {
   const clave = `PATENTE_${req.params.patente.toUpperCase()}`;
   if (fs.existsSync(ENV_PATH)) {
     let contenido = fs.readFileSync(ENV_PATH, 'utf8');
@@ -153,7 +198,7 @@ app.delete('/api/contactos/manual/:patente', async (req, res) => {
   res.json({ ok: true });
 });
 
-app.post('/api/enviar', async (req, res) => {
+app.post('/api/enviar', requireAuthApi, async (req, res) => {
   const { patentes } = req.body;
   if (waEstado !== 'listo') return res.json({ ok: false, error: 'WhatsApp no conectado' });
   const lista = patentes?.length > 0
@@ -164,8 +209,17 @@ app.post('/api/enviar', async (req, res) => {
 });
 
 // ─── WhatsApp ─────────────────────────────────────────────────────────────────
+function limpiarSingletonLock() {
+  const sessionDir = path.join(__dirname, '..', '.wwebjs_auth', 'session');
+  for (const f of ['SingletonLock', 'SingletonCookie', 'SingletonSocket']) {
+    const ruta = path.join(sessionDir, f);
+    try { if (fs.existsSync(ruta)) fs.unlinkSync(ruta); } catch {}
+  }
+}
+
 function iniciarWhatsApp() {
   if (waEstado !== 'desconectado') return;
+  limpiarSingletonLock();
   waEstado = 'conectando';
   io.emit('wa_estado', { estado: 'conectando' });
 
@@ -221,13 +275,13 @@ async function enviarConProgreso(lista) {
   io.emit('envio_inicio', { total: lista.length });
 
   let enviados = 0;
-  let esEnvioTotal = lista.length === mensajes.length; // true si es "enviar todos"
+  let esEnvioTotal = lista.length === mensajes.length;
 
   for (let i = 0; i < lista.length; i++) {
     const { patente, numero, mensaje, rowIndices, tabName } = lista[i];
 
     if (!numero) {
-      io.emit('envio_log', { patente, ok: false, msg: 'Sin número — no enviado', i: i + 1, total: lista.length });
+      io.emit('envio_log', { patente, ok: false, msg: 'Sin numero — no enviado', i: i + 1, total: lista.length });
       if (USA_SHEETS && rowIndices.length && tabName) {
         marcarFilas(tabName, rowIndices, 'SIN NÚMERO').catch(e =>
           console.error(`No se pudo marcar Sheet para ${patente}:`, e.message));
@@ -253,17 +307,26 @@ async function enviarConProgreso(lista) {
 
   io.emit('envio_fin', { total: lista.length, enviados });
 
-  // Eliminar archivos locales solo si fue un envío total y se envió al menos uno
   if (esEnvioTotal && enviados > 0) {
     limpiarArchivosLocales();
   }
 }
 
 // ─── Socket.io ────────────────────────────────────────────────────────────────
+io.use((socket, next) => {
+  const cookie = socket.handshake.headers.cookie || '';
+  const token  = parseCookies({ headers: { cookie } }).token;
+  if (token === VALID_TOKEN) return next();
+  next(new Error('No autenticado'));
+});
+
 io.on('connection', (socket) => socket.emit('wa_estado', { estado: waEstado }));
 
 // ─── Start ────────────────────────────────────────────────────────────────────
+limpiarSingletonLock();
+
 server.listen(PORT, () => {
   console.log(`\nPanel de control: http://localhost:${PORT}`);
-  console.log(`Fuente de datos: ${USA_SHEETS ? 'Google Sheets' : 'archivo local CSV'}\n`);
+  console.log(`Fuente de datos: ${USA_SHEETS ? 'Google Sheets' : 'archivo local CSV'}`);
+  console.log(`Usuario del panel: ${PANEL_USER}\n`);
 });
