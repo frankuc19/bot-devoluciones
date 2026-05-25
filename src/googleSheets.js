@@ -149,8 +149,8 @@ async function leerConsolidado() {
   if (rows.length < 2) return {};
 
   const headers = rows[0].map(h => String(h).trim().toUpperCase());
-  const iPatente   = headers.findIndex(h => h === 'PATENTE');
-  const iTelefono  = headers.findIndex(h => h === 'TELEFONO');
+  const iPatente  = headers.findIndex(h => h === 'PATENTE' || h.includes('PPU') || h.includes('PLACA'));
+  const iTelefono = headers.findIndex(h => h === 'TELEFONO' || h.includes('PHONE') || h.includes('TEL'));
 
   if (iPatente === -1 || iTelefono === -1) {
     throw new Error(`Columnas no encontradas. Headers: ${headers.join(', ')}`);
