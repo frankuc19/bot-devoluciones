@@ -2,7 +2,9 @@ name: Cruzar contactos
 
 on:
   schedule:
-    - cron: '*/5 * * * *'  # cada 5 minutos — escribe telefonos en columna P
+    - cron: '0 12 * * *'   # 09:00 Chile (UTC-3)
+    - cron: '0 17 * * *'   # 14:00 Chile (UTC-3)
+    - cron: '0 22 * * *'   # 19:00 Chile (UTC-3)
   workflow_dispatch:        # ejecucion manual desde GitHub
 
 jobs:
