@@ -2,9 +2,9 @@ name: Cruzar contactos
 
 on:
   schedule:
-    - cron: '0 12 * * *'   # 09:00 Chile (UTC-3)
-    - cron: '0 17 * * *'   # 14:00 Chile (UTC-3)
-    - cron: '0 22 * * *'   # 19:00 Chile (UTC-3)
+    - cron: '0 15 * * *'   # 12:00 Chile (UTC-3)
+    - cron: '0 18 * * *'   # 15:00 Chile (UTC-3)
+    - cron: '0 20 * * *'   # 17:00 Chile (UTC-3)
   workflow_dispatch:        # ejecucion manual desde GitHub
 
 jobs:
