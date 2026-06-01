@@ -29,15 +29,12 @@ function formatearMonto(valor) {
 function generarMensaje(patente, filas) {
   // Cabecera de la tabla
   const SEPARADOR = ' | ';
-  const encabezadoTabla = ['SUBORDEN', 'DO', 'LPN', 'FECHA INICIO RUTA', 'RETORNO A'].join(SEPARADOR);
-  const lineaSeparadora = ['─────────', '──────────', '─────────────', '──────────────────', '────────────'].join('─┼─');
+  const encabezadoTabla = ['SOC', 'LPN'].join(SEPARADOR);
+  const lineaSeparadora = ['─────────', '─────────────'].join('─┼─');
 
   const lineasFolios = filas.map(fila => [
     String(fila['SUBORDEN'] || 'S/I').trim(),
-    String(fila['DO'] || 'S/I').trim(),
     String(fila['LPN'] || 'S/I').trim(),
-    formatearFecha(fila['FECHA INICIO RUTA']),
-    String(fila['RETORNO A'] || 'S/I').trim(),
   ].join(SEPARADOR));
 
   // Calcular monto por folio (usar el de la primera fila como referencia)
