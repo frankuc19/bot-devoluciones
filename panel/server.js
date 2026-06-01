@@ -156,12 +156,13 @@ async function cargarDatos() {
 
   for (const [patente, filasPatente] of grupos.entries()) {
     const primera         = filasPatente[0];
-    const telefonoSheet   = (primera['TELEFONO'] || '').trim();
+    const telefonoSheet    = (primera['TELEFONO'] || '').trim();
     const telefonoContacto = contactos[patente] || null;
-    const numero          = telefonoSheet || telefonoContacto || null;
+    // Consolidado siempre tiene prioridad sobre columna P
+    const numero           = telefonoContacto || telefonoSheet || null;
 
-    // Si el Sheet no tiene teléfono pero el consolidado sí → programar escritura en col. P
-    if (USA_SHEETS && !telefonoSheet && telefonoContacto && rowMap[patente]) {
+    // Si el consolidado tiene teléfono y difiere de col. P → sobrescribir en el Sheet
+    if (USA_SHEETS && telefonoContacto && telefonoContacto !== telefonoSheet && rowMap[patente]) {
       for (const rowIndex of rowMap[patente].indices) {
         telefonosAEscribir.push({ rowIndex, tabName: rowMap[patente].tabName, telefono: telefonoContacto });
       }
