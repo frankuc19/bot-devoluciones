@@ -42,10 +42,14 @@ function generarMensaje(patente, filas) {
   const cantidad = filas.length;
   const montoTotal = montoPorFolio * cantidad;
 
+  const fechaInicio = formatearFecha(filas[0]['FECHA INICIO RUTA']);
+
   const mensaje = [
     `Hola estimado conductor de la PPU ${patente},`,
     '',
     'Nos llegó la siguiente notificación desde Falabella de que usted tiene pendiente de devolución los siguientes folios:',
+    '',
+    `Fecha de inicio de ruta: ${fechaInicio}`,
     '',
     encabezadoTabla,
     lineaSeparadora,
