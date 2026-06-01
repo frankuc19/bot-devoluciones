@@ -98,4 +98,4 @@ function limpiarCache() {
   _csvCache = null;
 }
 
-module.exports = { cargarContactos, cargarNombres, normalizarPatente, limpiarCache };
+module.exports = { cargarContactos, cargarNombres, normalizarPatente, limpiarCache, cargarDesdeEnv };

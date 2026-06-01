@@ -15,7 +15,7 @@ const ENV_PATH = path.join(__dirname, '..', '.env');
 const { leerArchivo }                              = require('../src/leerArchivo');
 const { agruparPorPatente }                        = require('../src/agruparPorPatente');
 const { generarMensaje }                           = require('../src/generarMensaje');
-const { cargarContactos, cargarNombres, limpiarCache } = require('../config/contactos');
+const { cargarContactos, cargarNombres, limpiarCache, cargarDesdeEnv } = require('../config/contactos');
 const { leerDevoluciones, marcarFilas,
         asegurarEncabezados, leerConsolidado,
         escribirTelefonos }                        = require('../src/googleSheets');
@@ -48,9 +48,11 @@ async function obtenerContactos() {
     return _consolidadoCache;
   }
   try {
-    const deSheet = await leerConsolidado();        // consolidado Google Sheets
-    const locales  = cargarContactos();             // CSV local + .env (prioridad)
-    _consolidadoCache  = { ...deSheet, ...locales };
+    const deSheet      = await leerConsolidado(); // sheet nuevo — fuente de verdad
+    const csvContactos = cargarContactos();       // CSV (base, menor prioridad)
+    const envOverrides = cargarDesdeEnv();        // .env manual (mayor prioridad)
+    // Prioridad: .env > sheet > CSV
+    _consolidadoCache  = { ...csvContactos, ...deSheet, ...envOverrides };
     _consolidadoCacheTs = ahora;
     console.log(`Contactos actualizados: ${Object.keys(_consolidadoCache).length} patentes`);
   } catch (e) {
