@@ -17,7 +17,8 @@ const { agruparPorPatente }                        = require('../src/agruparPorP
 const { generarMensaje }                           = require('../src/generarMensaje');
 const { cargarContactos, cargarNombres, limpiarCache } = require('../config/contactos');
 const { leerDevoluciones, marcarFilas,
-        asegurarEncabezados, leerConsolidado }     = require('../src/googleSheets');
+        asegurarEncabezados, leerConsolidado,
+        escribirTelefonos }                        = require('../src/googleSheets');
 
 const DELAY_MS   = 5000;
 const PORT       = process.env.PORT || 3000;
@@ -151,10 +152,21 @@ async function cargarDatos() {
 
   const grupos = agruparPorPatente(filas);
   mensajes = [];
+  const telefonosAEscribir = [];
 
   for (const [patente, filasPatente] of grupos.entries()) {
-    const primera = filasPatente[0];
-    const numero  = primera['TELEFONO'] || contactos[patente] || null;
+    const primera         = filasPatente[0];
+    const telefonoSheet   = (primera['TELEFONO'] || '').trim();
+    const telefonoContacto = contactos[patente] || null;
+    const numero          = telefonoSheet || telefonoContacto || null;
+
+    // Si el Sheet no tiene teléfono pero el consolidado sí → programar escritura en col. P
+    if (USA_SHEETS && !telefonoSheet && telefonoContacto && rowMap[patente]) {
+      for (const rowIndex of rowMap[patente].indices) {
+        telefonosAEscribir.push({ rowIndex, tabName: rowMap[patente].tabName, telefono: telefonoContacto });
+      }
+    }
+
     mensajes.push({
       patente,
       numero,
@@ -167,6 +179,12 @@ async function cargarDatos() {
       estadoSheet: primera['ESTADO_WHATSAPP'] || null,
       fechaSheet:  primera['FECHA_ENVIO']     || null,
     });
+  }
+
+  // Escribir teléfonos cruzados en columna P del Sheet (sin bloquear la respuesta)
+  if (telefonosAEscribir.length > 0) {
+    escribirTelefonos(telefonosAEscribir).catch(e =>
+      console.error('No se pudo escribir teléfonos en Sheet:', e.message));
   }
 
   return mensajes;
