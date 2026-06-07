@@ -48,12 +48,9 @@
   }
 
   .logo-wrap img {
-    max-height: 120px;
-    max-width: 220px;
-    height: auto;
+    height: 100px;
     width: auto;
     display: block;
-    mix-blend-mode: screen;
   }
 
   /* Heading */
@@ -148,7 +145,7 @@
 <div class="card">
 
   <div class="logo-wrap">
-    <img id="logoImg" alt="Karri" style="opacity:0;transition:opacity .3s;">
+    <img src="https://res.cloudinary.com/dkkab5dea/image/upload/v1780809949/Karri_2.1_ng9gss.png" alt="Karri">
   </div>
 
   <div class="heading">
@@ -175,52 +172,6 @@
   if (new URLSearchParams(location.search).get('error'))
     document.getElementById('err').classList.add('show');
 
-  // 1. Fetch logo → base64  2. Canvas 3x  3. Pixel loop brillo>210 → alpha=0
-  (function () {
-    const SRC = 'https://res.cloudinary.com/dkkab5dea/image/upload/v1780803640/karri-logo_kmgmzm.png';
-    const el  = document.getElementById('logoImg');
-
-    function fallback() { el.src = SRC; el.style.opacity = '1'; }
-
-    fetch(SRC, { mode: 'cors' })
-      .then(r => r.arrayBuffer())
-      .then(buf => {
-        // Convertir a base64
-        const bytes = new Uint8Array(buf);
-        let binary = '';
-        for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
-        const base64 = 'data:image/png;base64,' + btoa(binary);
-
-        // Cargar como Image
-        const img = new Image();
-        img.onerror = fallback;
-        img.onload = function () {
-          try {
-            const scale  = 3;
-            const canvas = document.createElement('canvas');
-            canvas.width  = img.naturalWidth  * scale;
-            canvas.height = img.naturalHeight * scale;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-            // Pixel a pixel: brillo > 210 → transparente
-            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            const px = imageData.data;
-            for (let i = 0; i < px.length; i += 4) {
-              if (px[i] > 210 && px[i+1] > 210 && px[i+2] > 210) {
-                px[i+3] = 0;
-              }
-            }
-            ctx.putImageData(imageData, 0, 0);
-
-            el.src = canvas.toDataURL('image/png');
-            el.style.opacity = '1';
-          } catch (e) { fallback(); }
-        };
-        img.src = base64;
-      })
-      .catch(fallback);
-  })();
 </script>
 </body>
 </html>
