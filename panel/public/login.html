@@ -48,9 +48,11 @@
   }
 
   .logo-wrap img {
-    height: 72px;
+    max-height: 130px;
+    max-width: 260px;
+    height: auto;
     width: auto;
-    object-fit: contain;
+    display: block;
   }
 
   /* Heading */
@@ -145,7 +147,7 @@
 <div class="card">
 
   <div class="logo-wrap">
-    <img id="logoImg" alt="Karri" style="height:72px;width:auto;object-fit:contain;opacity:0;transition:opacity .3s;">
+    <img id="logoImg" alt="Karri" style="opacity:0;transition:opacity .3s;max-height:130px;max-width:260px;height:auto;width:auto;display:block;">
   </div>
 
   <div class="heading">
@@ -194,7 +196,7 @@
 
       function isWhitish(x, y) {
         const i = (y * W + x) * 4;
-        return px[i] > 200 && px[i + 1] > 200 && px[i + 2] > 200 && px[i + 3] > 10;
+        return px[i] > 240 && px[i + 1] > 240 && px[i + 2] > 240 && px[i + 3] > 10;
       }
 
       // BFS desde las 4 esquinas — solo elimina el blanco conectado al borde
