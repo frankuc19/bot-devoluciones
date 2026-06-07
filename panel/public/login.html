@@ -145,7 +145,7 @@
 <div class="card">
 
   <div class="logo-wrap">
-    <img src="https://res.cloudinary.com/dkkab5dea/image/upload/v1780803640/karri-logo_kmgmzm.png" alt="Karri">
+    <img id="logoImg" alt="Karri" style="height:72px;width:auto;object-fit:contain;opacity:0;transition:opacity .3s;">
   </div>
 
   <div class="heading">
@@ -171,6 +171,40 @@
 <script>
   if (new URLSearchParams(location.search).get('error'))
     document.getElementById('err').classList.add('show');
+
+  // Canvas: elimina fondo blanco del logo
+  (function () {
+    const SRC = 'https://res.cloudinary.com/dkkab5dea/image/upload/v1780803640/karri-logo_kmgmzm.png';
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = function () {
+      const scale  = 3;
+      const canvas = document.createElement('canvas');
+      canvas.width  = img.naturalWidth  * scale;
+      canvas.height = img.naturalHeight * scale;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const px = imageData.data;
+      for (let i = 0; i < px.length; i += 4) {
+        if (px[i] > 200 && px[i + 1] > 200 && px[i + 2] > 200) {
+          px[i + 3] = 0;
+        }
+      }
+      ctx.putImageData(imageData, 0, 0);
+
+      const el = document.getElementById('logoImg');
+      el.src = canvas.toDataURL('image/png');
+      el.style.opacity = '1';
+    };
+    img.onerror = function () {
+      const el = document.getElementById('logoImg');
+      el.src = SRC;
+      el.style.opacity = '1';
+    };
+    img.src = SRC;
+  })();
 </script>
 </body>
 </html>
