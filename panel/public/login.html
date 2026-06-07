@@ -172,28 +172,60 @@
   if (new URLSearchParams(location.search).get('error'))
     document.getElementById('err').classList.add('show');
 
-  // Canvas: elimina fondo blanco del logo
+  // Canvas: elimina fondo blanco con flood fill desde las esquinas
+  // (preserva píxeles blancos internos como el texto del logo)
   (function () {
     const SRC = 'https://res.cloudinary.com/dkkab5dea/image/upload/v1780803640/karri-logo_kmgmzm.png';
     const img = new Image();
     img.crossOrigin = 'anonymous';
     img.onload = function () {
       const scale  = 3;
+      const W = img.naturalWidth  * scale;
+      const H = img.naturalHeight * scale;
       const canvas = document.createElement('canvas');
-      canvas.width  = img.naturalWidth  * scale;
-      canvas.height = img.naturalHeight * scale;
+      canvas.width  = W;
+      canvas.height = H;
       const ctx = canvas.getContext('2d');
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0, W, H);
 
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const px = imageData.data;
-      for (let i = 0; i < px.length; i += 4) {
-        if (px[i] > 200 && px[i + 1] > 200 && px[i + 2] > 200) {
-          px[i + 3] = 0;
+      const imageData = ctx.getImageData(0, 0, W, H);
+      const px      = imageData.data;
+      const visited = new Uint8Array(W * H);
+
+      function isWhitish(x, y) {
+        const i = (y * W + x) * 4;
+        return px[i] > 200 && px[i + 1] > 200 && px[i + 2] > 200 && px[i + 3] > 10;
+      }
+
+      // BFS desde las 4 esquinas — solo elimina el blanco conectado al borde
+      const queue = [];
+      const seeds = [[0, 0], [W - 1, 0], [0, H - 1], [W - 1, H - 1]];
+      for (const [sx, sy] of seeds) {
+        const si = sy * W + sx;
+        if (!visited[si] && isWhitish(sx, sy)) {
+          visited[si] = 1;
+          queue.push(sx, sy);
         }
       }
-      ctx.putImageData(imageData, 0, 0);
 
+      while (queue.length) {
+        const y = queue.pop();
+        const x = queue.pop();
+        const idx = (y * W + x) * 4;
+        px[idx + 3] = 0; // transparente
+
+        const neighbors = [x - 1, y, x + 1, y, x, y - 1, x, y + 1];
+        for (let n = 0; n < neighbors.length; n += 2) {
+          const nx = neighbors[n], ny = neighbors[n + 1];
+          if (nx < 0 || nx >= W || ny < 0 || ny >= H) continue;
+          const ni = ny * W + nx;
+          if (visited[ni]) continue;
+          visited[ni] = 1;
+          if (isWhitish(nx, ny)) queue.push(nx, ny);
+        }
+      }
+
+      ctx.putImageData(imageData, 0, 0);
       const el = document.getElementById('logoImg');
       el.src = canvas.toDataURL('image/png');
       el.style.opacity = '1';
