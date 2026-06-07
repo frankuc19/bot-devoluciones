@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Karri — Perfiles</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { height: 100%; overflow: hidden; }
+  body { background: #0f1211; color: #e7eceb; font-family: Inter, sans-serif; }
+  .card { background:#181c1b; border:1px solid rgba(255,255,255,0.08); border-radius:12px; padding:20px; }
+  .btn-primary { display:inline-flex;align-items:center;gap:6px;background:#78fcd6;color:#080b0a;font-weight:700;font-size:12px;border-radius:8px;padding:7px 16px;border:none;cursor:pointer;transition:background .15s,box-shadow .15s; }
+  .btn-primary:hover:not(:disabled) { background:#00ffb6; box-shadow:0 0 18px rgba(120,252,214,.35); }
+  .btn-primary:disabled { opacity:.3;cursor:not-allowed; }
+  .btn-secondary { display:inline-flex;align-items:center;gap:6px;background:#1e2221;color:#e7eceb;border:1px solid rgba(255,255,255,0.08);font-weight:600;font-size:12px;border-radius:8px;padding:6px 14px;cursor:pointer;transition:background .12s; }
+  .btn-secondary:hover:not(:disabled) { background:#3f3f42; }
+  .btn-danger { display:inline-flex;align-items:center;gap:6px;background:transparent;color:#ef4444;border:1px solid rgba(239,68,68,.25);font-weight:600;font-size:12px;border-radius:8px;padding:6px 14px;cursor:pointer;transition:background .12s; }
+  .btn-danger:hover { background:rgba(239,68,68,.08); }
+  .input { background:#27272a;border:1px solid rgba(255,255,255,0.08);color:#e7eceb;border-radius:8px;padding:7px 12px;font-size:13px;outline:none;transition:border-color .15s;width:100%; }
+  .input:focus { border-color:#78fcd6; }
+  .input::placeholder { color:rgba(231,236,235,.3); }
+  .label { font-size:10px;color:rgba(231,236,235,.5);font-weight:600;text-transform:uppercase;letter-spacing:.08em; }
+  .nav-item { display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:10px;font-size:13px;font-weight:500;cursor:pointer;transition:all .15s;color:rgba(231,236,235,.5);text-decoration:none;border:1px solid transparent; }
+  .nav-item:hover { background:rgba(255,255,255,.04);color:#e7eceb; }
+  .nav-item.active { background:rgba(120,252,214,.08);color:#78fcd6;border-color:rgba(120,252,214,.15); }
+
+  /* role badges */
+  .badge-admin    { background:rgba(120,252,214,.12);color:#78fcd6;border:1px solid rgba(120,252,214,.25); padding:2px 10px;border-radius:99px;font-size:10px;font-weight:700;text-transform:uppercase; }
+  .badge-advanced { background:rgba(245,158,11,.12);color:#f59e0b;border:1px solid rgba(245,158,11,.25);  padding:2px 10px;border-radius:99px;font-size:10px;font-weight:700;text-transform:uppercase; }
+  .badge-beginner { background:rgba(255,255,255,.07);color:rgba(231,236,235,.6);border:1px solid rgba(255,255,255,.1);padding:2px 10px;border-radius:99px;font-size:10px;font-weight:700;text-transform:uppercase; }
+
+  /* section checkboxes */
+  .sec-option { display:flex;align-items:center;gap:10px;padding:10px 14px;border:1px solid rgba(255,255,255,.08);border-radius:10px;cursor:pointer;transition:border-color .15s,background .15s; }
+  .sec-option:hover { background:rgba(255,255,255,.03); }
+  .sec-option input[type=checkbox] { accent-color:#78fcd6;width:15px;height:15px;flex-shrink:0; }
+  .sec-option.checked { border-color:rgba(120,252,214,.3);background:rgba(120,252,214,.05); }
+</style>
+</head>
+<body>
+<div class="flex h-screen overflow-hidden">
+  <aside id="sidebar" style="background:#080b0a;border-right:1px solid rgba(255,255,255,0.08);width:220px;flex-shrink:0;display:flex;flex-direction:column;height:100%;"></aside>
+
+  <div class="flex-1 flex flex-col min-w-0 overflow-hidden">
+    <header style="background:#080b0a;border-bottom:1px solid rgba(255,255,255,0.08);" class="h-14 flex items-center justify-between px-5 flex-shrink-0">
+      <div class="flex items-center gap-3">
+        <span style="color:#78fcd6;"><i data-lucide="users" class="w-4 h-4"></i></span>
+        <h1 style="font-size:15px;font-weight:600;color:#e7eceb;">Perfiles de usuario</h1>
+      </div>
+      <button onclick="abrirModal()" class="btn-primary">
+        <i data-lucide="user-plus" class="w-3.5 h-3.5"></i>
+        Nuevo usuario
+      </button>
+    </header>
+
+    <div class="flex-1 overflow-y-auto p-5 space-y-5">
+
+      <!-- Role cards -->
+      <div class="grid grid-cols-3 gap-4">
+        <div class="card" style="border-color:rgba(120,252,214,.15);">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+            <span class="badge-admin">Admin</span>
+          </div>
+          <p style="font-size:12px;color:rgba(231,236,235,.6);line-height:1.6;">Acceso completo a todas las secciones y funciones del panel.</p>
+        </div>
+        <div class="card" style="border-color:rgba(245,158,11,.12);">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+            <span class="badge-advanced">Advanced</span>
+          </div>
+          <p style="font-size:12px;color:rgba(231,236,235,.6);line-height:1.6;">Acceso a 2 o más secciones configurables (Finanzas, Onboarding, etc.).</p>
+        </div>
+        <div class="card">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+            <span class="badge-beginner">Beginner</span>
+          </div>
+          <p style="font-size:12px;color:rgba(231,236,235,.6);line-height:1.6;">Acceso a una sola sección del panel.</p>
+        </div>
+      </div>
+
+      <!-- Users table -->
+      <div class="card" style="padding:0;overflow:hidden;">
+        <div style="padding:16px 20px;border-bottom:1px solid rgba(255,255,255,.08);display:flex;align-items:center;justify-content:space-between;">
+          <span style="font-size:13px;font-weight:600;">Usuarios registrados</span>
+          <span id="totalUsers" class="label"></span>
+        </div>
+        <table style="width:100%;border-collapse:collapse;">
+          <thead>
+            <tr style="background:#1e2221;border-bottom:1px solid rgba(255,255,255,.07);">
+              <th style="padding:12px 20px;text-align:left;" class="label">Nombre</th>
+              <th style="padding:12px 20px;text-align:left;" class="label">Usuario</th>
+              <th style="padding:12px 20px;text-align:left;" class="label">Rol</th>
+              <th style="padding:12px 20px;text-align:left;" class="label">Secciones</th>
+              <th style="padding:12px 20px;text-align:right;" class="label">Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="usersTable"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal crear/editar -->
+<div id="modal" class="hidden fixed inset-0 z-50 flex items-center justify-center" style="background:rgba(0,0,0,.75);">
+  <div class="card w-full max-w-md mx-4" style="border-radius:14px;max-height:90vh;overflow-y:auto;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+      <h3 id="modalTitle" style="font-size:14px;font-weight:600;color:#78fcd6;">Nuevo usuario</h3>
+      <button onclick="cerrarModal()" class="label cursor-pointer hover:text-white">✕</button>
+    </div>
+
+    <div class="space-y-4">
+      <input id="modal-id" type="hidden">
+
+      <div><p class="label mb-1">Nombre completo</p>
+        <input id="modal-name" type="text" class="input" placeholder="Ej: María González">
+      </div>
+
+      <div><p class="label mb-1">Nombre de usuario</p>
+        <input id="modal-username" type="text" class="input" placeholder="Ej: maria.gonzalez">
+      </div>
+
+      <div><p class="label mb-1">Contraseña</p>
+        <input id="modal-password" type="password" class="input" placeholder="Mínimo 6 caracteres">
+        <p id="modal-pwd-hint" class="hidden" style="font-size:10px;color:rgba(231,236,235,.4);margin-top:4px;">Deja vacío para no cambiar</p>
+      </div>
+
+      <div>
+        <p class="label mb-1">Rol</p>
+        <select id="modal-role" class="input" onchange="onRoleChange()">
+          <option value="beginner">Beginner — 1 sección</option>
+          <option value="advanced">Advanced — múltiples secciones</option>
+          <option value="admin">Admin — acceso completo</option>
+        </select>
+      </div>
+
+      <!-- Sections (hidden for admin) -->
+      <div id="modal-sections-wrap">
+        <p class="label mb-2">Secciones permitidas</p>
+        <div id="modal-sections-hint" style="font-size:11px;color:rgba(231,236,235,.4);margin-bottom:10px;"></div>
+        <div class="space-y-2">
+          <label class="sec-option" id="sec-finanzas">
+            <input type="checkbox" value="finanzas" onchange="onSecChange(this)">
+            <div>
+              <p style="font-size:13px;font-weight:500;color:#e7eceb;">Finanzas</p>
+              <p style="font-size:11px;color:rgba(231,236,235,.4);">Devoluciones y Conciliaciones</p>
+            </div>
+          </label>
+          <label class="sec-option" id="sec-onboarding">
+            <input type="checkbox" value="onboarding" onchange="onSecChange(this)">
+            <div>
+              <p style="font-size:13px;font-weight:500;color:#e7eceb;">Onboarding</p>
+              <p style="font-size:11px;color:rgba(231,236,235,.4);">Resumen, Email masivo, WhatsApp</p>
+            </div>
+          </label>
+          <label class="sec-option" id="sec-perfiles">
+            <input type="checkbox" value="perfiles" onchange="onSecChange(this)">
+            <div>
+              <p style="font-size:13px;font-weight:500;color:#e7eceb;">Perfiles</p>
+              <p style="font-size:11px;color:rgba(231,236,235,.4);">Gestión de usuarios</p>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <p id="modal-error" class="hidden" style="color:#ef4444;font-size:12px;"></p>
+    </div>
+
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:24px;">
+      <button onclick="cerrarModal()" class="btn-secondary">Cancelar</button>
+      <button onclick="guardarUsuario()" class="btn-primary">
+        <i data-lucide="save" class="w-3.5 h-3.5"></i> Guardar
+      </button>
+    </div>
+  </div>
+</div>
+
+<script src="/sidebar.js"></script>
+<script>
+const SECTION_LABELS = { finanzas:'Finanzas', onboarding:'Onboarding', perfiles:'Perfiles' };
+let editingId = null;
+
+function onRoleChange() {
+  const role = document.getElementById('modal-role').value;
+  const wrap = document.getElementById('modal-sections-wrap');
+  const hint = document.getElementById('modal-sections-hint');
+  wrap.style.display = role === 'admin' ? 'none' : '';
+  hint.textContent   = role === 'beginner'
+    ? 'Selecciona exactamente 1 sección'
+    : 'Selecciona al menos 2 secciones';
+  // enforce beginner: uncheck extras
+  if (role === 'beginner') enforceBeginner();
+}
+
+function enforceBeginner() {
+  const checked = [...document.querySelectorAll('#modal-sections-wrap input[type=checkbox]:checked')];
+  if (checked.length > 1) {
+    checked.slice(1).forEach(cb => {
+      cb.checked = false;
+      cb.closest('.sec-option').classList.remove('checked');
+    });
+  }
+}
+
+function onSecChange(cb) {
+  cb.closest('.sec-option').classList.toggle('checked', cb.checked);
+  const role = document.getElementById('modal-role').value;
+  if (role === 'beginner' && cb.checked) {
+    // uncheck others
+    document.querySelectorAll('#modal-sections-wrap input[type=checkbox]').forEach(o => {
+      if (o !== cb) { o.checked = false; o.closest('.sec-option').classList.remove('checked'); }
+    });
+  }
+}
+
+function getSections() {
+  return [...document.querySelectorAll('#modal-sections-wrap input[type=checkbox]:checked')].map(cb => cb.value);
+}
+
+function setSections(arr) {
+  document.querySelectorAll('#modal-sections-wrap input[type=checkbox]').forEach(cb => {
+    const on = arr.includes(cb.value);
+    cb.checked = on;
+    cb.closest('.sec-option').classList.toggle('checked', on);
+  });
+}
+
+async function cargarUsuarios() {
+  const users = await fetch('/api/perfiles/usuarios').then(r => r.json());
+  document.getElementById('totalUsers').textContent = `${users.length} usuario(s)`;
+  const tbody = document.getElementById('usersTable');
+  tbody.innerHTML = users.map(u => {
+    const secLabels = u.role === 'admin'
+      ? '<span style="color:rgba(231,236,235,.4);font-size:11px;">Todas</span>'
+      : (u.sections||[]).map(s => `<span style="font-size:10px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);padding:1px 8px;border-radius:99px;margin-right:4px;">${SECTION_LABELS[s]||s}</span>`).join('') || '<span style="color:rgba(231,236,235,.3);font-size:11px;">—</span>';
+    return `
+    <tr style="border-bottom:1px solid rgba(255,255,255,.05);">
+      <td style="padding:14px 20px;font-size:13px;color:#e7eceb;font-weight:500;">${u.name}</td>
+      <td style="padding:14px 20px;font-size:12px;font-family:'JetBrains Mono',monospace;color:rgba(231,236,235,.6);">${u.username}</td>
+      <td style="padding:14px 20px;"><span class="badge-${u.role}">${u.role}</span></td>
+      <td style="padding:14px 20px;">${secLabels}</td>
+      <td style="padding:14px 20px;text-align:right;">
+        <div style="display:flex;justify-content:flex-end;gap:6px;">
+          <button onclick="editarUsuario('${u.id}')" class="btn-secondary" style="padding:4px 10px;font-size:11px;">
+            <i data-lucide="edit-2" style="width:12px;height:12px;"></i> Editar
+          </button>
+          ${u.id !== '1' ? `<button onclick="eliminarUsuario('${u.id}','${u.name}')" class="btn-danger" style="padding:4px 10px;font-size:11px;">
+            <i data-lucide="trash-2" style="width:12px;height:12px;"></i>
+          </button>` : ''}
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+  lucide.createIcons();
+}
+
+function abrirModal(user = null) {
+  editingId = user?.id || null;
+  document.getElementById('modalTitle').textContent    = user ? 'Editar usuario' : 'Nuevo usuario';
+  document.getElementById('modal-id').value            = user?.id || '';
+  document.getElementById('modal-name').value          = user?.name || '';
+  document.getElementById('modal-username').value      = user?.username || '';
+  document.getElementById('modal-password').value      = '';
+  document.getElementById('modal-role').value          = user?.role || 'beginner';
+  document.getElementById('modal-error').classList.add('hidden');
+  document.getElementById('modal-pwd-hint').classList.toggle('hidden', !user);
+  setSections(user?.sections || []);
+  onRoleChange();
+  document.getElementById('modal').classList.remove('hidden');
+}
+
+function cerrarModal() {
+  document.getElementById('modal').classList.add('hidden');
+  editingId = null;
+}
+
+async function guardarUsuario() {
+  const name     = document.getElementById('modal-name').value.trim();
+  const username = document.getElementById('modal-username').value.trim();
+  const password = document.getElementById('modal-password').value;
+  const role     = document.getElementById('modal-role').value;
+  const sections = getSections();
+  const errEl    = document.getElementById('modal-error');
+
+  if (!name || !username) { errEl.textContent = 'Nombre y usuario son obligatorios'; errEl.classList.remove('hidden'); return; }
+  if (!editingId && !password) { errEl.textContent = 'La contraseña es obligatoria para nuevos usuarios'; errEl.classList.remove('hidden'); return; }
+  if (password && password.length < 6) { errEl.textContent = 'La contraseña debe tener al menos 6 caracteres'; errEl.classList.remove('hidden'); return; }
+  if (role === 'beginner' && sections.length !== 1) { errEl.textContent = 'Beginner debe tener exactamente 1 sección'; errEl.classList.remove('hidden'); return; }
+  if (role === 'advanced' && sections.length < 2)  { errEl.textContent = 'Advanced debe tener al menos 2 secciones';  errEl.classList.remove('hidden'); return; }
+
+  const body = { name, username, role, sections };
+  if (password) body.password = password;
+
+  const url    = editingId ? `/api/perfiles/usuarios/${editingId}` : '/api/perfiles/usuarios';
+  const method = editingId ? 'PUT' : 'POST';
+
+  try {
+    const r = await fetch(url, { method, headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) }).then(x => x.json());
+    if (!r.ok) { errEl.textContent = r.error || 'Error al guardar'; errEl.classList.remove('hidden'); return; }
+    cerrarModal();
+    cargarUsuarios();
+  } catch (e) { errEl.textContent = e.message; errEl.classList.remove('hidden'); }
+}
+
+async function editarUsuario(id) {
+  const users = await fetch('/api/perfiles/usuarios').then(r => r.json());
+  const user  = users.find(u => u.id === id);
+  if (user) abrirModal(user);
+}
+
+async function eliminarUsuario(id, name) {
+  if (!confirm(`¿Eliminar al usuario "${name}"?`)) return;
+  const r = await fetch(`/api/perfiles/usuarios/${id}`, { method:'DELETE' }).then(x => x.json());
+  if (!r.ok) alert(r.error || 'Error al eliminar');
+  cargarUsuarios();
+}
+
+initSidebar('perfiles').then(() => lucide.createIcons());
+cargarUsuarios();
+</script>
+</body>
+</html>

@@ -1,208 +1,307 @@
 <!DOCTYPE html>
-<html class="dark" lang="es">
+<html lang="es">
 <head>
 <meta charset="utf-8">
 <meta content="width=device-width, initial-scale=1.0" name="viewport">
-<title>Karri - Conciliaciones</title>
-<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<title>Karri — Conciliaciones</title>
+<script src="https://cdn.tailwindcss.com"></script>
 <script src="/socket.io/socket.io.js"></script>
-<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
-<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+
 <style>
-  .material-symbols-outlined { font-variation-settings: 'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 24; }
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { height: 100%; overflow: hidden; }
+  body { background: #0f1211; color: #e7eceb; font-family: Inter, sans-serif; }
+
+  .card {
+    background: #181c1b;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 12px;
+    padding: 20px;
+  }
+  .btn-primary {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: #78fcd6; color: #080b0a;
+    font-weight: 700; font-size: 12px; border-radius: 8px;
+    padding: 7px 16px; border: none; cursor: pointer;
+    transition: background 0.15s, box-shadow 0.15s;
+  }
+  .btn-primary:hover:not(:disabled) {
+    background: #00ffb6;
+    box-shadow: 0 0 18px rgba(120,252,214,0.35);
+  }
+  .btn-primary:disabled { opacity: 0.3; cursor: not-allowed; }
+
+  .btn-secondary {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: #1e2221; color: #e7eceb;
+    border: 1px solid rgba(255,255,255,0.08);
+    font-weight: 600; font-size: 12px; border-radius: 8px;
+    padding: 6px 14px; cursor: pointer;
+    transition: background 0.12s;
+  }
+  .btn-secondary:hover:not(:disabled) { background: #3f3f42; }
+  .btn-secondary:disabled { opacity: 0.3; cursor: not-allowed; }
+
+  .btn-danger {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: transparent; color: #ef4444;
+    border: 1px solid rgba(239,68,68,0.25);
+    font-weight: 600; font-size: 12px; border-radius: 8px;
+    padding: 6px 14px; cursor: pointer;
+    transition: background 0.12s;
+  }
+  .btn-danger:hover { background: rgba(239,68,68,0.08); }
+
+  .btn-wa {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: #00ff41; color: #080b0a;
+    font-weight: 700; font-size: 11px; border-radius: 8px;
+    padding: 6px 14px; border: none; cursor: pointer;
+    transition: background 0.15s, box-shadow 0.15s;
+  }
+  .btn-wa:hover:not(:disabled) {
+    background: #00cc33;
+    box-shadow: 0 0 14px rgba(0,255,65,0.35);
+  }
+  .btn-wa:disabled { opacity: 0.35; cursor: not-allowed; }
+
+  .input {
+    background: #27272a; border: 1px solid rgba(255,255,255,0.08);
+    color: #e7eceb; border-radius: 8px; padding: 7px 12px;
+    font-size: 13px; outline: none;
+    transition: border-color 0.15s; width: 100%;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .input:focus { border-color: #78fcd6; }
+  .input::placeholder { color: rgba(231,236,235,0.3); }
+
+  .label {
+    font-size: 10px; color: rgba(231,236,235,0.5);
+    font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
   .scrollbar-hide::-webkit-scrollbar { display: none; }
   .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
-</style>
-<script>
-  tailwind.config = {
-    darkMode: "class",
-    theme: {
-      extend: {
-        colors: {
-          "outline-variant": "#3c4947", "on-secondary-container": "#00344e",
-          "outline": "#859490", "surface-bright": "#3a3939",
-          "surface-container": "#201f1f", "surface-container-lowest": "#0e0e0e",
-          "secondary-container": "#14b8a6", "on-background": "#e5e2e1",
-          "background": "#0a0a0a", "surface-variant": "#353534",
-          "surface-container-high": "#2a2a2a", "inverse-surface": "#e5e2e1",
-          "on-error-container": "#ffdad6", "on-surface-variant": "#bbcac6",
-          "on-surface": "#e5e2e1", "surface": "#0a0a0a",
-          "on-primary-container": "#00423b", "secondary": "#14b8a6",
-          "inverse-on-surface": "#313030", "surface-container-highest": "#353534",
-          "surface-tint": "#14b8a6", "on-primary": "#003731",
-          "primary-container": "#14b8a6", "error-container": "#93000a",
-          "primary": "#14b8a6", "error": "#ffb4ab",
-          "surface-container-low": "#171717",
-        },
-        borderRadius: { DEFAULT: "0.125rem", lg: "0.25rem", xl: "0.5rem", full: "0.75rem" },
-        fontFamily: { "headline-sm": ["Geist"], "label-sm": ["JetBrains Mono"], "body-md": ["Geist"], "label-md": ["JetBrains Mono"] },
-        fontSize: {
-          "headline-sm": ["20px", { lineHeight: "28px", fontWeight: "500" }],
-          "headline-md": ["24px", { lineHeight: "32px", fontWeight: "600" }],
-          "label-sm":    ["10px", { lineHeight: "14px", letterSpacing: "0.1em", fontWeight: "500" }],
-          "body-md":     ["14px", { lineHeight: "20px", fontWeight: "400" }],
-          "label-md":    ["12px", { lineHeight: "16px", letterSpacing: "0.05em", fontWeight: "500" }],
-          "headline-lg": ["32px", { lineHeight: "40px", fontWeight: "600" }],
-        },
-        spacing: { "gutter": "16px", "stack-lg": "24px", "stack-sm": "8px", "stack-xs": "4px", "stack-md": "16px" },
-      }
-    }
+
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 14px; border-radius: 10px;
+    font-size: 13px; font-weight: 500; cursor: pointer;
+    transition: all 0.15s; color: rgba(231,236,235,0.5);
+    text-decoration: none; border: 1px solid transparent;
   }
-</script>
+  .nav-item:hover { background: rgba(255,255,255,0.04); color: #e7eceb; }
+  .nav-item.active {
+    background: rgba(120,252,214,0.08); color: #78fcd6;
+    border-color: rgba(120,252,214,0.15);
+  }
+
+  .badge { display: inline-flex; align-items: center;
+    padding: 2px 9px; border-radius: 99px; font-size: 11px; font-weight: 700; }
+  .badge-electric { background: rgba(120,252,214,0.12); color: #78fcd6; }
+  .badge-red      { background: rgba(239,68,68,0.1);    color: #ef4444; }
+  .badge-muted    { background: rgba(255,255,255,0.07); color: rgba(231,236,235,0.5); }
+
+  .tbl-row { border-bottom: 1px solid rgba(255,255,255,0.05); transition: background 0.1s; }
+  .tbl-row:hover { background: rgba(255,255,255,0.03); }
+
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.2} }
+  .dot-blink { animation: blink 1.2s infinite; }
+
+  #qrWrap { display: none; }
+  #qrWrap.show { display: flex; }
+</style>
 </head>
-<body class="bg-background text-on-surface font-body-md overflow-hidden h-screen">
 
-<!-- Sidebar -->
-<aside class="bg-surface-container-lowest text-primary h-screen w-64 fixed left-0 top-0 border-r border-outline-variant flex flex-col py-stack-lg px-stack-md z-50">
-  <div class="mb-stack-lg flex flex-col items-center">
-    <div class="bg-white/5 p-3 rounded-2xl mb-stack-sm">
-      <img alt="Karri Logo" class="w-full h-auto object-contain max-w-[200px]" src="https://res.cloudinary.com/dkkab5dea/image/upload/v1778254790/guphgo6mzpq46e71nk0f.png">
-    </div>
-  </div>
-  <nav class="flex-1 space-y-1">
-    <a class="text-on-surface-variant hover:text-primary hover:bg-surface-container flex items-center px-4 py-3 rounded-xl transition-all duration-200" href="/">
-      <span class="material-symbols-outlined mr-3">assignment_return</span>
-      <span class="font-label-md text-label-md">Devoluciones</span>
-    </a>
-    <a class="bg-primary/10 text-primary font-bold rounded-xl flex items-center px-4 py-3 border border-primary/20" href="/conciliaciones.html">
-      <span class="material-symbols-outlined mr-3">local_shipping</span>
-      <span class="font-label-md text-label-md">Conciliaciones</span>
-    </a>
-  </nav>
-  <div class="mt-auto border-t border-outline-variant pt-stack-md">
-    <form method="POST" action="/logout">
-      <button type="submit" class="w-full text-on-surface-variant hover:text-error flex items-center px-4 py-3 transition-all rounded-xl">
-        <span class="material-symbols-outlined mr-3">logout</span>
-        <span class="font-label-md text-label-md">Cerrar Sesion</span>
-      </button>
-    </form>
-  </div>
-</aside>
+<body>
+<div class="flex h-screen overflow-hidden">
 
-<!-- Main -->
-<main class="ml-64 flex flex-col h-screen">
-  <!-- TopBar -->
-  <header class="bg-background text-primary flex justify-between items-center w-full px-gutter h-16 sticky top-0 z-40 border-b border-outline-variant">
-    <h2 class="font-headline-sm text-on-surface">Conciliaciones Falabella</h2>
-    <div class="flex items-center gap-2">
-      <button onclick="abrirSheet()" class="px-4 py-1.5 rounded-lg border border-outline-variant bg-surface-container-low text-on-surface font-bold text-label-sm hover:bg-surface-container transition-colors">Abrir Sheet</button>
-      <button onclick="recargarDatos()" class="px-4 py-1.5 rounded-lg border border-outline-variant bg-surface-container-low text-on-surface font-bold text-label-sm hover:bg-surface-container transition-colors">Recargar</button>
-      <span id="autoTimer" class="text-outline font-label-sm ml-2">Auto 05:00</span>
-      <form method="POST" action="/logout" class="ml-4">
-        <button type="submit" class="px-4 py-1.5 rounded-lg border border-outline-variant bg-surface-container-low text-outline font-bold text-label-sm hover:text-error transition-colors">Salir</button>
-      </form>
-    </div>
-  </header>
+  <!-- ── Sidebar ─────────────────────────────────────────────── -->
+  <aside id="sidebar" style="background:#080b0a;border-right:1px solid rgba(255,255,255,0.08);width:220px;flex-shrink:0;display:flex;flex-direction:column;height:100%;"></aside>
 
-  <div class="flex-1 flex overflow-hidden">
-    <!-- Dashboard -->
-    <div class="flex-1 flex flex-col p-gutter overflow-y-auto bg-background">
+  <!-- ── Main ─────────────────────────────────────────────────── -->
+  <div class="flex-1 flex flex-col min-w-0 overflow-hidden">
 
-      <!-- Metrics -->
-      <div class="grid grid-cols-4 gap-gutter mb-gutter">
-        <div class="bg-surface-container-low p-stack-md rounded-xl border border-outline-variant shadow-lg shadow-black/20">
-          <p class="text-label-sm text-outline font-bold uppercase mb-1">Conductores</p>
-          <div class="flex items-end justify-between">
-            <span id="metPatentes" class="text-headline-lg font-black text-primary">—</span>
-            <span class="material-symbols-outlined text-primary/60">person</span>
-          </div>
-        </div>
-        <div class="bg-surface-container-low p-stack-md rounded-xl border border-outline-variant shadow-lg shadow-black/20">
-          <p class="text-label-sm text-outline font-bold uppercase mb-1">Items totales</p>
-          <div class="flex items-end justify-between">
-            <span id="metItems" class="text-headline-lg font-black text-on-surface">—</span>
-            <span class="material-symbols-outlined text-outline">inventory_2</span>
-          </div>
-        </div>
-        <div class="bg-surface-container-low p-stack-md rounded-xl border border-outline-variant shadow-lg shadow-black/20">
-          <p class="text-label-sm text-outline font-bold uppercase mb-1">Con numero</p>
-          <div class="flex items-end justify-between">
-            <span id="metConNum" class="text-headline-lg font-black text-primary">—</span>
-            <span class="material-symbols-outlined text-primary/60">phone_enabled</span>
-          </div>
-        </div>
-        <div class="bg-surface-container-low p-stack-md rounded-xl border border-outline-variant shadow-lg shadow-black/20">
-          <p class="text-label-sm text-outline font-bold uppercase mb-1">Sin numero</p>
-          <div class="flex items-end justify-between">
-            <span id="metSinNum" class="text-headline-lg font-black text-error">—</span>
-            <span class="material-symbols-outlined text-error/60">phone_disabled</span>
-          </div>
-        </div>
+    <!-- TopBar -->
+    <header style="background:#080b0a; border-bottom:1px solid rgba(255,255,255,0.08);"
+            class="h-14 flex items-center justify-between px-5 flex-shrink-0 z-40">
+      <div class="flex items-center gap-3">
+        <span style="color:#78fcd6;" class="flex items-center">
+          <i data-lucide="truck" class="w-4 h-4"></i>
+        </span>
+        <h1 class="text-[15px] font-semibold" style="color:#e7eceb;">Conciliaciones Falabella</h1>
       </div>
+      <div class="flex items-center gap-2">
+        <button onclick="abrirSheet()" class="btn-secondary">
+          <i data-lucide="table-2" class="w-3.5 h-3.5"></i>
+          Abrir Sheet
+        </button>
+        <button onclick="recargarDatos()" class="btn-secondary">
+          <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+          Recargar
+        </button>
+        <span id="autoTimer" class="label ml-1">Auto 05:00</span>
+      </div>
+    </header>
 
-      <!-- Action bar -->
-      <div class="bg-surface-container-high p-stack-sm rounded-t-xl border-x border-t border-outline-variant flex items-center justify-between">
-        <div class="flex items-center gap-stack-md px-stack-sm">
-          <label class="flex items-center gap-2 cursor-pointer">
-            <input id="chkTodos" type="checkbox" onchange="toggleTodos(this.checked)" class="rounded border-outline-variant bg-transparent text-primary focus:ring-primary h-4 w-4">
-            <span class="text-label-md font-bold text-on-surface">Seleccionar todos</span>
-          </label>
+    <!-- Content -->
+    <div class="flex-1 flex overflow-hidden">
+
+      <!-- Dashboard -->
+      <div class="flex-1 flex flex-col overflow-y-auto scrollbar-hide p-5 gap-4">
+
+        <!-- Metrics -->
+        <div class="grid grid-cols-4 gap-3">
+          <div class="card">
+            <p class="label mb-3">Conductores</p>
+            <div class="flex items-end justify-between">
+              <span id="metPatentes" class="text-3xl font-black" style="color:#78fcd6;">—</span>
+              <i data-lucide="user" class="w-5 h-5 opacity-30" style="color:#78fcd6;"></i>
+            </div>
+          </div>
+          <div class="card">
+            <p class="label mb-3">Items totales</p>
+            <div class="flex items-end justify-between">
+              <span id="metItems" class="text-3xl font-black" style="color:#e7eceb;">—</span>
+              <i data-lucide="package" class="w-5 h-5 opacity-30" style="color:rgba(231,236,235,0.4);"></i>
+            </div>
+          </div>
+          <div class="card">
+            <p class="label mb-3">Con número</p>
+            <div class="flex items-end justify-between">
+              <span id="metConNum" class="text-3xl font-black" style="color:#78fcd6;">—</span>
+              <i data-lucide="phone" class="w-5 h-5 opacity-30" style="color:#78fcd6;"></i>
+            </div>
+          </div>
+          <div class="card">
+            <p class="label mb-3">Sin número</p>
+            <div class="flex items-end justify-between">
+              <span id="metSinNum" class="text-3xl font-black" style="color:#ef4444;">—</span>
+              <i data-lucide="phone-off" class="w-5 h-5 opacity-30" style="color:#ef4444;"></i>
+            </div>
+          </div>
         </div>
-        <button onclick="enviarSeleccionados()" class="bg-primary text-on-primary font-bold px-4 py-1.5 rounded-lg text-label-sm hover:opacity-90 transition-opacity flex items-center gap-2">
-          <span class="material-symbols-outlined text-[18px]">send</span>
-          Enviar a todos
+
+        <!-- Action bar -->
+        <div class="flex items-center justify-between px-3 py-2.5 rounded-t-xl"
+             style="background:#1e2221; border:1px solid rgba(255,255,255,0.08); border-bottom:none;">
+          <div class="flex items-center gap-3">
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input id="chkTodos" type="checkbox" onchange="toggleTodos(this.checked)"
+                class="rounded w-4 h-4 cursor-pointer accent-[#78fcd6]">
+              <span class="text-[12px] font-medium" style="color:rgba(231,236,235,0.7);">Seleccionar todos</span>
+            </label>
+          </div>
+          <button onclick="enviarSeleccionados()" class="btn-primary">
+            <i data-lucide="send" class="w-3.5 h-3.5"></i>
+            Enviar a todos
+          </button>
+        </div>
+
+        <!-- Table -->
+        <div class="rounded-b-xl overflow-hidden"
+             style="background:#181c1b; border:1px solid rgba(255,255,255,0.08); border-top:none;">
+          <div id="progressBar" style="display:none; height:2px; background:#1e2221;">
+            <div id="progressFill" style="height:100%; width:0%; background:#78fcd6; transition:width 0.3s;"></div>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left">
+              <thead>
+                <tr style="background:#1e2221; border-bottom:1px solid rgba(255,255,255,0.07);">
+                  <th class="px-4 py-3 w-10"></th>
+                  <th class="px-4 py-3 label">Patente</th>
+                  <th class="px-4 py-3 label">Conductor</th>
+                  <th class="px-4 py-3 label">Teléfono</th>
+                  <th class="px-4 py-3 label text-center">Items</th>
+                  <th class="px-4 py-3 label text-right">Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="tabla">
+                <tr><td colspan="6" class="py-12 text-center label" style="color:rgba(231,236,235,0.3);">
+                  Cargando datos...
+                </td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div><!-- /dashboard -->
+
+      <!-- ── Right sidebar ─────────────────────────────────────── -->
+      <aside class="w-72 flex-shrink-0 flex flex-col"
+             style="background:#080b0a; border-left:1px solid rgba(255,255,255,0.08);">
+
+        <!-- WhatsApp panel -->
+        <div class="p-4 flex flex-col gap-3" style="border-bottom:1px solid rgba(255,255,255,0.08);">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <div id="waDot" class="w-2 h-2 rounded-full" style="background:#ef4444;"></div>
+              <span id="waLabel" class="label" style="color:#ef4444;">Desconectado</span>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <button id="btnConectar" onclick="conectarWA()" class="btn-wa">Conectar</button>
+              <button id="btnDesconectar" onclick="desconectarWA()" disabled class="btn-secondary" style="padding:5px 10px;font-size:11px;">Desc.</button>
+            </div>
+          </div>
+
+          <!-- QR -->
+          <div id="qrWrap" class="bg-white p-3 rounded-xl justify-center items-center mx-auto w-44 shadow-xl">
+            <img id="qrImg" src="" class="w-full h-full">
+          </div>
+
+          <p id="waHint" class="text-[10px] text-center italic" style="color:rgba(231,236,235,0.35);">
+            Conecta WhatsApp para enviar mensajes
+          </p>
+        </div>
+
+        <!-- Log -->
+        <div class="flex-1 flex flex-col p-4 overflow-hidden">
+          <div class="flex items-center justify-between mb-3">
+            <span class="label" style="color:#78fcd6;">Log de envío</span>
+            <button onclick="limpiarLog()" class="label cursor-pointer hover:text-white transition-colors">Limpiar</button>
+          </div>
+          <div id="log"
+               class="flex-1 rounded-xl p-3 overflow-y-auto scrollbar-hide space-y-1"
+               style="background:#0f1211; border:1px solid rgba(255,255,255,0.06); font-family:'JetBrains Mono',monospace; font-size:10px;">
+            <p style="color:rgba(120,252,214,0.6); font-weight:600;">En espera...</p>
+          </div>
+        </div>
+
+      </aside>
+    </div><!-- /content -->
+  </div><!-- /main -->
+</div><!-- /root -->
+
+<!-- ── Modal ──────────────────────────────────────────────────── -->
+<div id="modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-6"
+     style="background:rgba(0,0,0,0.75);">
+  <div class="card w-full max-w-2xl max-h-[82vh] flex flex-col shadow-2xl p-0 overflow-hidden"
+       style="border-radius:14px;">
+    <div class="flex items-center justify-between px-5 py-4"
+         style="border-bottom:1px solid rgba(255,255,255,0.08);">
+      <div>
+        <h3 id="modalTitle" class="text-[13px] font-bold" style="color:#78fcd6;">Vista previa</h3>
+        <p id="modalMeta" class="text-[11px] mt-0.5" style="color:rgba(231,236,235,0.45);"></p>
+      </div>
+      <button onclick="cerrarModal()" class="label hover:text-white transition-colors cursor-pointer">✕</button>
+    </div>
+    <pre id="modalBody" class="flex-1 overflow-y-auto px-5 py-4 text-[12px] whitespace-pre-wrap"
+         style="font-family:'JetBrains Mono',monospace; color:#e7eceb; background:#0f1211;"></pre>
+    <div class="flex justify-between items-center px-5 py-4"
+         style="border-top:1px solid rgba(255,255,255,0.08);">
+      <span id="modalPatente" class="label"></span>
+      <div class="flex gap-2">
+        <button onclick="cerrarModal()" class="btn-secondary">Cerrar</button>
+        <button id="btnModalEnviar" onclick="enviarDesdeModal()" disabled class="btn-primary">
+          <i data-lucide="send" class="w-3.5 h-3.5"></i>
+          Enviar
         </button>
       </div>
-
-      <!-- Table -->
-      <div class="bg-surface-container-low border border-outline-variant rounded-b-xl overflow-hidden shadow-xl shadow-black/40">
-        <table class="w-full text-left border-collapse">
-          <thead class="bg-surface-container-highest border-b border-outline-variant">
-            <tr>
-              <th class="p-4 w-12"></th>
-              <th class="p-4 font-label-md text-outline uppercase tracking-wider">Patente</th>
-              <th class="p-4 font-label-md text-outline uppercase tracking-wider">Conductor</th>
-              <th class="p-4 font-label-md text-outline uppercase tracking-wider">Telefono</th>
-              <th class="p-4 font-label-md text-outline uppercase tracking-wider text-center">Items</th>
-              <th class="p-4 font-label-md text-outline uppercase tracking-wider text-right">Acciones</th>
-            </tr>
-          </thead>
-          <tbody id="tabla" class="divide-y divide-outline-variant">
-            <tr><td colspan="6" class="p-8 text-center text-outline">Cargando...</td></tr>
-          </tbody>
-        </table>
-      </div>
     </div>
-
-    <!-- Right Sidebar -->
-    <aside class="w-80 border-l border-outline-variant bg-surface-container-lowest flex flex-col">
-      <!-- WhatsApp -->
-      <div class="p-stack-md border-b border-outline-variant bg-surface-container-low/30 flex flex-col gap-stack-md">
-        <div class="flex items-center justify-between">
-          <div class="flex items-center gap-2">
-            <div id="waDot" class="w-2 h-2 rounded-full bg-error"></div>
-            <span id="waLabel" class="text-label-sm font-bold text-error uppercase tracking-wider">Desconectado</span>
-          </div>
-          <button id="btnConectar" onclick="conectarWA()" class="bg-primary text-on-primary font-bold px-4 py-1 rounded-lg text-label-sm hover:opacity-90 transition-opacity">Conectar</button>
-        </div>
-        <div id="qrWrap" class="hidden bg-white p-3 rounded-xl flex items-center justify-center w-full max-w-[200px] mx-auto shadow-lg">
-          <img id="qrImg" src="" class="w-full h-full">
-        </div>
-        <p id="waHint" class="text-[10px] text-outline text-center italic">Conecta WhatsApp para enviar mensajes</p>
-      </div>
-
-      <!-- Log -->
-      <div class="flex-1 flex flex-col p-stack-md overflow-hidden">
-        <div class="flex items-center justify-between mb-stack-md">
-          <h3 class="font-label-md text-label-md text-primary">Log de envio</h3>
-          <button onclick="limpiarLog()" class="text-[11px] font-bold text-outline hover:text-primary transition-colors uppercase">Limpiar</button>
-        </div>
-        <div id="log" class="flex-1 bg-surface-container-lowest border border-outline-variant rounded-xl p-stack-sm overflow-y-auto scrollbar-hide font-label-md text-[11px] text-on-surface-variant space-y-1">
-          <p class="text-primary/70 font-bold">En espera...</p>
-        </div>
-      </div>
-    </aside>
-  </div>
-</main>
-
-<!-- Modal preview -->
-<div id="modal" class="hidden fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-8">
-  <div class="bg-surface-container-low border border-outline-variant rounded-xl w-full max-w-2xl max-h-[80vh] flex flex-col shadow-2xl">
-    <div class="flex items-center justify-between p-4 border-b border-outline-variant">
-      <h3 id="modalTitle" class="font-label-md text-primary font-bold uppercase tracking-wider">Vista previa</h3>
-      <button onclick="cerrarModal()" class="text-outline hover:text-error text-xl">✕</button>
-    </div>
-    <pre id="modalBody" class="flex-1 p-4 overflow-y-auto text-[12px] text-on-surface whitespace-pre-wrap font-mono bg-surface-container-lowest rounded-b-xl"></pre>
   </div>
 </div>
 
@@ -211,31 +310,35 @@ const socket = io();
 let datos = [];
 let ocultos = new Set();
 let autoTimer = null;
+let waEstadoActual = 'desconectado';
+let patenteModal = null;
 const AUTO_MS = 5 * 60 * 1000;
-let autoSecs  = AUTO_MS / 1000;
+let autoSecs = AUTO_MS / 1000;
 
-// ─── Auto-refresh ─────────────────────────────────────────────────────────────
+// ─── Auto-refresh ─────────────────────────────────────────────
 function iniciarAutoTimer() {
   clearInterval(autoTimer);
   autoSecs = AUTO_MS / 1000;
   autoTimer = setInterval(() => {
     autoSecs--;
-    const m = String(Math.floor(autoSecs / 60)).padStart(2, '0');
-    const s = String(autoSecs % 60).padStart(2, '0');
+    const m = String(Math.floor(autoSecs / 60)).padStart(2,'0');
+    const s = String(autoSecs % 60).padStart(2,'0');
     document.getElementById('autoTimer').textContent = `Auto ${m}:${s}`;
     if (autoSecs <= 0) recargarDatos();
   }, 1000);
 }
 
-// ─── Datos ────────────────────────────────────────────────────────────────────
+// ─── Datos ────────────────────────────────────────────────────
 async function recargarDatos() {
   iniciarAutoTimer();
+  document.getElementById('tabla').innerHTML =
+    '<tr><td colspan="6" class="py-12 text-center label" style="color:rgba(231,236,235,0.3);">Cargando...</td></tr>';
   let raw, res;
   try {
     raw = await fetch('/api/conciliaciones/datos');
     res = await raw.json();
   } catch {
-    addLog('err', 'Respuesta invalida del servidor');
+    addLog('err','Respuesta invalida del servidor');
     return;
   }
   if (!res.ok) { addLog('err', res.error); return; }
@@ -245,14 +348,12 @@ async function recargarDatos() {
   actualizarWA(res.waEstado);
 }
 
-function datosFiltrados() {
-  return datos.filter(d => !ocultos.has(d.patente));
-}
+function datosFiltrados() { return datos.filter(d => !ocultos.has(d.patente)); }
 
 function renderMetrics() {
   const vis = datosFiltrados();
   document.getElementById('metPatentes').textContent = vis.length;
-  document.getElementById('metItems').textContent    = vis.reduce((a, d) => a + d.items, 0);
+  document.getElementById('metItems').textContent    = vis.reduce((a,d) => a + d.items, 0);
   document.getElementById('metConNum').textContent   = vis.filter(d => d.numero).length;
   document.getElementById('metSinNum').textContent   = vis.filter(d => !d.numero).length;
 }
@@ -260,38 +361,39 @@ function renderMetrics() {
 function renderTabla() {
   const vis = datosFiltrados();
   const tbody = document.getElementById('tabla');
-  if (vis.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="6" class="p-8 text-center text-outline">Sin datos</td></tr>';
+  if (!vis.length) {
+    tbody.innerHTML = '<tr><td colspan="6" class="py-12 text-center label" style="color:rgba(231,236,235,0.3);">Sin datos</td></tr>';
     return;
   }
   tbody.innerHTML = vis.map(d => {
     const telFmt = d.numero
-      ? `+${d.numero.slice(0,2)} ${d.numero.slice(2,3)} ${d.numero.slice(3,7)} ${d.numero.slice(7)}`
-      : '<span class="text-error text-[11px]">Sin numero</span>';
+      ? `<span class="font-mono text-[12px]" style="color:rgba(231,236,235,0.6);">+${d.numero.slice(0,2)} ${d.numero.slice(2,3)} ${d.numero.slice(3,7)} ${d.numero.slice(7)}</span>`
+      : `<span class="badge badge-red" style="font-size:10px;">Sin número</span>`;
     const pat = encodeURIComponent(d.patente);
     return `
-    <tr class="hover:bg-surface-container transition-colors">
-      <td class="p-4 text-center">
-        <input type="checkbox" data-pat="${d.patente}" class="chk-fila rounded border-outline-variant bg-transparent text-primary focus:ring-primary h-4 w-4">
+    <tr class="tbl-row">
+      <td class="px-4 py-3 text-center">
+        <input type="checkbox" data-pat="${d.patente}" class="chk-fila w-4 h-4 rounded cursor-pointer accent-[#78fcd6]">
       </td>
-      <td class="p-4 font-label-sm font-bold text-primary">${d.patente}</td>
-      <td class="p-4 text-body-sm font-semibold text-on-surface">${d.nombre || '—'}</td>
-      <td class="p-4 text-body-sm text-on-surface-variant">${telFmt}</td>
-      <td class="p-4 text-center">
-        <span class="bg-primary/20 text-primary px-2 py-0.5 rounded-full text-[11px] font-bold">${d.items}</span>
+      <td class="px-4 py-3 font-mono font-bold text-[13px]" style="color:#78fcd6;">${d.patente}</td>
+      <td class="px-4 py-3 text-[13px] font-medium" style="color:#e7eceb;">${d.nombre || '—'}</td>
+      <td class="px-4 py-3">${telFmt}</td>
+      <td class="px-4 py-3 text-center">
+        <span class="badge badge-electric">${d.items}</span>
       </td>
-      <td class="p-4 text-right">
+      <td class="px-4 py-3 text-right">
         <div class="flex justify-end gap-1">
-          <button onclick="verMensaje('${pat}')" class="px-3 py-1 text-[11px] font-bold border border-outline-variant text-on-surface rounded hover:bg-surface-container">Ver</button>
-          <button onclick="enviar('${pat}')" class="px-3 py-1 text-[11px] font-bold bg-primary text-on-primary rounded hover:opacity-90">Enviar</button>
-          <button onclick="quitar('${d.patente}')" class="px-3 py-1 text-[11px] font-bold border border-outline-variant text-error rounded hover:bg-error/10">Quitar</button>
+          <button onclick="verMensaje('${pat}')" class="btn-secondary" style="padding:4px 10px;font-size:11px;">Ver</button>
+          <button onclick="enviar('${pat}')" class="btn-primary" style="padding:4px 10px;font-size:11px;">Enviar</button>
+          <button onclick="quitar('${d.patente}')" class="btn-danger" style="padding:4px 10px;font-size:11px;">Quitar</button>
         </div>
       </td>
     </tr>`;
   }).join('');
+  actualizarBotonModal();
 }
 
-// ─── Acciones ─────────────────────────────────────────────────────────────────
+// ─── Acciones ─────────────────────────────────────────────────
 function toggleTodos(val) {
   document.querySelectorAll('.chk-fila').forEach(c => c.checked = val);
 }
@@ -305,12 +407,26 @@ function quitar(pat) {
 async function verMensaje(patEnc) {
   const res = await fetch(`/api/conciliaciones/mensaje/${patEnc}`).then(r => r.json());
   if (!res.ok) { addLog('err', res.error); return; }
-  document.getElementById('modalTitle').textContent = `Vista previa — ${res.patente}`;
-  document.getElementById('modalBody').textContent  = res.mensaje;
+  patenteModal = decodeURIComponent(patEnc);
+  document.getElementById('modalTitle').textContent  = `PPU ${res.patente}`;
+  document.getElementById('modalMeta').textContent   = res.numero ? `Enviar a: +${res.numero}` : 'Sin número registrado';
+  document.getElementById('modalPatente').textContent = res.patente;
+  document.getElementById('modalBody').textContent   = res.mensaje;
+  actualizarBotonModal();
   document.getElementById('modal').classList.remove('hidden');
 }
 
-function cerrarModal() { document.getElementById('modal').classList.add('hidden'); }
+function cerrarModal() {
+  document.getElementById('modal').classList.add('hidden');
+  patenteModal = null;
+}
+
+async function enviarDesdeModal() {
+  if (!patenteModal) return;
+  const pat = patenteModal;
+  cerrarModal();
+  await enviar(encodeURIComponent(pat));
+}
 
 async function enviar(patEnc) {
   const patente = decodeURIComponent(patEnc);
@@ -325,6 +441,7 @@ async function enviar(patEnc) {
 async function enviarSeleccionados() {
   const sel = [...document.querySelectorAll('.chk-fila:checked')].map(c => c.dataset.pat);
   const patentes = sel.length > 0 ? sel : datosFiltrados().map(d => d.patente);
+  if (!confirm(`Enviar mensajes a ${patentes.length} conductor(es)?`)) return;
   const res = await fetch('/api/conciliaciones/enviar', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -339,66 +456,56 @@ function abrirSheet() {
   window.open(`https://docs.google.com/spreadsheets/d/${id}/edit?gid=${gid}#gid=${gid}`, '_blank');
 }
 
-// ─── Log ──────────────────────────────────────────────────────────────────────
-function addLog(tipo, msg) {
-  const log  = document.getElementById('log');
-  const hora = new Date().toLocaleTimeString('es-CL');
-  const cls  = tipo === 'ok' ? 'text-primary font-bold' : tipo === 'err' ? 'text-error font-bold' : 'text-on-surface-variant';
-  const p = document.createElement('p');
-  p.className = cls;
-  p.textContent = `[${hora}] ${msg}`;
-  log.appendChild(p);
-  log.scrollTop = log.scrollHeight;
+function actualizarBotonModal() {
+  document.getElementById('btnModalEnviar').disabled = waEstadoActual !== 'listo' || !patenteModal;
 }
 
-function limpiarLog() {
-  document.getElementById('log').innerHTML = '<p class="text-primary/70 font-bold">En espera...</p>';
-}
-
-// ─── WhatsApp ─────────────────────────────────────────────────────────────────
+// ─── WhatsApp ─────────────────────────────────────────────────
 function actualizarWA(estado) {
+  waEstadoActual = estado;
   const dot   = document.getElementById('waDot');
   const label = document.getElementById('waLabel');
-  const btn   = document.getElementById('btnConectar');
-  const hint  = document.getElementById('waHint');
+  const btnC  = document.getElementById('btnConectar');
+  const btnD  = document.getElementById('btnDesconectar');
   const qrW   = document.getElementById('qrWrap');
+  const hint  = document.getElementById('waHint');
 
-  const configs = {
-    desconectado: { color: 'bg-error',   text: 'Desconectado',   textColor: 'text-error',   btnTxt: 'Conectar',    btnFn: 'conectarWA()' },
-    conectando:   { color: 'bg-yellow-500', text: 'Conectando...', textColor: 'text-yellow-500', btnTxt: 'Cancelar', btnFn: 'desconectarWA()' },
-    qr:           { color: 'bg-yellow-500', text: 'Escanea el QR', textColor: 'text-yellow-500', btnTxt: 'Cancelar', btnFn: 'desconectarWA()' },
-    autenticado:  { color: 'bg-yellow-500', text: 'Autenticando...', textColor: 'text-yellow-500', btnTxt: 'Cancelar', btnFn: 'desconectarWA()' },
-    listo:        { color: 'bg-primary',  text: 'Conectado',     textColor: 'text-primary',  btnTxt: 'Desconectar', btnFn: 'desconectarWA()' },
-    error:        { color: 'bg-error',    text: 'Error',         textColor: 'text-error',    btnTxt: 'Reconectar',  btnFn: 'conectarWA()' },
-  };
-  const cfg = configs[estado] || configs.desconectado;
-  dot.className   = `w-2 h-2 rounded-full ${cfg.color}`;
-  label.className = `text-label-sm font-bold ${cfg.textColor} uppercase tracking-wider`;
-  label.textContent = cfg.text;
-  btn.textContent   = cfg.btnTxt;
-  btn.setAttribute('onclick', cfg.btnFn);
-  if (estado !== 'qr') qrW.classList.add('hidden');
-  hint.textContent = estado === 'listo'
-    ? 'WhatsApp listo para enviar'
-    : estado === 'qr'
-    ? 'Escanea el codigo QR'
+  const cfg = {
+    desconectado: { color:'#ef4444', lbl:'Desconectado',   blink:false, btnC:'Conectar',    dis:[false,true]  },
+    conectando:   { color:'#f59e0b', lbl:'Conectando...',  blink:true,  btnC:'Cancelar',    dis:[true,false]  },
+    qr:           { color:'#f59e0b', lbl:'Escanea el QR',  blink:true,  btnC:'Cancelar',    dis:[true,false]  },
+    autenticado:  { color:'#f59e0b', lbl:'Autenticando...', blink:true, btnC:'Cancelar',    dis:[true,false]  },
+    listo:        { color:'#78fcd6', lbl:'Conectado',       blink:false, btnC:'Conectar',   dis:[true,false]  },
+    error:        { color:'#ef4444', lbl:'Error',           blink:false, btnC:'Reconectar', dis:[false,true]  },
+  }[estado] || { color:'#ef4444', lbl:'Desconectado', blink:false, btnC:'Conectar', dis:[false,true] };
+
+  dot.style.background = cfg.color;
+  dot.className = `w-2 h-2 rounded-full${cfg.blink ? ' dot-blink' : ''}`;
+  label.textContent = cfg.lbl;
+  label.style.color = cfg.color;
+  btnC.textContent = cfg.btnC;
+  [btnC.disabled, btnD.disabled] = cfg.dis;
+  if (estado !== 'qr') qrW.classList.remove('show');
+  hint.textContent = estado === 'listo' ? 'WhatsApp listo para enviar'
+    : estado === 'qr' ? 'Escanea el código QR con WhatsApp'
     : 'Conecta WhatsApp para enviar mensajes';
+  actualizarBotonModal();
 }
 
 async function conectarWA() {
-  await fetch('/api/whatsapp/conectar', { method: 'POST' });
-  addLog('info', 'Iniciando conexion WhatsApp...');
+  addLog('info','Iniciando conexión WhatsApp...');
+  await fetch('/api/whatsapp/conectar', { method:'POST' });
 }
 async function desconectarWA() {
-  await fetch('/api/whatsapp/desconectar', { method: 'POST' });
+  await fetch('/api/whatsapp/desconectar', { method:'POST' });
 }
 
-// ─── Socket.io ────────────────────────────────────────────────────────────────
+// ─── Socket.io ────────────────────────────────────────────────
 socket.on('wa_estado', ({ estado, qr, progreso, msg }) => {
   actualizarWA(estado);
   if (qr) {
     document.getElementById('qrImg').src = qr;
-    document.getElementById('qrWrap').classList.remove('hidden');
+    document.getElementById('qrWrap').classList.add('show');
   }
   if (estado === 'listo')        addLog('ok',  'WhatsApp conectado');
   if (estado === 'desconectado') addLog('err', 'WhatsApp desconectado');
@@ -406,12 +513,45 @@ socket.on('wa_estado', ({ estado, qr, progreso, msg }) => {
   if (estado === 'conectando' && progreso !== undefined) addLog('info', `Cargando... ${progreso}%`);
 });
 
-socket.on('envio_inicio', ({ total }) => addLog('info', `Enviando ${total} mensaje(s)...`));
-socket.on('envio_log',    ({ patente, ok, msg }) => addLog(ok ? 'ok' : 'err', `${patente}: ${msg}`));
-socket.on('envio_fin',    ({ total, enviados }) => addLog('ok', `Finalizado: ${enviados}/${total} enviados`));
+socket.on('envio_inicio', ({ total }) => {
+  document.getElementById('progressBar').style.display = 'block';
+  document.getElementById('progressFill').style.width = '0%';
+  addLog('info', `Enviando ${total} mensaje(s)...`);
+});
+socket.on('envio_log', ({ patente, ok, msg, i, total }) => {
+  if (i != null) document.getElementById('progressFill').style.width = `${Math.round(i/total*100)}%`;
+  addLog(ok ? 'ok' : 'err', `${patente}: ${msg}`);
+});
+socket.on('envio_fin', ({ total, enviados }) => {
+  addLog('ok', `Finalizado: ${enviados}/${total} enviados`);
+  document.getElementById('progressBar').style.display = 'none';
+});
 
-// ─── Init ─────────────────────────────────────────────────────────────────────
+// ─── Log ──────────────────────────────────────────────────────
+function addLog(tipo, msg) {
+  const log  = document.getElementById('log');
+  const hora = new Date().toLocaleTimeString('es-CL');
+  const color = tipo === 'ok'  ? '#78fcd6'
+              : tipo === 'err' ? '#ef4444'
+              : 'rgba(231,236,235,0.45)';
+  const p = document.createElement('p');
+  p.style.color = color;
+  if (tipo !== 'info') p.style.fontWeight = '600';
+  p.textContent = `[${hora}] ${msg}`;
+  log.appendChild(p);
+  log.scrollTop = log.scrollHeight;
+  while (log.children.length > 200) log.removeChild(log.firstChild);
+}
+
+function limpiarLog() {
+  document.getElementById('log').innerHTML =
+    '<p style="color:rgba(120,252,214,0.5);font-weight:600;">En espera...</p>';
+}
+
+// ─── Init ─────────────────────────────────────────────────────
 recargarDatos();
 </script>
+<script src="/sidebar.js"></script>
+<script>initSidebar('conciliaciones').then(() => lucide.createIcons());</script>
 </body>
 </html>

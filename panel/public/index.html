@@ -1,700 +1,790 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Bot Devoluciones Falabella</title>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Karri — Devoluciones</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="/socket.io/socket.io.js"></script>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+
+<script>
+tailwind.config = {
+  theme: { extend: {
+    colors: {
+      electric:        '#78fcd6',
+      'electric-dim':  '#00ffb6',
+      'green-wa':      '#00ff41',
+      'dark-900':      '#080b0a',
+      'dark-800':      '#0f1211',
+      'dark-700':      '#181c1b',
+      'dark-600':      '#1e2221',
+      'dark-500':      '#27272a',
+      'dark-400':      '#3f3f42',
+      /* compat aliases — mantienen clases JS sin cambios */
+      primary:                    '#78fcd6',
+      'on-primary':               '#080b0a',
+      error:                      '#ef4444',
+      background:                 '#0f1211',
+      'on-surface':               '#e7eceb',
+      'on-surface-variant':       'rgba(231,236,235,0.5)',
+      outline:                    'rgba(231,236,235,0.35)',
+      'outline-variant':          'rgba(255,255,255,0.08)',
+      'surface-container':        '#3f3f42',
+      'surface-container-low':    '#181c1b',
+      'surface-container-lowest': '#080b0a',
+      'surface-container-high':   '#1e2221',
+      'surface-container-highest':'#1e2221',
+    },
+    fontFamily: {
+      sans: ['Inter', 'sans-serif'],
+      mono: ['"JetBrains Mono"', 'monospace'],
+    },
+  }}
+}
+</script>
+
 <style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  :root {
-    --bg:     #0f1117;  --card:   #1a1d27;  --border: #2a2d3e;
-    --accent: #00d4aa;  --warn:   #f59e0b;  --danger: #ef4444;
-    --text:   #e2e8f0;  --muted:  #64748b;  --green:  #22c55e;
-    --blue:   #60a5fa;
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { height: 100%; overflow: hidden; }
+  body { background: #0f1211; color: #e7eceb; font-family: Inter, sans-serif; }
+
+  /* ── Custom utility classes ── */
+  .card {
+    background: #181c1b;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 12px;
+    padding: 20px;
   }
-  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; }
+  .btn-primary {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: #78fcd6; color: #080b0a;
+    font-weight: 700; font-size: 12px; border-radius: 8px;
+    padding: 7px 16px; border: none; cursor: pointer;
+    transition: background 0.15s, box-shadow 0.15s;
+  }
+  .btn-primary:hover:not(:disabled) {
+    background: #00ffb6;
+    box-shadow: 0 0 18px rgba(120,252,214,0.35);
+  }
+  .btn-primary:disabled { opacity: 0.3; cursor: not-allowed; }
 
-  .layout { display: grid; grid-template-columns: 1fr 340px; min-height: 100vh; }
-  .main   { padding: 24px; overflow-y: auto; border-right: 1px solid var(--border); }
-  .side   { padding: 24px; display: flex; flex-direction: column; gap: 20px; }
+  .btn-secondary {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: #1e2221; color: #e7eceb;
+    border: 1px solid rgba(255,255,255,0.08);
+    font-weight: 600; font-size: 12px; border-radius: 8px;
+    padding: 6px 14px; cursor: pointer;
+    transition: background 0.12s;
+  }
+  .btn-secondary:hover:not(:disabled) { background: #3f3f42; }
+  .btn-secondary:disabled { opacity: 0.3; cursor: not-allowed; }
 
-  header { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; }
-  header h1 { font-size: 1.2rem; font-weight: 600; }
+  .btn-danger {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: transparent; color: #ef4444;
+    border: 1px solid rgba(239,68,68,0.25);
+    font-weight: 600; font-size: 12px; border-radius: 8px;
+    padding: 6px 14px; cursor: pointer;
+    transition: background 0.12s;
+  }
+  .btn-danger:hover { background: rgba(239,68,68,0.08); }
 
-  /* Stats */
-  .stats { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
-  .stat  { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 12px 18px; flex: 1; min-width: 110px; }
-  .stat-n { font-size: 1.7rem; font-weight: 700; color: var(--accent); }
-  .stat-l { font-size: .72rem; color: var(--muted); margin-top: 2px; }
+  .btn-wa {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: #00ff41; color: #080b0a;
+    font-weight: 700; font-size: 11px; border-radius: 8px;
+    padding: 6px 14px; border: none; cursor: pointer;
+    transition: background 0.15s, box-shadow 0.15s;
+  }
+  .btn-wa:hover:not(:disabled) {
+    background: #00cc33;
+    box-shadow: 0 0 14px rgba(0,255,65,0.35);
+  }
+  .btn-wa:disabled { opacity: 0.35; cursor: not-allowed; }
 
-  /* Alerta sin número */
-  .alert-sin-numero { background: #2d1a00; border: 1px solid #78350f; border-radius: 10px;
-    padding: 0; margin-bottom: 20px; overflow: hidden; }
-  .alert-header { display: flex; align-items: center; gap: 10px; padding: 12px 16px;
-    cursor: pointer; user-select: none; }
-  .alert-header:hover { background: #3d2200; }
-  .alert-title { font-weight: 600; font-size: .9rem; color: var(--warn); flex: 1; }
-  .alert-badge { background: var(--warn); color: #000; border-radius: 999px;
-    padding: 2px 9px; font-size: .75rem; font-weight: 700; }
-  .alert-chevron { color: var(--muted); transition: transform .2s; font-size: 1rem; }
-  .alert-chevron.open { transform: rotate(180deg); }
-  .alert-body { border-top: 1px solid #78350f; }
+  .input {
+    background: #27272a; border: 1px solid rgba(255,255,255,0.08);
+    color: #e7eceb; border-radius: 8px; padding: 7px 12px;
+    font-size: 13px; outline: none;
+    transition: border-color 0.15s; width: 100%;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .input:focus { border-color: #78fcd6; }
+  .input::placeholder { color: rgba(231,236,235,0.3); }
 
-  /* Tarjetas sin número */
-  .sn-card { display: flex; align-items: center; gap: 12px; padding: 12px 16px;
-    border-bottom: 1px solid #3d2500; }
-  .sn-card:last-child { border-bottom: none; }
-  .sn-patente { font-family: monospace; font-weight: 700; color: var(--warn);
-    font-size: .95rem; min-width: 80px; }
-  .sn-folios { font-size: .78rem; color: var(--muted); min-width: 70px; }
-  .sn-form { display: flex; gap: 6px; flex: 1; align-items: center; flex-wrap: wrap; }
-  .sn-input { background: #0f1117; border: 1px solid #78350f; color: var(--text);
-    border-radius: 7px; padding: 7px 10px; font-size: .82rem; font-family: monospace;
-    flex: 1; min-width: 160px; outline: none; }
-  .sn-input:focus { border-color: var(--accent); }
-  .sn-input.error { border-color: var(--danger); }
-  .sn-input.ok    { border-color: var(--green); }
-  .sn-save { background: var(--accent); color: #000; border: none; border-radius: 7px;
-    padding: 7px 14px; font-size: .82rem; font-weight: 700; cursor: pointer; white-space: nowrap; }
-  .sn-save:hover { opacity: .85; }
-  .sn-save:disabled { opacity: .4; cursor: not-allowed; }
-  .sn-msg { font-size: .75rem; color: var(--danger); min-width: 100%; }
+  .label {
+    font-size: 10px; color: rgba(231,236,235,0.5);
+    font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-family: 'JetBrains Mono', monospace;
+  }
 
-  /* Toolbar + tabla */
-  .toolbar { display: flex; gap: 8px; margin-bottom: 12px; align-items: center; flex-wrap: wrap; }
-  .sel-bar { display: none; align-items: center; gap: 10px; background: #1e3a5f33;
-    border: 1px solid #1e3a5f; border-radius: 8px; padding: 8px 14px; margin-bottom: 12px; font-size: .85rem; }
-  .sel-bar.show { display: flex; }
-  .table-wrap { overflow-x: auto; border-radius: 10px; border: 1px solid var(--border); }
-  table { width: 100%; border-collapse: collapse; font-size: .875rem; }
-  thead th { background: #12141f; padding: 10px 14px; text-align: left; font-weight: 600;
-    color: var(--muted); font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; }
-  tbody tr { border-top: 1px solid var(--border); transition: background .15s; }
-  tbody tr:hover { background: #1f2235; }
-  tbody tr.sin-num { background: #1a1200; }
-  tbody tr.sin-num:hover { background: #221800; }
-  tbody tr.enviado { background: #0a1a0e; }
-  tbody tr.enviado:hover { background: #0f2213; }
-  td { padding: 11px 14px; vertical-align: middle; }
-  td.patente { font-weight: 700; font-family: monospace; font-size: .95rem; color: var(--accent); }
-  td.tel  { font-family: monospace; font-size: .83rem; }
-  td.nombre { color: #94a3b8; font-size: .8rem; }
-  .pill { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px;
-    border-radius: 999px; font-size: .73rem; font-weight: 600; }
-  .pill-ok   { background: #14532d; color: var(--green); }
-  .pill-warn { background: #451a03; color: var(--warn); }
-  .pill-sel  { background: #1e3a5f; color: var(--blue); }
-  .chk { width: 15px; height: 15px; cursor: pointer; accent-color: var(--accent); }
+  /* ── Scrollbar ── */
+  .scrollbar-hide::-webkit-scrollbar { display: none; }
+  .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
 
-  /* Inline edit en tabla */
-  .inline-edit { display: none; gap: 6px; align-items: center; }
-  .inline-edit.show { display: flex; }
-  .ie-input { background: #0f1117; border: 1px solid var(--border); color: var(--text);
-    border-radius: 6px; padding: 5px 9px; font-size: .8rem; font-family: monospace; width: 140px; outline: none; }
-  .ie-input:focus { border-color: var(--accent); }
+  /* ── Sidebar nav item ── */
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 14px; border-radius: 10px;
+    font-size: 13px; font-weight: 500; cursor: pointer;
+    transition: all 0.15s; color: rgba(231,236,235,0.5);
+    text-decoration: none; border: 1px solid transparent;
+  }
+  .nav-item:hover { background: rgba(255,255,255,0.04); color: #e7eceb; }
+  .nav-item.active {
+    background: rgba(120,252,214,0.08); color: #78fcd6;
+    border-color: rgba(120,252,214,0.15);
+  }
+  .nav-item.active svg { stroke: #78fcd6; }
 
-  /* Botones */
-  .btn { display: inline-flex; align-items: center; gap: 5px; padding: 7px 14px;
-    border-radius: 7px; border: none; font-size: .82rem; font-weight: 600; cursor: pointer;
-    transition: opacity .15s, transform .1s; }
-  .btn:active { transform: scale(.97); }
-  a.btn { text-decoration: none; }
-  .btn:disabled { opacity: .35; cursor: not-allowed; }
-  .btn-primary { background: var(--accent); color: #000; }
-  .btn-outline { background: transparent; color: var(--text); border: 1px solid var(--border); }
-  .btn-outline:hover:not(:disabled) { background: var(--card); }
-  .btn-danger { background: var(--danger); color: #fff; }
-  .btn-sm { padding: 5px 10px; font-size: .76rem; }
+  /* ── Badge ── */
+  .badge { display: inline-flex; align-items: center;
+    padding: 2px 9px; border-radius: 99px; font-size: 11px; font-weight: 700; }
+  .badge-electric { background: rgba(120,252,214,0.12); color: #78fcd6; }
+  .badge-amber    { background: rgba(245,158,11,0.12);  color: #f59e0b; }
+  .badge-muted    { background: rgba(255,255,255,0.07); color: rgba(231,236,235,0.5); }
+  .badge-red      { background: rgba(239,68,68,0.1);    color: #ef4444; }
 
-  /* Card lateral */
-  .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 18px; }
-  .card h3 { font-size: .88rem; font-weight: 600; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+  /* ── Table ── */
+  .tbl-row { border-bottom: 1px solid rgba(255,255,255,0.05); transition: background 0.1s; }
+  .tbl-row:hover { background: rgba(255,255,255,0.03); }
+  .tbl-row.row-enviado { background: rgba(120,252,214,0.03); }
+  .tbl-row.row-sinnum  { background: rgba(245,158,11,0.04); }
+  .tbl-row.row-sel     { box-shadow: inset 2px 0 0 #78fcd6; background: rgba(120,252,214,0.04); }
 
-  /* WhatsApp */
-  .wa-status { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; }
-  .dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
-  .dot-green  { background: var(--green); box-shadow: 0 0 6px var(--green); }
-  .dot-yellow { background: var(--warn); animation: pulse 1s infinite; }
-  .dot-red    { background: var(--danger); }
-  .dot-gray   { background: var(--muted); }
-  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .3; } }
-  #qr-wrap { text-align: center; margin: 12px 0; }
-  #qr-wrap img { width: 100%; max-width: 220px; border-radius: 8px; border: 4px solid #fff; }
-  .wa-hint { font-size: .72rem; color: var(--muted); text-align: center; margin-top: 6px; line-height: 1.5; }
+  /* ── Dot blink ── */
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.2} }
+  .dot-blink { animation: blink 1.2s infinite; }
 
-  /* Log */
-  #log-area { font-size: .76rem; font-family: monospace; background: #0a0c14; border-radius: 8px;
-    padding: 10px; max-height: 240px; overflow-y: auto; border: 1px solid var(--border); }
-  .log-ok   { color: var(--green); }
-  .log-warn { color: var(--warn); }
-  .log-err  { color: var(--danger); }
-  .log-info { color: var(--blue); }
-  #progress-bar  { height: 4px; background: var(--border); border-radius: 2px; margin-bottom: 8px; overflow: hidden; display: none; }
-  #progress-fill { height: 100%; background: var(--accent); transition: width .3s; width: 0%; }
+  /* ── QR card ── */
+  #qrWrap { display:none; }
+  #qrWrap.show { display:flex; }
 
-  /* Modal */
-  .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.75); z-index: 100; align-items: center; justify-content: center; }
-  .overlay.show { display: flex; }
-  .modal { background: var(--card); border: 1px solid var(--border); border-radius: 14px;
-    width: 560px; max-width: 95vw; max-height: 90vh; overflow-y: auto; padding: 24px; }
-  .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
-  .modal h2 { font-size: 1rem; }
-  .modal-close { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 1.4rem; line-height: 1; }
-  .msg-box { background: #0a0c14; border-radius: 10px; padding: 16px; font-size: .82rem;
-    line-height: 1.7; white-space: pre-wrap; font-family: monospace; border: 1px solid var(--border); word-break: break-word; }
-  .modal-footer { display: flex; gap: 8px; margin-top: 16px; justify-content: flex-end; }
+  /* ── Progress bar ── */
+  #progressBar { display:none; }
+  #progressBar.show { display:block; }
+
+  /* ── Glow on electric elements ── */
+  .glow-electric { box-shadow: 0 0 16px rgba(120,252,214,0.25); }
 </style>
 </head>
-<body>
-<div class="layout">
 
-  <!-- ══════════════════ COLUMNA PRINCIPAL ══════════════════ -->
-  <div class="main">
-    <header>
-      <div>
-        <h1>Bot Devoluciones — Falabella</h1>
-        <div style="font-size:.75rem; color:var(--muted); margin-top:1px">Panel de control y pruebas</div>
+<body>
+<div class="flex h-screen overflow-hidden">
+
+  <!-- ── Sidebar ─────────────────────────────────────────────── -->
+  <aside id="sidebar" style="background:#080b0a;border-right:1px solid rgba(255,255,255,0.08);width:220px;flex-shrink:0;display:flex;flex-direction:column;height:100%;"></aside>
+
+  <!-- ── Main ─────────────────────────────────────────────────── -->
+  <div class="flex-1 flex flex-col min-w-0 overflow-hidden">
+
+    <!-- TopBar -->
+    <header style="background:#080b0a; border-bottom:1px solid rgba(255,255,255,0.08);"
+            class="h-14 flex items-center justify-between px-5 flex-shrink-0 z-40">
+      <div class="flex items-center gap-3">
+        <span style="color:#78fcd6;" class="flex items-center">
+          <i data-lucide="undo-2" class="w-4 h-4"></i>
+        </span>
+        <h1 class="text-[15px] font-semibold" style="color:#e7eceb;">Devoluciones Falabella</h1>
       </div>
-      <div style="margin-left:auto; display:flex; gap:8px; align-items:center;">
+      <div class="flex items-center gap-2">
         <a href="https://docs.google.com/spreadsheets/d/1bQqJ2GAXkgaMBWiVTrNwZCb-Q70xvKgWOmIAbsXsG9E/edit?gid=1099007443#gid=1099007443"
-           target="_blank" class="btn btn-outline btn-sm">Abrir Sheet</a>
-        <label class="btn btn-outline btn-sm" style="cursor:pointer" title="Subir contactos_conductores.csv">
+           target="_blank" class="btn-secondary">
+          <i data-lucide="table-2" class="w-3.5 h-3.5"></i>
+          Abrir Sheet
+        </a>
+        <label class="btn-secondary cursor-pointer">
+          <i data-lucide="upload" class="w-3.5 h-3.5"></i>
           Subir contactos
-          <input type="file" accept=".csv" style="display:none" onchange="subirContactos(this)">
+          <input type="file" accept=".csv" class="hidden" onchange="subirContactos(this)">
         </label>
-        <button class="btn btn-outline btn-sm" onclick="recargarDatos()">Recargar</button>
-        <span id="auto-badge" style="font-size:.72rem; color:var(--muted)"></span>
-        <form method="POST" action="/logout" style="margin:0">
-          <button type="submit" class="btn btn-outline btn-sm" style="color:var(--muted)">Salir</button>
-        </form>
+        <button onclick="recargarDatos()" class="btn-secondary">
+          <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+          Recargar
+        </button>
+        <span id="autoTimer" class="label ml-1">Auto 05:00</span>
       </div>
     </header>
 
-    <!-- Stats -->
-    <div class="stats">
-      <div class="stat"><div class="stat-n" id="st-patentes">—</div><div class="stat-l">Patentes</div></div>
-      <div class="stat"><div class="stat-n" id="st-folios">—</div><div class="stat-l">Folios totales</div></div>
-      <div class="stat"><div class="stat-n" id="st-ok" style="color:var(--green)">—</div><div class="stat-l">Con numero</div></div>
-      <div class="stat"><div class="stat-n" id="st-sin" style="color:var(--warn)">—</div><div class="stat-l">Sin numero</div></div>
-    </div>
+    <!-- Content -->
+    <div class="flex-1 flex overflow-hidden">
 
-    <!-- ── Sección sin número ── -->
-    <div class="alert-sin-numero" id="alert-sin" style="display:none">
-      <div class="alert-header" onclick="toggleAlerta()">
-        <span class="alert-title">Patentes sin numero de telefono</span>
-        <span class="alert-badge" id="alert-badge">0</span>
-        <span class="alert-chevron open" id="alert-chevron">▼</span>
+      <!-- Dashboard -->
+      <div class="flex-1 flex flex-col overflow-y-auto scrollbar-hide p-5 gap-4">
+
+        <!-- Metrics -->
+        <div class="grid grid-cols-4 gap-3">
+          <div class="card">
+            <p class="label mb-3">Patentes</p>
+            <div class="flex items-end justify-between">
+              <span id="metPatentes" class="text-3xl font-black" style="color:#78fcd6;">—</span>
+              <i data-lucide="car" class="w-5 h-5 opacity-30" style="color:#78fcd6;"></i>
+            </div>
+          </div>
+          <div class="card">
+            <p class="label mb-3">Folios totales</p>
+            <div class="flex items-end justify-between">
+              <span id="metFolios" class="text-3xl font-black" style="color:#e7eceb;">—</span>
+              <i data-lucide="file-text" class="w-5 h-5 opacity-30" style="color:rgba(231,236,235,0.4);"></i>
+            </div>
+          </div>
+          <div class="card">
+            <p class="label mb-3">Con número</p>
+            <div class="flex items-end justify-between">
+              <span id="metConNum" class="text-3xl font-black" style="color:#78fcd6;">—</span>
+              <i data-lucide="phone" class="w-5 h-5 opacity-30" style="color:#78fcd6;"></i>
+            </div>
+          </div>
+          <div class="card">
+            <p class="label mb-3">Sin número</p>
+            <div class="flex items-end justify-between">
+              <span id="metSinNum" class="text-3xl font-black" style="color:#ef4444;">—</span>
+              <i data-lucide="phone-off" class="w-5 h-5 opacity-30" style="color:#ef4444;"></i>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sin número alert -->
+        <div id="alertSin" class="hidden rounded-xl overflow-hidden"
+             style="background:#181c1b; border:1px solid rgba(245,158,11,0.2);">
+          <div onclick="toggleAlerta()" class="flex items-center justify-between px-4 py-3 cursor-pointer"
+               style="border-bottom:0;">
+            <div class="flex items-center gap-2">
+              <i data-lucide="alert-triangle" class="w-4 h-4" style="color:#f59e0b;"></i>
+              <span class="label" style="color:#f59e0b;">Patentes sin número</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span id="alertBadge" class="badge badge-amber">0</span>
+              <i id="alertChevron" data-lucide="chevron-down" class="w-4 h-4 transition-transform" style="color:rgba(231,236,235,0.4);"></i>
+            </div>
+          </div>
+          <div id="alertBody" style="border-top:1px solid rgba(245,158,11,0.1);"></div>
+        </div>
+
+        <!-- Action bar -->
+        <div class="flex items-center justify-between px-3 py-2.5 rounded-t-xl"
+             style="background:#1e2221; border:1px solid rgba(255,255,255,0.08); border-bottom:none;">
+          <div class="flex items-center gap-4">
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input id="chkTodos" type="checkbox" onchange="selTodos(this.checked)"
+                class="rounded w-4 h-4 cursor-pointer accent-[#78fcd6]">
+              <span class="text-[12px] font-medium" style="color:rgba(231,236,235,0.7);">Seleccionar todos</span>
+            </label>
+            <div id="selBar" class="hidden items-center gap-2">
+              <span id="selCount" class="label"></span>
+              <button onclick="enviarSeleccionados()" class="btn-primary" style="padding:4px 12px;font-size:11px;">
+                Enviar seleccionados
+              </button>
+              <button onclick="deselTodos()" class="btn-secondary" style="padding:4px 10px;font-size:11px;">
+                Limpiar
+              </button>
+            </div>
+          </div>
+          <button id="btnEnviarTodos" onclick="confirmarEnviarTodos()" disabled class="btn-primary">
+            <i data-lucide="send" class="w-3.5 h-3.5"></i>
+            Enviar todos
+          </button>
+        </div>
+
+        <!-- Table -->
+        <div class="rounded-b-xl overflow-hidden flex-1"
+             style="background:#181c1b; border:1px solid rgba(255,255,255,0.08); border-top:none;">
+          <div id="progressBar" class="h-0.5" style="background:#1e2221;">
+            <div id="progressFill" class="h-full transition-all duration-300" style="width:0%;background:#78fcd6;"></div>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left">
+              <thead>
+                <tr style="background:#1e2221; border-bottom:1px solid rgba(255,255,255,0.07);">
+                  <th class="px-4 py-3 w-10"></th>
+                  <th class="px-4 py-3 label">Patente</th>
+                  <th class="px-4 py-3 label">Conductor</th>
+                  <th class="px-4 py-3 label">Teléfono</th>
+                  <th class="px-4 py-3 label text-center">Folios</th>
+                  <th class="px-4 py-3 label">Estado</th>
+                  <th class="px-4 py-3 label text-right">Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="tabla">
+                <tr><td colspan="7" class="py-12 text-center label" style="color:rgba(231,236,235,0.3);">
+                  Cargando datos...
+                </td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div><!-- /dashboard -->
+
+      <!-- ── Right sidebar ─────────────────────────────────────── -->
+      <aside class="w-72 flex-shrink-0 flex flex-col"
+             style="background:#080b0a; border-left:1px solid rgba(255,255,255,0.08);">
+
+        <!-- WhatsApp panel -->
+        <div class="p-4 flex flex-col gap-3" style="border-bottom:1px solid rgba(255,255,255,0.08);">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <div id="waDot" class="w-2 h-2 rounded-full" style="background:#ef4444;"></div>
+              <span id="waLabel" class="label" style="color:#ef4444;">Desconectado</span>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <button id="btnConectar" onclick="conectarWA()" class="btn-wa">Conectar</button>
+              <button id="btnDesconectar" onclick="desconectarWA()" disabled class="btn-secondary" style="padding:5px 10px;font-size:11px;">Desc.</button>
+            </div>
+          </div>
+
+          <!-- QR -->
+          <div id="qrWrap" class="bg-white p-3 rounded-xl justify-center items-center mx-auto w-44 shadow-xl">
+            <img id="qrImg" src="" class="w-full h-full">
+          </div>
+
+          <p id="waHint" class="text-[10px] text-center italic" style="color:rgba(231,236,235,0.35);">
+            Conecta WhatsApp para enviar mensajes
+          </p>
+        </div>
+
+        <!-- Log -->
+        <div class="flex-1 flex flex-col p-4 overflow-hidden">
+          <div class="flex items-center justify-between mb-3">
+            <span class="label" style="color:#78fcd6;">Log de envío</span>
+            <button onclick="limpiarLog()" class="label cursor-pointer hover:text-white transition-colors">Limpiar</button>
+          </div>
+          <div id="log"
+               class="flex-1 rounded-xl p-3 overflow-y-auto scrollbar-hide space-y-1"
+               style="background:#0f1211; border:1px solid rgba(255,255,255,0.06); font-family:'JetBrains Mono',monospace; font-size:10px;">
+            <p style="color:rgba(120,252,214,0.6); font-weight:600;">En espera...</p>
+          </div>
+        </div>
+
+      </aside>
+    </div><!-- /content -->
+  </div><!-- /main -->
+</div><!-- /root -->
+
+<!-- ── Modal ──────────────────────────────────────────────────── -->
+<div id="modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-6"
+     style="background:rgba(0,0,0,0.75);">
+  <div class="card w-full max-w-2xl max-h-[82vh] flex flex-col shadow-2xl p-0 overflow-hidden"
+       style="border-radius:14px;">
+    <div class="flex items-start justify-between px-5 py-4"
+         style="border-bottom:1px solid rgba(255,255,255,0.08);">
+      <div>
+        <h3 id="modalTitle" class="text-[13px] font-bold" style="color:#78fcd6;">Vista previa</h3>
+        <p id="modalMeta" class="text-[11px] mt-0.5" style="color:rgba(231,236,235,0.45);"></p>
       </div>
-      <div class="alert-body" id="alert-body">
-        <!-- Tarjetas generadas dinámicamente -->
-      </div>
+      <button onclick="cerrarModal()" class="label hover:text-white transition-colors cursor-pointer mt-0.5">✕</button>
     </div>
-
-    <!-- Barra de selección múltiple -->
-    <div class="sel-bar" id="sel-bar">
-      <span id="sel-count">0 seleccionados</span>
-      <button class="btn btn-primary btn-sm" onclick="enviarSeleccionados()">Enviar seleccionados</button>
-      <button class="btn btn-outline btn-sm" onclick="deselTodos()">Limpiar</button>
+    <pre id="modalBody" class="flex-1 overflow-y-auto px-5 py-4 text-[12px] whitespace-pre-wrap"
+         style="font-family:'JetBrains Mono',monospace; color:#e7eceb; background:#0f1211;"></pre>
+    <div class="flex justify-end gap-2 px-5 py-4" style="border-top:1px solid rgba(255,255,255,0.08);">
+      <button onclick="cerrarModal()" class="btn-secondary">Cerrar</button>
+      <button id="btnModalEnviar" onclick="enviarDesdeModal()" disabled class="btn-primary">
+        <i data-lucide="send" class="w-3.5 h-3.5"></i>
+        Enviar este mensaje
+      </button>
     </div>
-
-    <!-- Toolbar -->
-    <div class="toolbar">
-      <label style="font-size:.83rem; color:var(--muted); display:flex; align-items:center; gap:6px; cursor:pointer">
-        <input type="checkbox" id="chk-all" class="chk" onchange="selTodos(this.checked)">
-        Seleccionar todos
-      </label>
-      <div style="margin-left:auto; display:flex; gap:8px;">
-        <button class="btn btn-primary" id="btn-enviar-todos" onclick="confirmarEnviarTodos()" disabled>Enviar todos</button>
-      </div>
-    </div>
-
-    <!-- Tabla principal -->
-    <div class="table-wrap">
-      <table id="tabla">
-        <thead>
-          <tr>
-            <th style="width:34px"></th>
-            <th>Patente</th>
-            <th>Conductor</th>
-            <th>Teléfono</th>
-            <th style="text-align:center">Folios</th>
-            <th>Estado</th>
-            <th>Acciones</th>
-          </tr>
-        </thead>
-        <tbody id="tabla-body">
-          <tr><td colspan="7" style="text-align:center; padding:40px; color:var(--muted)">Cargando datos…</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
-
-  <!-- ══════════════════ COLUMNA LATERAL ══════════════════ -->
-  <div class="side">
-
-    <!-- WhatsApp -->
-    <div class="card">
-      <h3>WhatsApp</h3>
-      <div class="wa-status">
-        <div class="dot dot-gray" id="wa-dot"></div>
-        <span id="wa-text">Desconectado</span>
-      </div>
-      <div id="qr-wrap" style="display:none"></div>
-      <div id="wa-hint" class="wa-hint" style="display:none">
-        Abre WhatsApp → <strong>Dispositivos vinculados</strong> → Vincular dispositivo → Escanea el QR
-      </div>
-      <div style="display:flex; gap:8px; flex-wrap:wrap;">
-        <button class="btn btn-primary" id="btn-conectar" onclick="conectarWA()" style="flex:1">Conectar</button>
-        <button class="btn btn-outline btn-sm" id="btn-desconectar" onclick="desconectarWA()" disabled>Desconectar</button>
-      </div>
-    </div>
-
-    <!-- Log -->
-    <div class="card" style="flex:1">
-      <h3>
-        Log de envio
-        <button class="btn btn-outline btn-sm" style="margin-left:auto" onclick="limpiarLog()">Limpiar</button>
-      </h3>
-      <div id="progress-bar"><div id="progress-fill"></div></div>
-      <div id="log-area"><span class="log-info">En espera…</span></div>
-    </div>
-
   </div>
 </div>
 
-<!-- ══════════════════ MODAL PREVIEW ══════════════════ -->
-<div class="overlay" id="overlay" onclick="cerrarModal(event)">
-  <div class="modal" onclick="event.stopPropagation()">
-    <div class="modal-header">
-      <h2 id="modal-titulo">Vista previa del mensaje</h2>
-      <button class="modal-close" onclick="cerrarModal()">×</button>
-    </div>
-    <div style="font-size:.78rem; color:var(--muted); margin-bottom:12px" id="modal-meta"></div>
-    <div class="msg-box" id="modal-msg"></div>
-    <div class="modal-footer">
-      <button class="btn btn-outline" onclick="cerrarModal()">Cerrar</button>
-      <button class="btn btn-primary" id="btn-modal-enviar" onclick="enviarDesdeModal()">Enviar este mensaje</button>
-    </div>
-  </div>
-</div>
-
-<script src="/socket.io/socket.io.js"></script>
 <script>
+// ─── Estado global ────────────────────────────────────────────
 const socket = io();
 let datos = [];
-let waEstado = 'desconectado';
+let waEstadoActual = 'desconectado';
 let seleccionados = new Set();
 let ocultos = new Set();
-let patenteModalActual = null;
+let patenteModal = null;
 let alertaAbierta = true;
+let autoTimer = null;
+let autoSecs = 300;
 
-// ── Socket ────────────────────────────────────────────────────────────────────
-socket.on('wa_estado', ({ estado, qr, progreso, msg }) => {
-  waEstado = estado;
-  const dot    = document.getElementById('wa-dot');
-  const text   = document.getElementById('wa-text');
-  const qrWrap = document.getElementById('qr-wrap');
-  const hint   = document.getElementById('wa-hint');
-  const btnC   = document.getElementById('btn-conectar');
-  const btnD   = document.getElementById('btn-desconectar');
-  dot.className = 'dot';
-  qrWrap.style.display = hint.style.display = 'none';
+// ─── Auto-refresh ─────────────────────────────────────────────
+function iniciarAutoTimer() {
+  clearInterval(autoTimer);
+  autoSecs = 300;
+  autoTimer = setInterval(() => {
+    autoSecs--;
+    const m = String(Math.floor(autoSecs / 60)).padStart(2,'0');
+    const s = String(autoSecs % 60).padStart(2,'0');
+    document.getElementById('autoTimer').textContent = `Auto ${m}:${s}`;
+    if (autoSecs <= 0) recargarDatos();
+  }, 1000);
+}
 
-  const map = {
-    desconectado: ['dot-gray',   'Desconectado'],
-    conectando:   ['dot-yellow', progreso != null ? `Cargando… ${progreso}%` : 'Conectando…'],
-    autenticado:  ['dot-yellow', 'Autenticado, iniciando…'],
-    qr:           ['dot-yellow', 'Escanea el código QR'],
-    listo:        ['dot-green',  'Conectado'],
-    error:        ['dot-red',    `Error: ${msg || 'desconocido'}`],
-  };
-  const [cls, label] = map[estado] || ['dot-gray', estado];
-  dot.classList.add(cls);
-  text.textContent = label;
-
-  if (estado === 'qr' && qr) {
-    qrWrap.innerHTML = `<img src="${qr}" alt="QR WhatsApp">`;
-    qrWrap.style.display = 'block';
-    hint.style.display   = 'block';
-  }
-  btnC.disabled = (estado !== 'desconectado' && estado !== 'error');
-  btnD.disabled = (estado === 'desconectado' || estado === 'error');
-  actualizarBotonesEnvio();
-});
-
-socket.on('datos_actualizados', ({ datos: nuevosDatos }) => {
-  datos = nuevosDatos;
-  renderTabla();
-  renderStats();
-  renderSinNumero();
-  addLog('info', 'Datos actualizados');
-});
-
-socket.on('envio_inicio', ({ total }) => {
-  document.getElementById('progress-bar').style.display = 'block';
-  document.getElementById('progress-fill').style.width  = '0%';
-  addLog('info', `Iniciando envío de ${total} mensaje(s)…`);
-});
-socket.on('envio_log', ({ patente, ok, numero, msg, i, total }) => {
-  if (i != null && total) document.getElementById('progress-fill').style.width = `${Math.round(i/total*100)}%`;
-  if (ok) addLog('ok',   `${patente}${numero ? ' -> ' + numero : ''} — ${msg}`);
-  else    addLog('warn', `${patente} — ${msg}`);
-});
-socket.on('envio_fin', ({ total }) => {
-  addLog('info', `─── Envío completado (${total} procesados) ───`);
-  document.getElementById('progress-bar').style.display = 'none';
-});
-
-// ── Datos ─────────────────────────────────────────────────────────────────────
+// ─── Datos ────────────────────────────────────────────────────
 async function recargarDatos() {
-  document.getElementById('tabla-body').innerHTML =
-    '<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--muted)">Cargando…</td></tr>';
+  iniciarAutoTimer();
+  document.getElementById('tabla').innerHTML =
+    '<tr><td colspan="7" class="py-12 text-center label" style="color:rgba(231,236,235,0.3);">Cargando...</td></tr>';
+  let raw, res;
   try {
-    const raw = await fetch('/api/datos');
-    if (!raw.ok) { addLog('err', `Error HTTP ${raw.status}`); return; }
-    let res;
-    try { res = await raw.json(); } catch { addLog('err', 'Respuesta invalida del servidor — reintentando en breve'); return; }
-    if (!res.ok) { addLog('err', 'Error: ' + res.error); return; }
-    datos    = res.datos;
-    waEstado = res.waEstado;
-    renderTabla();
-    renderStats();
-    renderSinNumero();
-  } catch(e) { addLog('err', 'Error de red: ' + e.message); }
+    raw = await fetch('/api/datos');
+    res = await raw.json();
+  } catch { addLog('err','Respuesta invalida del servidor'); return; }
+  if (!res.ok) { addLog('err', res.error); return; }
+  datos = res.datos || [];
+  actualizarWA(res.waEstado);
+  renderTabla();
+  renderMetrics();
+  renderSinNumero();
 }
 
-function datosFiltrados() {
-  return datos.filter(d => !ocultos.has(d.patente));
-}
+function datosFiltrados() { return datos.filter(d => !ocultos.has(d.patente)); }
 
-function renderStats() {
-  const visible = datosFiltrados();
-  const t  = visible.length;
-  const ok = visible.filter(d => d.numero).length;
-  document.getElementById('st-patentes').textContent = t;
-  document.getElementById('st-folios').textContent   = visible.reduce((s,d) => s + d.folios, 0);
-  document.getElementById('st-ok').textContent       = ok;
-  document.getElementById('st-sin').textContent      = t - ok;
+function renderMetrics() {
+  const vis = datosFiltrados();
+  document.getElementById('metPatentes').textContent = vis.length;
+  document.getElementById('metFolios').textContent   = vis.reduce((a,d) => a + d.folios, 0);
+  document.getElementById('metConNum').textContent   = vis.filter(d => d.numero).length;
+  document.getElementById('metSinNum').textContent   = vis.filter(d => !d.numero).length;
 }
 
 function renderSinNumero() {
   const sinNum = datosFiltrados().filter(d => !d.numero);
-  const alerta = document.getElementById('alert-sin');
-  if (!sinNum.length) { alerta.style.display = 'none'; return; }
-  alerta.style.display = 'block';
-  document.getElementById('alert-badge').textContent = sinNum.length;
-
-  document.getElementById('alert-body').innerHTML = sinNum.map(d => `
-    <div class="sn-card" id="sn-${d.patente}">
-      <div class="sn-patente">${d.patente}</div>
-      <div class="sn-folios">${d.folios} folio(s)</div>
-      <div class="sn-form">
-        <input class="sn-input" id="inp-sn-${d.patente}" type="tel"
-          placeholder="56912345678" maxlength="15"
-          onkeydown="if(event.key==='Enter') guardarNumero('${d.patente}')"
-          oninput="validarInputSN('${d.patente}')">
-        <button class="sn-save" id="btn-sn-${d.patente}" onclick="guardarNumero('${d.patente}')" disabled>Guardar</button>
-        <span class="sn-msg" id="msg-sn-${d.patente}"></span>
+  const el = document.getElementById('alertSin');
+  if (!sinNum.length) { el.classList.add('hidden'); return; }
+  el.classList.remove('hidden');
+  document.getElementById('alertBadge').textContent = sinNum.length;
+  document.getElementById('alertBody').innerHTML = sinNum.map(d => `
+    <div class="flex items-center gap-3 px-4 py-3" style="border-bottom:1px solid rgba(245,158,11,0.08);">
+      <span class="font-mono font-bold text-[13px] min-w-[70px]" style="color:#f59e0b;">${d.patente}</span>
+      <span class="label min-w-[56px]">${d.folios} folio(s)</span>
+      <div class="flex gap-2 flex-1">
+        <input id="inp-sn-${d.patente}" type="tel" placeholder="56912345678" maxlength="15"
+          class="input" style="font-size:12px;padding:5px 10px;"
+          oninput="validarSN('${d.patente}')"
+          onkeydown="if(event.key==='Enter') guardarNumero('${d.patente}')">
+        <button id="btn-sn-${d.patente}" onclick="guardarNumero('${d.patente}')" disabled
+          class="btn-primary" style="padding:5px 12px;font-size:11px;white-space:nowrap;">
+          Guardar
+        </button>
       </div>
-    </div>
-  `).join('');
+    </div>`).join('');
 }
 
-function validarInputSN(patente) {
-  const inp = document.getElementById(`inp-sn-${patente}`);
-  const btn = document.getElementById(`btn-sn-${patente}`);
-  const msg = document.getElementById(`msg-sn-${patente}`);
-  const val = inp.value.replace(/[+\s\-]/g, '');
-  inp.className = 'sn-input';
-  msg.textContent = '';
-  if (!val) { btn.disabled = true; return; }
-  if (!/^\d{10,15}$/.test(val)) {
-    inp.classList.add('error');
-    msg.textContent = 'Debe contener 10-15 dígitos (ej: 56912345678)';
-    btn.disabled = true;
-  } else {
-    inp.classList.add('ok');
-    btn.disabled = false;
-  }
-}
-
-async function guardarNumero(patente) {
-  const inp = document.getElementById(`inp-sn-${patente}`);
-  const btn = document.getElementById(`btn-sn-${patente}`);
-  const msg = document.getElementById(`msg-sn-${patente}`);
-  const tel = inp.value.replace(/[+\s\-]/g, '');
-  btn.disabled = true;
-  btn.textContent = '…';
-  const res = await fetch('/api/contactos/manual', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ patente, telefono: tel }),
-  }).then(r => r.json());
-  if (res.ok) {
-    addLog('ok', `✅ Número guardado para ${patente}: ${tel}`);
-    // La tarjeta desaparece cuando llega datos_actualizados
-  } else {
-    msg.textContent = res.error || 'Error al guardar';
-    btn.disabled = false;
-    btn.textContent = 'Guardar';
-  }
+function validarSN(pat) {
+  const v = document.getElementById(`inp-sn-${pat}`).value.replace(/[+\s\-]/g,'');
+  document.getElementById(`btn-sn-${pat}`).disabled = !/^\d{10,15}$/.test(v);
 }
 
 function toggleAlerta() {
   alertaAbierta = !alertaAbierta;
-  document.getElementById('alert-body').style.display   = alertaAbierta ? '' : 'none';
-  document.getElementById('alert-chevron').className = 'alert-chevron' + (alertaAbierta ? ' open' : '');
+  document.getElementById('alertBody').style.display     = alertaAbierta ? '' : 'none';
+  const ch = document.getElementById('alertChevron');
+  ch.style.transform = alertaAbierta ? '' : 'rotate(-90deg)';
 }
 
-// ── Tabla ─────────────────────────────────────────────────────────────────────
+// ─── Tabla ────────────────────────────────────────────────────
 function renderTabla() {
-  const tbody   = document.getElementById('tabla-body');
-  const visibles = datosFiltrados();
-  if (!visibles.length) {
-    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--muted)">Sin datos</td></tr>';
+  const vis = datosFiltrados();
+  const tbody = document.getElementById('tabla');
+  if (!vis.length) {
+    tbody.innerHTML = '<tr><td colspan="7" class="py-12 text-center label" style="color:rgba(231,236,235,0.3);">Sin datos</td></tr>';
     return;
   }
-  tbody.innerHTML = visibles.map(d => {
-    const sel    = seleccionados.has(d.patente);
-    const rowCls = d.estadoSheet === 'ENVIADO' ? 'enviado' : (d.numero ? '' : 'sin-num');
-    let estado;
+
+  tbody.innerHTML = vis.map(d => {
+    const sel = seleccionados.has(d.patente);
+    let rowCls = 'tbl-row';
+    if (sel)                          rowCls += ' row-sel';
+    else if (d.estadoSheet === 'ENVIADO') rowCls += ' row-enviado';
+    else if (!d.numero)               rowCls += ' row-sinnum';
+
+    // Estado badge
+    let estadoHtml;
     if (d.estadoSheet === 'ENVIADO') {
-      estado = `<span class="pill pill-ok" title="${d.fechaSheet || ''}">Enviado</span>`
-             + (d.fechaSheet ? `<div style="font-size:.7rem;color:var(--muted);margin-top:3px">${d.fechaSheet}</div>` : '');
-    } else if (d.estadoSheet === 'SIN NÚMERO') {
-      estado = `<span class="pill pill-warn">Sin numero</span>`;
-    } else if (d.numero) {
-      estado = `<span class="pill pill-ok">Listo</span>`;
+      estadoHtml = `<div>
+        <span class="badge badge-electric">Enviado</span>
+        ${d.fechaSheet ? `<div class="label mt-1">${d.fechaSheet}</div>` : ''}
+      </div>`;
+    } else if (!d.numero) {
+      estadoHtml = `<span class="badge badge-amber">Sin número</span>`;
     } else {
-      estado = `<span class="pill pill-warn">Sin numero</span>`;
+      estadoHtml = `<span class="badge badge-muted">Pendiente</span>`;
     }
-    const telCel = d.numero
-      ? `<div id="tel-display-${d.patente}"><span>${formatTel(d.numero)}</span></div>
-         <div class="inline-edit" id="ie-${d.patente}">
-           <input class="ie-input" id="ie-inp-${d.patente}" type="tel" value="${d.numero}" maxlength="15"
-             onkeydown="if(event.key==='Enter') guardarNumeroTabla('${d.patente}'); else if(event.key==='Escape') cancelarEditTabla('${d.patente}')">
-           <button class="btn btn-outline btn-sm" onclick="guardarNumeroTabla('${d.patente}')">Guardar</button>
-           <button class="btn btn-outline btn-sm" onclick="cancelarEditTabla('${d.patente}')">Cancelar</button>
+
+    // Teléfono con edición inline
+    const telHtml = d.numero
+      ? `<div id="tel-display-${d.patente}" class="font-mono text-[12px]" style="color:rgba(231,236,235,0.6);">${formatTel(d.numero)}</div>
+         <div id="ie-${d.patente}" class="hidden gap-1 items-center">
+           <input id="ie-inp-${d.patente}" type="tel" value="${d.numero}" maxlength="15"
+             class="input" style="width:130px;font-size:11px;padding:4px 8px;"
+             onkeydown="if(event.key==='Enter') guardarNumeroTabla('${d.patente}'); else if(event.key==='Escape') cancelarEdit('${d.patente}')">
+           <button onclick="guardarNumeroTabla('${d.patente}')" class="btn-primary" style="padding:4px 10px;font-size:10px;">OK</button>
+           <button onclick="cancelarEdit('${d.patente}')" class="btn-secondary" style="padding:4px 8px;font-size:10px;">✕</button>
          </div>`
-      : `<div class="inline-edit show" id="ie-${d.patente}">
-           <input class="ie-input" id="ie-inp-${d.patente}" type="tel" placeholder="56912345678" maxlength="15"
+      : `<div class="flex gap-1 items-center">
+           <input id="ie-inp-${d.patente}" type="tel" placeholder="56912345678" maxlength="15"
+             class="input" style="width:130px;font-size:11px;padding:4px 8px;"
              onkeydown="if(event.key==='Enter') guardarNumeroTabla('${d.patente}')">
-           <button class="btn btn-outline btn-sm" onclick="guardarNumeroTabla('${d.patente}')">Guardar</button>
+           <button onclick="guardarNumeroTabla('${d.patente}')" class="btn-primary" style="padding:4px 10px;font-size:10px;">OK</button>
          </div>`;
-    return `<tr class="${rowCls}" id="row-${d.patente}" ${sel ? 'style="background:#1e3a5f22"':''}>
-      <td><input type="checkbox" class="chk" ${sel?'checked':''} onchange="toggleSel('${d.patente}',this.checked)"></td>
-      <td class="patente">${d.patente}</td>
-      <td class="nombre">${d.nombre || '—'}</td>
-      <td class="tel">${telCel}</td>
-      <td style="text-align:center"><span class="pill pill-sel">${d.folios}</span></td>
-      <td>${estado}</td>
-      <td style="white-space:nowrap">
-        <button class="btn btn-outline btn-sm" onclick="verMensaje('${d.patente}')">Ver</button>
-        ${d.numero ? `<button class="btn btn-outline btn-sm" style="margin-left:4px" onclick="editarNumero('${d.patente}')">Editar</button>` : ''}
-        ${d.numero ? `<button class="btn btn-outline btn-sm" style="margin-left:4px" onclick="enviarUno('${d.patente}')">Enviar</button>` : ''}
-        ${d.numero ? `<button class="btn btn-outline btn-sm" style="margin-left:4px; color:var(--danger); border-color:#3f1515" onclick="quitarNumero('${d.patente}')">Quitar</button>` : ''}
+
+    return `<tr class="${rowCls}">
+      <td class="px-4 py-3 text-center">
+        <input type="checkbox" ${sel?'checked':''} onchange="toggleSel('${d.patente}',this.checked)"
+          class="w-4 h-4 rounded cursor-pointer accent-[#78fcd6]">
+      </td>
+      <td class="px-4 py-3 font-mono font-bold text-[13px]" style="color:#78fcd6;">${d.patente}</td>
+      <td class="px-4 py-3 text-[13px]" style="color:rgba(231,236,235,0.65);">${d.nombre || '—'}</td>
+      <td class="px-4 py-3">${telHtml}</td>
+      <td class="px-4 py-3 text-center">
+        <span class="badge badge-electric">${d.folios}</span>
+      </td>
+      <td class="px-4 py-3">${estadoHtml}</td>
+      <td class="px-4 py-3 text-right">
+        <div class="flex justify-end gap-1">
+          <button onclick="verMensaje('${d.patente}')" class="btn-secondary" style="padding:4px 10px;font-size:11px;">Ver</button>
+          ${d.numero ? `<button onclick="editarNumero('${d.patente}')" class="btn-secondary" style="padding:4px 10px;font-size:11px;">Editar</button>` : ''}
+          ${d.numero ? `<button onclick="enviarUno('${d.patente}')" class="btn-primary" style="padding:4px 10px;font-size:11px;">Enviar</button>` : ''}
+          <button onclick="quitar('${d.patente}')" class="btn-danger" style="padding:4px 10px;font-size:11px;">Quitar</button>
+        </div>
       </td>
     </tr>`;
   }).join('');
+
   actualizarBotonesEnvio();
 }
 
-async function guardarNumeroTabla(patente) {
-  const inp = document.getElementById(`ie-inp-${patente}`);
-  if (!inp) return;
-  const tel = inp.value.replace(/[+\s\-]/g, '');
-  if (!/^\d{10,15}$/.test(tel)) {
-    inp.style.borderColor = 'var(--danger)';
-    setTimeout(() => inp.style.borderColor = '', 2000);
-    return;
-  }
+// ─── Acciones tabla ───────────────────────────────────────────
+function editarNumero(pat) {
+  document.getElementById(`tel-display-${pat}`)?.classList.add('hidden');
+  const ie = document.getElementById(`ie-${pat}`);
+  if (ie) { ie.classList.remove('hidden'); ie.classList.add('flex'); }
+  document.getElementById(`ie-inp-${pat}`)?.focus();
+}
+
+function cancelarEdit(pat) {
+  document.getElementById(`tel-display-${pat}`)?.classList.remove('hidden');
+  const ie = document.getElementById(`ie-${pat}`);
+  if (ie) { ie.classList.add('hidden'); ie.classList.remove('flex'); }
+}
+
+async function guardarNumero(pat) {
+  const inp = document.getElementById(`inp-sn-${pat}`);
+  const tel = inp.value.replace(/[+\s\-]/g,'');
   const res = await fetch('/api/contactos/manual', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ patente, telefono: tel }),
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ patente: pat, telefono: tel }),
   }).then(r => r.json());
-  if (res.ok) addLog('ok', `Numero guardado para ${patente}: ${tel}`);
-  else        addLog('err', `Error: ${res.error}`);
+  if (res.ok) { addLog('ok', `Número guardado para ${pat}: ${tel}`); await recargarDatos(); }
+  else        addLog('err', res.error);
 }
 
-function editarNumero(patente) {
-  const display = document.getElementById(`tel-display-${patente}`);
-  const edit    = document.getElementById(`ie-${patente}`);
-  if (display) display.style.display = 'none';
-  if (edit)    { edit.classList.add('show'); document.getElementById(`ie-inp-${patente}`)?.focus(); }
+async function guardarNumeroTabla(pat) {
+  const tel = document.getElementById(`ie-inp-${pat}`)?.value.replace(/[+\s\-]/g,'');
+  if (!/^\d{10,15}$/.test(tel)) return;
+  const res = await fetch('/api/contactos/manual', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ patente: pat, telefono: tel }),
+  }).then(r => r.json());
+  if (res.ok) { addLog('ok', `Número guardado para ${pat}: ${tel}`); await recargarDatos(); }
+  else        addLog('err', res.error);
 }
 
-function cancelarEditTabla(patente) {
-  const display = document.getElementById(`tel-display-${patente}`);
-  const edit    = document.getElementById(`ie-${patente}`);
-  if (display) display.style.display = '';
-  if (edit)    edit.classList.remove('show');
+function quitar(pat) {
+  ocultos.add(pat);
+  seleccionados.delete(pat);
+  renderTabla(); renderMetrics(); renderSinNumero();
 }
 
-async function quitarNumero(patente) {
-  if (!confirm(`¿Quitar ${patente} de la lista?\nSe eliminará el número registrado.`)) return;
-  ocultos.add(patente);
-  seleccionados.delete(patente);
-  renderTabla();
-  renderStats();
-  renderSinNumero();
-  const res = await fetch(`/api/contactos/manual/${patente}`, { method: 'DELETE' }).then(r => r.json());
-  if (res.ok) addLog('info', `${patente} quitado de la lista`);
-}
-
-// ── Selección ─────────────────────────────────────────────────────────────────
-function toggleSel(patente, checked) {
-  checked ? seleccionados.add(patente) : seleccionados.delete(patente);
-  const row = document.getElementById(`row-${patente}`);
-  if (row) row.style.background = checked ? '#1e3a5f22' : '';
+// ─── Selección ────────────────────────────────────────────────
+function toggleSel(pat, checked) {
+  checked ? seleccionados.add(pat) : seleccionados.delete(pat);
   actualizarSelBar();
 }
-function selTodos(checked) {
+
+function selTodos(val) {
   seleccionados.clear();
-  if (checked) datos.forEach(d => seleccionados.add(d.patente));
-  document.getElementById('chk-all').checked = checked;
-  renderTabla();
-  actualizarSelBar();
+  if (val) datosFiltrados().forEach(d => seleccionados.add(d.patente));
+  renderTabla(); actualizarSelBar();
 }
+
 function deselTodos() {
   seleccionados.clear();
-  document.getElementById('chk-all').checked = false;
-  renderTabla();
-  actualizarSelBar();
+  document.getElementById('chkTodos').checked = false;
+  renderTabla(); actualizarSelBar();
 }
+
 function actualizarSelBar() {
-  const bar = document.getElementById('sel-bar');
-  const cnt = document.getElementById('sel-count');
-  if (seleccionados.size > 0) {
-    bar.classList.add('show');
-    cnt.textContent = `${seleccionados.size} seleccionado(s)`;
-  } else bar.classList.remove('show');
+  const bar = document.getElementById('selBar');
+  const cnt = seleccionados.size;
+  if (cnt > 0) {
+    bar.classList.remove('hidden'); bar.classList.add('flex');
+    document.getElementById('selCount').textContent = `${cnt} seleccionado(s)`;
+  } else {
+    bar.classList.add('hidden'); bar.classList.remove('flex');
+  }
 }
+
 function actualizarBotonesEnvio() {
-  const listo = waEstado === 'listo';
-  document.getElementById('btn-enviar-todos').disabled  = !listo;
-  document.getElementById('btn-modal-enviar').disabled  = !listo;
+  const listo = waEstadoActual === 'listo';
+  document.getElementById('btnEnviarTodos').disabled = !listo;
+  document.getElementById('btnModalEnviar').disabled = !listo || !patenteModal;
 }
 
-// ── Modal ─────────────────────────────────────────────────────────────────────
-async function verMensaje(patente) {
-  const res = await fetch(`/api/mensaje/${patente}`).then(r => r.json());
-  if (!res.ok) return;
-  patenteModalActual = patente;
-  document.getElementById('modal-titulo').textContent = `PPU ${patente}`;
-  document.getElementById('modal-meta').textContent   =
-    res.numero ? `Enviar a: +${res.numero}` : '⚠️  Sin número registrado — no se podrá enviar';
-  document.getElementById('modal-msg').textContent    = res.mensaje;
-  document.getElementById('btn-modal-enviar').disabled = !res.numero || waEstado !== 'listo';
-  document.getElementById('overlay').classList.add('show');
+// ─── Modal ────────────────────────────────────────────────────
+async function verMensaje(pat) {
+  const res = await fetch(`/api/mensaje/${pat}`).then(r => r.json());
+  if (!res.ok) { addLog('err', res.error); return; }
+  patenteModal = pat;
+  document.getElementById('modalTitle').textContent = `PPU ${pat}`;
+  document.getElementById('modalMeta').textContent  = res.numero ? `Enviar a: +${res.numero}` : 'Sin número registrado';
+  document.getElementById('modalBody').textContent  = res.mensaje;
+  actualizarBotonesEnvio();
+  document.getElementById('modal').classList.remove('hidden');
 }
-function cerrarModal(e) {
-  if (!e || e.target === document.getElementById('overlay'))
-    document.getElementById('overlay').classList.remove('show');
+
+function cerrarModal() {
+  document.getElementById('modal').classList.add('hidden');
+  patenteModal = null;
 }
+
 async function enviarDesdeModal() {
-  if (!patenteModalActual) return;
+  if (!patenteModal) return;
+  const pat = patenteModal;
   cerrarModal();
-  enviarUno(patenteModalActual);
+  await enviarUno(pat);
 }
 
-// ── Envío ─────────────────────────────────────────────────────────────────────
-async function enviarUno(patente) {
-  if (waEstado !== 'listo') { addLog('warn', 'WhatsApp no conectado'); return; }
-  await fetch('/api/enviar', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ patentes: [patente] }),
-  });
+// ─── Envío ────────────────────────────────────────────────────
+async function enviarUno(pat) {
+  if (waEstadoActual !== 'listo') { addLog('err','WhatsApp no conectado'); return; }
+  await fetch('/api/enviar', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ patentes:[pat] }) });
 }
+
 async function enviarSeleccionados() {
-  if (!seleccionados.size || waEstado !== 'listo') return;
+  if (!seleccionados.size || waEstadoActual !== 'listo') return;
   const lista = [...seleccionados];
-  if (!confirm(`¿Enviar mensajes a ${lista.length} patente(s)?\n${lista.join(', ')}`)) return;
-  await fetch('/api/enviar', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ patentes: lista }),
-  });
-}
-async function confirmarEnviarTodos() {
-  if (waEstado !== 'listo') return;
-  const con = datos.filter(d => d.numero).length;
-  const sin = datos.length - con;
-  if (!confirm(`¿Enviar mensajes?\n✅ ${con} con número\n⚠️ ${sin} sin número (se omitirán)`)) return;
-  await fetch('/api/enviar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+  if (!confirm(`Enviar mensajes a ${lista.length} patente(s)?`)) return;
+  await fetch('/api/enviar', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ patentes: lista }) });
 }
 
-// ── WhatsApp ──────────────────────────────────────────────────────────────────
+async function confirmarEnviarTodos() {
+  if (waEstadoActual !== 'listo') return;
+  const con = datosFiltrados().filter(d => d.numero).length;
+  if (!confirm(`Enviar mensajes a ${con} patentes con número?`)) return;
+  await fetch('/api/enviar', { method:'POST', headers:{'Content-Type':'application/json'}, body:'{}' });
+}
+
+// ─── WhatsApp ─────────────────────────────────────────────────
+function actualizarWA(estado) {
+  waEstadoActual = estado;
+  const dot   = document.getElementById('waDot');
+  const label = document.getElementById('waLabel');
+  const btnC  = document.getElementById('btnConectar');
+  const btnD  = document.getElementById('btnDesconectar');
+  const qrW   = document.getElementById('qrWrap');
+  const hint  = document.getElementById('waHint');
+
+  const cfg = {
+    desconectado: { color:'#ef4444', lbl:'Desconectado', blink:false, btnC:'Conectar', dis:[false,true]  },
+    conectando:   { color:'#f59e0b', lbl:'Conectando...', blink:true, btnC:'Cancelar', dis:[true,false] },
+    qr:           { color:'#f59e0b', lbl:'Escanea el QR', blink:true, btnC:'Cancelar', dis:[true,false] },
+    autenticado:  { color:'#f59e0b', lbl:'Autenticando...', blink:true, btnC:'Cancelar', dis:[true,false] },
+    listo:        { color:'#78fcd6', lbl:'Conectado',    blink:false, btnC:'Conectar', dis:[true,false]  },
+    error:        { color:'#ef4444', lbl:'Error',        blink:false, btnC:'Reconectar', dis:[false,true] },
+  }[estado] || { color:'#ef4444', lbl:'Desconectado', blink:false, btnC:'Conectar', dis:[false,true] };
+
+  dot.style.background = cfg.color;
+  dot.className = `w-2 h-2 rounded-full${cfg.blink ? ' dot-blink' : ''}`;
+  label.textContent = cfg.lbl;
+  label.style.color = cfg.color;
+  btnC.textContent = cfg.btnC;
+  [btnC.disabled, btnD.disabled] = cfg.dis;
+  if (estado !== 'qr') qrW.classList.remove('show');
+  hint.textContent = estado === 'listo' ? 'WhatsApp listo para enviar'
+    : estado === 'qr' ? 'Escanea el código QR con WhatsApp'
+    : 'Conecta WhatsApp para enviar mensajes';
+  actualizarBotonesEnvio();
+}
+
 async function conectarWA() {
-  addLog('info', 'Iniciando conexión WhatsApp…');
-  await fetch('/api/whatsapp/conectar', { method: 'POST' });
+  addLog('info','Iniciando conexión WhatsApp...');
+  await fetch('/api/whatsapp/conectar', { method:'POST' });
 }
 async function desconectarWA() {
-  await fetch('/api/whatsapp/desconectar', { method: 'POST' });
-  addLog('info', 'WhatsApp desconectado.');
+  await fetch('/api/whatsapp/desconectar', { method:'POST' });
 }
 
-// ── Log ───────────────────────────────────────────────────────────────────────
+// ─── Socket.io ────────────────────────────────────────────────
+socket.on('wa_estado', ({ estado, qr, progreso, msg }) => {
+  actualizarWA(estado);
+  if (qr) {
+    document.getElementById('qrImg').src = qr;
+    document.getElementById('qrWrap').classList.add('show');
+  }
+  if (estado === 'conectando' && progreso != null) addLog('info', `Cargando... ${progreso}%`);
+  if (estado === 'listo')        addLog('ok',  'WhatsApp conectado');
+  if (estado === 'desconectado') addLog('err', 'WhatsApp desconectado');
+  if (estado === 'error')        addLog('err', `Error: ${msg}`);
+});
+
+socket.on('datos_actualizados', ({ datos: d }) => {
+  datos = d; renderTabla(); renderMetrics(); renderSinNumero();
+  addLog('info', 'Datos actualizados');
+});
+
+socket.on('envio_inicio', ({ total }) => {
+  const pb = document.getElementById('progressBar');
+  pb.classList.add('show'); pb.style.display = 'block';
+  document.getElementById('progressFill').style.width = '0%';
+  addLog('info', `Enviando ${total} mensaje(s)...`);
+});
+socket.on('envio_log', ({ patente, ok, numero, msg, i, total }) => {
+  if (i != null) document.getElementById('progressFill').style.width = `${Math.round(i/total*100)}%`;
+  addLog(ok ? 'ok' : 'err', `${patente}${numero ? ' → '+numero : ''} — ${msg}`);
+});
+socket.on('envio_fin', ({ total, enviados }) => {
+  addLog('ok', `Finalizado: ${enviados}/${total} enviados`);
+  document.getElementById('progressBar').style.display = 'none';
+});
+
+// ─── Log ──────────────────────────────────────────────────────
 function addLog(tipo, msg) {
-  const area = document.getElementById('log-area');
-  const div  = document.createElement('div');
-  div.className = `log-${tipo}`;
-  div.textContent = `[${new Date().toLocaleTimeString('es-CL')}] ${msg}`;
-  area.appendChild(div);
-  area.scrollTop = area.scrollHeight;
-  while (area.children.length > 200) area.removeChild(area.firstChild);
+  const log  = document.getElementById('log');
+  const hora = new Date().toLocaleTimeString('es-CL');
+  const color = tipo === 'ok'  ? '#78fcd6'
+              : tipo === 'err' ? '#ef4444'
+              : 'rgba(231,236,235,0.45)';
+  const p = document.createElement('p');
+  p.style.color = color;
+  if (tipo !== 'info') p.style.fontWeight = '600';
+  p.textContent = `[${hora}] ${msg}`;
+  log.appendChild(p);
+  log.scrollTop = log.scrollHeight;
+  while (log.children.length > 200) log.removeChild(log.firstChild);
 }
-function limpiarLog() { document.getElementById('log-area').innerHTML = ''; }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+function limpiarLog() {
+  document.getElementById('log').innerHTML =
+    '<p style="color:rgba(120,252,214,0.5);font-weight:600;">En espera...</p>';
+}
+
+// ─── Helpers ──────────────────────────────────────────────────
 function formatTel(t) {
   const s = String(t).replace(/\D/g,'');
-  if (s.startsWith('56') && s.length === 11)
-    return `+56 ${s[2]} ${s.slice(3,7)} ${s.slice(7)}`;
+  if (s.startsWith('56') && s.length === 11) return `+56 ${s[2]} ${s.slice(3,7)} ${s.slice(7)}`;
   return '+' + s;
 }
 
-// ── Upload contactos ──────────────────────────────────────────────────────────
 async function subirContactos(input) {
-  const file = input.files[0];
-  if (!file) return;
-  addLog('info', `Subiendo ${file.name}…`);
-  input.value = '';
-  try {
-    const res = await fetch('/api/upload/contactos', {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/csv' },
-      body: file,
-    }).then(r => r.json());
-    if (res.ok) addLog('ok', 'Contactos cargados correctamente');
-    else        addLog('err', 'Error al subir contactos: ' + res.error);
-  } catch (e) {
-    addLog('err', 'Error de red: ' + e.message);
-  }
+  const file = input.files[0]; if (!file) return;
+  addLog('info', `Subiendo ${file.name}...`); input.value = '';
+  const res = await fetch('/api/upload/contactos', {
+    method:'POST', headers:{'Content-Type':'text/csv'}, body: file,
+  }).then(r => r.json());
+  if (res.ok) addLog('ok','Contactos cargados correctamente');
+  else        addLog('err','Error: ' + res.error);
 }
 
-// ── Auto-recarga ──────────────────────────────────────────────────────────────
-const AUTO_INTERVAL_MS = 5 * 60 * 1000; // 5 minutos
-let autoTimer = null;
-let proximaRecarga = null;
-
-function iniciarAutoRecarga() {
-  if (autoTimer) clearInterval(autoTimer);
-  proximaRecarga = Date.now() + AUTO_INTERVAL_MS;
-  autoTimer = setInterval(() => {
-    recargarDatos();
-    proximaRecarga = Date.now() + AUTO_INTERVAL_MS;
-  }, AUTO_INTERVAL_MS);
-}
-
-setInterval(() => {
-  if (!proximaRecarga) return;
-  const resta = Math.max(0, Math.round((proximaRecarga - Date.now()) / 1000));
-  const m = String(Math.floor(resta / 60)).padStart(2, '0');
-  const s = String(resta % 60).padStart(2, '0');
-  document.getElementById('auto-badge').textContent = `Auto ${m}:${s}`;
-}, 1000);
-
-// ── Init ──────────────────────────────────────────────────────────────────────
+// ─── Init ─────────────────────────────────────────────────────
 recargarDatos();
-iniciarAutoRecarga();
 </script>
+<script src="/sidebar.js"></script>
+<script>initSidebar('devoluciones').then(() => lucide.createIcons());</script>
 </body>
 </html>

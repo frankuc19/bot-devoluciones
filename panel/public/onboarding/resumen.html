@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Karri — Resumen Onboarding</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/styles.css">
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { height: 100%; overflow: hidden; }
+  body { background: #0f1211; color: #e7eceb; font-family: Inter, sans-serif; }
+</style>
+</head>
+<body>
+<div class="flex h-screen overflow-hidden">
+  <aside id="sidebar" style="background:#080b0a;border-right:1px solid rgba(255,255,255,0.08);width:220px;flex-shrink:0;display:flex;flex-direction:column;height:100%;"></aside>
+
+  <div class="flex-1 flex flex-col min-w-0 overflow-hidden">
+    <header style="background:#080b0a;border-bottom:1px solid rgba(255,255,255,0.08);" class="h-14 flex items-center justify-between px-5 flex-shrink-0">
+      <div class="flex items-center gap-3">
+        <span style="color:#78fcd6;"><i data-lucide="layout-dashboard" class="w-4 h-4"></i></span>
+        <h1 style="font-size:15px;font-weight:600;color:#e7eceb;">Resumen Onboarding</h1>
+      </div>
+      <div class="flex items-center gap-2">
+        <button onclick="cargarDatos()" class="btn-secondary"><i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Recargar</button>
+        <span id="autoTimer" class="label ml-1">Auto 00:30</span>
+      </div>
+    </header>
+
+    <div class="flex-1 overflow-y-auto p-5 space-y-5">
+      <!-- Stats -->
+      <div class="grid grid-cols-3 gap-4">
+        <div class="card">
+          <p class="label mb-3">Total enviados</p>
+          <div class="flex items-end justify-between">
+            <span id="statTotal" style="font-size:32px;font-weight:900;color:#78fcd6;">—</span>
+            <i data-lucide="send" style="width:20px;height:20px;color:#78fcd6;opacity:.3;"></i>
+          </div>
+        </div>
+        <div class="card">
+          <p class="label mb-3">Apertura email</p>
+          <div class="flex items-end justify-between">
+            <span id="statOpen" style="font-size:32px;font-weight:900;color:#e7eceb;">—</span>
+            <i data-lucide="mail-open" style="width:20px;height:20px;color:rgba(231,236,235,.35);opacity:.7;"></i>
+          </div>
+        </div>
+        <div class="card">
+          <p class="label mb-3">Clics totales</p>
+          <div class="flex items-end justify-between">
+            <span id="statClick" style="font-size:32px;font-weight:900;color:#78fcd6;">—</span>
+            <i data-lucide="mouse-pointer-click" style="width:20px;height:20px;color:#78fcd6;opacity:.3;"></i>
+          </div>
+        </div>
+      </div>
+
+      <!-- Search -->
+      <div class="relative">
+        <i data-lucide="search" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);width:14px;height:14px;color:rgba(231,236,235,.3);"></i>
+        <input id="busqueda" type="text" placeholder="Buscar campaña por nombre..." oninput="filtrarCampanas()"
+          class="input" style="padding-left:36px;">
+      </div>
+
+      <!-- Campaign list -->
+      <div id="listaCampanas" class="card" style="padding:0;overflow:hidden;">
+        <div style="padding:16px 20px;border-bottom:1px solid rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:between;">
+          <span style="font-size:13px;font-weight:600;color:#e7eceb;flex:1;">Campañas recientes</span>
+          <span id="totalCamp" class="label"></span>
+        </div>
+        <div id="campBody" style="padding:12px;">
+          <p style="text-align:center;padding:40px;color:rgba(231,236,235,.3);font-size:13px;">Cargando...</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal no-abrieron -->
+<div id="modalNoAbr" class="hidden fixed inset-0 z-50 flex items-center justify-center" style="background:rgba(0,0,0,0.8);">
+  <div class="card w-full max-w-lg mx-4 flex flex-col" style="max-height:80vh;padding:0;border-radius:14px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid rgba(255,255,255,0.08);">
+      <p style="font-size:13px;font-weight:600;color:#e7eceb;">No abrieron el correo</p>
+      <button onclick="cerrarNoAbr()" class="label cursor-pointer hover:text-white">✕</button>
+    </div>
+    <div id="noAbrBody" style="flex:1;overflow-y:auto;padding:16px 20px;"></div>
+    <div style="padding:12px 20px;border-top:1px solid rgba(255,255,255,0.08);">
+      <button id="btnDescargar" onclick="descargarCSV()" class="btn-secondary" style="font-size:11px;gap:6px;">
+        <i data-lucide="download" class="w-3.5 h-3.5"></i> Descargar CSV
+      </button>
+    </div>
+  </div>
+</div>
+
+<script src="/sidebar.js"></script>
+<script>
+let todasCampanas = [];
+let noAbrData = null;
+let autoTimer = null;
+let autoSecs = 30;
+
+function iniciarTimer() {
+  clearInterval(autoTimer);
+  autoSecs = 30;
+  autoTimer = setInterval(() => {
+    autoSecs--;
+    document.getElementById('autoTimer').textContent = `Auto 00:${String(autoSecs).padStart(2,'0')}`;
+    if (autoSecs <= 0) cargarDatos();
+  }, 1000);
+}
+
+async function cargarDatos() {
+  iniciarTimer();
+  try {
+    const [stats, campanas] = await Promise.all([
+      fetch('/api/ob/campaigns/stats').then(r => r.json()),
+      fetch('/api/ob/campaigns').then(r => r.json()),
+    ]);
+    document.getElementById('statTotal').textContent = stats.totalSent?.toLocaleString() ?? '0';
+    document.getElementById('statOpen').textContent  = `${stats.openRate ?? 0}%`;
+    document.getElementById('statClick').textContent = `${stats.clickRate ?? 0}%`;
+    todasCampanas = Array.isArray(campanas) ? campanas : [];
+    filtrarCampanas();
+  } catch (e) { console.error(e); }
+}
+
+function filtrarCampanas() {
+  const q = document.getElementById('busqueda').value.toLowerCase();
+  const filtradas = todasCampanas.filter(c => c.name.toLowerCase().includes(q));
+  document.getElementById('totalCamp').textContent = `${filtradas.length} campañas`;
+  renderCampanas(filtradas);
+}
+
+function fmtDate(iso) {
+  return new Date(iso).toLocaleDateString('es', { day:'2-digit', month:'short', year:'numeric' });
+}
+
+function statusDot(status) {
+  const m = { completed:'#78fcd6', sending:'#f59e0b', failed:'#ef4444', draft:'#3f3f42' };
+  return `<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${m[status]||'#3f3f42'};flex-shrink:0;"></span>`;
+}
+
+function renderCampanas(list) {
+  const el = document.getElementById('campBody');
+  if (!list.length) {
+    el.innerHTML = '<p style="text-align:center;padding:40px;color:rgba(231,236,235,.3);font-size:13px;">Sin campañas</p>';
+    return;
+  }
+  el.innerHTML = list.map(c => {
+    const typeBadge = c.type === 'email'
+      ? `<span style="font-size:10px;background:rgba(120,252,214,.1);color:#78fcd6;border:1px solid rgba(120,252,214,.2);padding:1px 8px;border-radius:99px;">Email</span>`
+      : `<span style="font-size:10px;background:rgba(120,252,214,.05);color:#78fcd6;border:1px solid rgba(120,252,214,.15);padding:1px 8px;border-radius:99px;">WhatsApp</span>`;
+    const openPct  = c.stats?.total > 0 ? Math.round(((c.stats.opened||0)/c.stats.total)*100) : 0;
+    const clickPct = c.stats?.total > 0 ? Math.round(((c.stats.clicked||0)/c.stats.total)*100) : 0;
+    const noAbrBtn = c.type === 'email' && c.status === 'completed'
+      ? `<button onclick="verNoAbr('${c.id}')" style="font-size:10px;color:rgba(231,236,235,.4);border:1px solid rgba(255,255,255,.08);padding:3px 10px;border-radius:6px;background:transparent;cursor:pointer;">No abrieron</button>` : '';
+    return `
+    <div style="display:flex;align-items:center;gap:16px;padding:12px 0;border-bottom:1px solid rgba(255,255,255,.05);">
+      ${statusDot(c.status)}
+      <div style="flex:1;min-width:0;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:2px;">
+          <span style="font-size:13px;font-weight:500;color:#e7eceb;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${c.name}</span>
+          ${typeBadge}
+        </div>
+        <span style="font-size:11px;color:rgba(231,236,235,.4);">${fmtDate(c.createdAt)} · ${(c.stats?.total||0).toLocaleString()} contactos</span>
+      </div>
+      <div style="display:flex;gap:20px;align-items:center;flex-shrink:0;">
+        <div style="text-align:right;">
+          <p style="font-size:13px;font-weight:600;color:#e7eceb;">${(c.stats?.sent||0).toLocaleString()}</p>
+          <p style="font-size:10px;color:rgba(231,236,235,.4);">enviados</p>
+        </div>
+        ${c.type==='email' ? `
+        <div style="text-align:right;">
+          <p style="font-size:13px;font-weight:600;color:#78fcd6;">${openPct}%</p>
+          <p style="font-size:10px;color:rgba(231,236,235,.4);">abrieron</p>
+        </div>
+        <div style="text-align:right;">
+          <p style="font-size:13px;font-weight:600;color:#78fcd6;">${clickPct}%</p>
+          <p style="font-size:10px;color:rgba(231,236,235,.4);">clics</p>
+        </div>` : ''}
+        ${noAbrBtn}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function verNoAbr(id) {
+  document.getElementById('noAbrBody').innerHTML = '<p style="color:rgba(231,236,235,.4);font-size:13px;text-align:center;padding:24px;">Cargando...</p>';
+  document.getElementById('modalNoAbr').classList.remove('hidden');
+  try {
+    noAbrData = await fetch(`/api/ob/campaigns/${id}/non-openers`).then(r => r.json());
+    document.getElementById('noAbrBody').innerHTML = noAbrData.nonOpeners.length
+      ? noAbrData.nonOpeners.map(c => `
+          <div style="display:flex;justify-content:space-between;padding:8px 12px;background:#181c1b;border-radius:8px;margin-bottom:6px;border:1px solid rgba(255,255,255,.06);">
+            <span style="font-size:13px;color:#e7eceb;">${c.nombre||c.name||'—'}</span>
+            <span style="font-size:11px;color:rgba(231,236,235,.4);font-family:monospace;">${c.correo||c.email||''}</span>
+          </div>`).join('')
+      : '<p style="color:#78fcd6;text-align:center;padding:24px;font-size:13px;">¡Todos abrieron el correo!</p>';
+    document.getElementById('btnDescargar').style.display = noAbrData.nonOpeners.length ? '' : 'none';
+  } catch { document.getElementById('noAbrBody').innerHTML = '<p style="color:#ef4444;text-align:center;padding:24px;">Error al cargar</p>'; }
+}
+
+function cerrarNoAbr() { document.getElementById('modalNoAbr').classList.add('hidden'); noAbrData = null; }
+
+function descargarCSV() {
+  if (!noAbrData?.nonOpeners.length) return;
+  const rows = [['nombre','correo'], ...noAbrData.nonOpeners.map(c => [c.nombre||c.name||'', c.correo||c.email||''])];
+  const csv  = rows.map(r => r.map(v => `"${v}"`).join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], { type:'text/csv' }));
+  a.download = `no-abrieron.csv`;
+  a.click();
+}
+
+initSidebar('ob-resumen').then(() => { lucide.createIcons(); });
+cargarDatos();
+</script>
+</body>
+</html>

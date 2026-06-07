@@ -23,6 +23,11 @@ const { leerConciliaciones, leerGeosort,
         buscarFechaRuta }                          = require('../src/googleSheetsConciliaciones');
 const { generarMensajeConciliacion }               = require('../src/generarMensajeConciliacion');
 
+const emailRoutes     = require('../src/onboarding/emailRoutes');
+const whatsappRoutes  = require('../src/onboarding/whatsappRoutes');
+const campaignsRoutes = require('../src/onboarding/campaignsRoutes');
+const templatesRoutes = require('../src/onboarding/templatesRoutes');
+
 const DELAY_MS   = 5000;
 const PORT       = process.env.PORT || 3000;
 const USA_SHEETS = !!process.env.GOOGLE_SHEET_ID;
@@ -66,12 +71,34 @@ async function obtenerContactos() {
 }
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
-const PANEL_USER   = process.env.PANEL_USER     || 'admin';
-const PANEL_PASS   = process.env.PANEL_PASSWORD || 'changeme';
-const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex');
-const VALID_TOKEN  = crypto.createHmac('sha256', SESSION_SECRET)
-                           .update(`${PANEL_USER}:${PANEL_PASS}`)
-                           .digest('hex');
+const PANEL_USER = process.env.PANEL_USER     || 'admin';
+const PANEL_PASS = process.env.PANEL_PASSWORD || 'changeme';
+const USERS_PATH = path.join(__dirname, '..', 'config', 'users.json');
+
+const sessions = new Map(); // token -> { id, username, name, role }
+
+function readUsers() {
+  try {
+    const raw = JSON.parse(fs.readFileSync(USERS_PATH, 'utf8'));
+    return Array.isArray(raw.users) ? raw.users : [];
+  } catch { return []; }
+}
+
+function writeUsers(users) {
+  fs.mkdirSync(path.dirname(USERS_PATH), { recursive: true });
+  fs.writeFileSync(USERS_PATH, JSON.stringify({ users }, null, 2), 'utf8');
+}
+
+const ALL_SECTIONS = ['finanzas', 'onboarding', 'perfiles'];
+
+function loginUser(username, password) {
+  const users = readUsers();
+  const u = users.find(x => x.username === username && x.password === password);
+  if (u) return { id: u.id, username: u.username, name: u.name, role: u.role, sections: u.sections || [] };
+  if (username === PANEL_USER && password === PANEL_PASS)
+    return { id: '0', username: PANEL_USER, name: 'Admin', role: 'admin', sections: [] };
+  return null;
+}
 
 function parseCookies(req) {
   const cookies = {};
@@ -82,20 +109,28 @@ function parseCookies(req) {
   return cookies;
 }
 
+function getSession(req) { return sessions.get(parseCookies(req).token); }
+
 function requireAuth(req, res, next) {
-  if (parseCookies(req).token === VALID_TOKEN) return next();
+  if (getSession(req)) return next();
   res.redirect('/login');
 }
 
 function requireAuthApi(req, res, next) {
-  if (parseCookies(req).token === VALID_TOKEN) return next();
+  if (getSession(req)) return next();
   res.status(401).json({ ok: false, error: 'No autenticado' });
+}
+
+function requireAdmin(req, res, next) {
+  if (getSession(req)?.role === 'admin') return next();
+  res.status(403).json({ ok: false, error: 'Acceso restringido' });
 }
 
 // ─── Express ──────────────────────────────────────────────────────────────────
 const app    = express();
 const server = http.createServer(app);
 const io     = new Server(server);
+app.set('io', io);
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
@@ -105,23 +140,129 @@ app.get('/login', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'login.html'));
 });
 
+const SECTION_HOME = {
+  finanzas:   '/',
+  onboarding: '/onboarding/resumen.html',
+  perfiles:   '/perfiles.html',
+};
+
+const PAGE_SECTION = {
+  '/':                            'finanzas',
+  '/index.html':                  'finanzas',
+  '/conciliaciones.html':         'finanzas',
+  '/onboarding/resumen.html':     'onboarding',
+  '/onboarding/email.html':       'onboarding',
+  '/onboarding/whatsapp.html':    'onboarding',
+  '/onboarding/altas.html':       'onboarding',
+  '/onboarding/kpi.html':         'onboarding',
+  '/perfiles.html':               'perfiles',
+};
+
 app.post('/login', (req, res) => {
   const { user, password } = req.body;
-  if (user === PANEL_USER && password === PANEL_PASS) {
-    res.setHeader('Set-Cookie', `token=${VALID_TOKEN}; HttpOnly; Path=/; SameSite=Strict`);
-    return res.redirect('/');
+  const session = loginUser(user, password);
+  if (session) {
+    const token = crypto.randomBytes(32).toString('hex');
+    sessions.set(token, session);
+    res.setHeader('Set-Cookie', `token=${token}; HttpOnly; Path=/; SameSite=Strict`);
+    const sections = session.role === 'admin' ? ALL_SECTIONS : (session.sections || []);
+    return res.redirect(SECTION_HOME[sections[0]] || '/');
   }
   res.redirect('/login?error=1');
 });
 
 app.post('/logout', (req, res) => {
+  const token = parseCookies(req).token;
+  if (token) sessions.delete(token);
   res.setHeader('Set-Cookie', 'token=; HttpOnly; Path=/; Max-Age=0');
   res.redirect('/login');
 });
 
 // ─── Rutas protegidas ─────────────────────────────────────────────────────────
 app.use(requireAuth);
+
+// Redirige si el usuario no tiene acceso a la sección de la página pedida
+app.use((req, res, next) => {
+  const section = PAGE_SECTION[req.path];
+  if (!section) return next();
+  const s = getSession(req);
+  if (!s) return next();
+  const sections = s.role === 'admin' ? ALL_SECTIONS : (s.sections || []);
+  if (!sections.includes(section)) {
+    return res.redirect(SECTION_HOME[sections[0]] || '/');
+  }
+  next();
+});
+
 app.use(express.static(path.join(__dirname, 'public')));
+
+// ─── API: sesión actual ───────────────────────────────────────────────────────
+app.get('/api/me', requireAuthApi, (req, res) => {
+  const s = getSession(req);
+  const sections = s.role === 'admin' ? ALL_SECTIONS : (s.sections || []);
+  res.json({ ok: true, id: s.id, username: s.username, name: s.name, role: s.role, sections });
+});
+
+// ─── API: gestión de usuarios (solo admin) ────────────────────────────────────
+app.get('/api/perfiles/usuarios', requireAuthApi, requireAdmin, (req, res) => {
+  const users = readUsers().map(({ password: _, ...u }) => u);
+  res.json(users);
+});
+
+app.post('/api/perfiles/usuarios', requireAuthApi, requireAdmin, (req, res) => {
+  const { name, username, password, role, sections = [] } = req.body;
+  if (!name || !username || !password) return res.json({ ok: false, error: 'Faltan campos requeridos' });
+  if (!['admin', 'advanced', 'beginner'].includes(role)) return res.json({ ok: false, error: 'Rol inválido' });
+  if (role === 'beginner' && sections.length !== 1)
+    return res.json({ ok: false, error: 'Beginner debe tener exactamente 1 sección' });
+  if (role === 'advanced' && sections.length < 2)
+    return res.json({ ok: false, error: 'Advanced debe tener al menos 2 secciones' });
+  const users = readUsers();
+  if (users.find(u => u.username === username)) return res.json({ ok: false, error: 'El usuario ya existe' });
+  const newUser = { id: Date.now().toString(), name, username, password, role, sections: role === 'admin' ? [] : sections };
+  users.push(newUser);
+  writeUsers(users);
+  const { password: _, ...safe } = newUser;
+  res.json({ ok: true, user: safe });
+});
+
+app.put('/api/perfiles/usuarios/:id', requireAuthApi, requireAdmin, (req, res) => {
+  const { name, username, password, role, sections } = req.body;
+  const users = readUsers();
+  const idx   = users.findIndex(u => u.id === req.params.id);
+  if (idx === -1) return res.json({ ok: false, error: 'Usuario no encontrado' });
+  if (role && !['admin', 'advanced', 'beginner'].includes(role)) return res.json({ ok: false, error: 'Rol inválido' });
+  if (username && username !== users[idx].username && users.find(u => u.username === username))
+    return res.json({ ok: false, error: 'El nombre de usuario ya está en uso' });
+  const newRole = role || users[idx].role;
+  const newSections = sections !== undefined ? sections : (users[idx].sections || []);
+  if (newRole === 'beginner' && newSections.length !== 1)
+    return res.json({ ok: false, error: 'Beginner debe tener exactamente 1 sección' });
+  if (newRole === 'advanced' && newSections.length < 2)
+    return res.json({ ok: false, error: 'Advanced debe tener al menos 2 secciones' });
+  if (name)     users[idx].name     = name;
+  if (username) users[idx].username = username;
+  if (password) users[idx].password = password;
+  if (role)     users[idx].role     = role;
+  users[idx].sections = newRole === 'admin' ? [] : newSections;
+  writeUsers(users);
+  res.json({ ok: true });
+});
+
+app.delete('/api/perfiles/usuarios/:id', requireAuthApi, requireAdmin, (req, res) => {
+  if (req.params.id === '1') return res.json({ ok: false, error: 'No puedes eliminar el usuario principal' });
+  const users    = readUsers();
+  const filtered = users.filter(u => u.id !== req.params.id);
+  if (filtered.length === users.length) return res.json({ ok: false, error: 'Usuario no encontrado' });
+  writeUsers(filtered);
+  res.json({ ok: true });
+});
+
+// ─── API: onboarding ─────────────────────────────────────────────────────────
+app.use('/api/ob/email',     requireAuthApi, emailRoutes);
+app.use('/api/ob/whatsapp',  requireAuthApi, whatsappRoutes);
+app.use('/api/ob/campaigns', requireAuthApi, campaignsRoutes);
+app.use('/api/ob/templates', requireAuthApi, templatesRoutes);
 
 // ─── Estado global ────────────────────────────────────────────────────────────
 let waClient        = null;
@@ -313,10 +454,10 @@ async function cargarDatosConciliaciones() {
 
   const grupos = new Map();
   for (const r of registros) {
-    const ppuNorm = (r.data.PPU || '').toUpperCase().replace(/-/g, '');
+    const ppuNorm = r.data.PPU; // ya normalizado en leerConciliaciones
     if (!ppuNorm) continue;
     if (!grupos.has(ppuNorm)) {
-      grupos.set(ppuNorm, { filas: [], rowIndices: [], tabName: r.tabName, ppuOrig: r.data.PPU });
+      grupos.set(ppuNorm, { filas: [], rowIndices: [], tabName: r.tabName });
     }
     const g = grupos.get(ppuNorm);
     g.filas.push(r.data);
@@ -324,15 +465,15 @@ async function cargarDatosConciliaciones() {
   }
 
   mensajesConciliaciones = [];
-  for (const [ppuNorm, { filas, rowIndices, tabName, ppuOrig }] of grupos.entries()) {
+  for (const [ppuNorm, { filas, rowIndices, tabName }] of grupos.entries()) {
     const numero      = contactos[ppuNorm] || null;
     const fechasRuta  = filas.map(f => buscarFechaRuta(f, geosort, ppuNorm));
     mensajesConciliaciones.push({
-      patente:    ppuOrig || ppuNorm,
+      patente:    ppuNorm,
       numero,
       nombre:     nombres[ppuNorm] || null,
       items:      filas.length,
-      mensaje:    generarMensajeConciliacion(ppuOrig || ppuNorm, filas, fechasRuta),
+      mensaje:    generarMensajeConciliacion(ppuNorm, filas, fechasRuta),
       rowIndices,
       tabName,
     });
@@ -405,6 +546,7 @@ async function iniciarWhatsApp() {
     });
 
     waClient = sock;
+    app.set('waClient', sock);
     sock.ev.on('creds.update', saveCreds);
 
     sock.ev.on('connection.update', async ({ connection, lastDisconnect, qr }) => {
@@ -421,6 +563,7 @@ async function iniciarWhatsApp() {
         const code      = lastDisconnect?.error?.output?.statusCode;
         const loggedOut = code === DisconnectReason.loggedOut;
         waClient  = null;
+        app.set('waClient', null);
         waEstado  = 'desconectado';
         io.emit('wa_estado', { estado: 'desconectado' });
         if (_reconectarAuto && !loggedOut) {
@@ -502,7 +645,7 @@ async function enviarConProgreso(lista) {
 io.use((socket, next) => {
   const cookie = socket.handshake.headers.cookie || '';
   const token  = parseCookies({ headers: { cookie } }).token;
-  if (token === VALID_TOKEN) return next();
+  if (token && sessions.has(token)) return next();
   next(new Error('No autenticado'));
 });
 

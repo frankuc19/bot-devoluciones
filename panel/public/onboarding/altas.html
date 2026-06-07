@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Karri — Altas</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { height: 100%; overflow: hidden; }
+  body { background: #0f1211; color: #e7eceb; font-family: Inter, sans-serif; }
+  .card { background:#181c1b; border:1px solid rgba(255,255,255,0.08); border-radius:12px; padding:20px; }
+  .btn-primary { display:inline-flex;align-items:center;gap:6px;background:#78fcd6;color:#080b0a;font-weight:700;font-size:12px;border-radius:8px;padding:7px 16px;border:none;cursor:pointer;transition:background .15s,box-shadow .15s; }
+  .btn-primary:hover { background:#00ffb6; box-shadow:0 0 18px rgba(120,252,214,.35); }
+  .btn-secondary { display:inline-flex;align-items:center;gap:6px;background:#1e2221;color:#e7eceb;border:1px solid rgba(255,255,255,0.08);font-weight:600;font-size:12px;border-radius:8px;padding:6px 14px;cursor:pointer;transition:background .12s; }
+  .btn-secondary:hover { background:#3f3f42; }
+  .input { background:#27272a;border:1px solid rgba(255,255,255,0.08);color:#e7eceb;border-radius:8px;padding:7px 12px;font-size:13px;outline:none;transition:border-color .15s;width:100%; }
+  .input:focus { border-color:#78fcd6; }
+  .input::placeholder { color:rgba(231,236,235,.3); }
+  .label { font-size:10px;color:rgba(231,236,235,.5);font-weight:600;text-transform:uppercase;letter-spacing:.08em; }
+  .nav-item { display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:10px;font-size:13px;font-weight:500;cursor:pointer;transition:all .15s;color:rgba(231,236,235,.5);text-decoration:none;border:1px solid transparent; }
+  .nav-item:hover { background:rgba(255,255,255,.04);color:#e7eceb; }
+  .nav-item.active { background:rgba(120,252,214,.08);color:#78fcd6;border-color:rgba(120,252,214,.15); }
+
+  .status-dot { display:inline-block;width:7px;height:7px;border-radius:50%;flex-shrink:0; }
+  .filter-tab { padding:6px 14px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid transparent;transition:all .12s;color:rgba(231,236,235,.45); }
+  .filter-tab.active { background:rgba(120,252,214,.1);color:#78fcd6;border-color:rgba(120,252,214,.2); }
+  .filter-tab:hover:not(.active) { background:rgba(255,255,255,.04);color:#e7eceb; }
+</style>
+</head>
+<body>
+<div class="flex h-screen overflow-hidden">
+  <aside id="sidebar" style="background:#080b0a;border-right:1px solid rgba(255,255,255,0.08);width:220px;flex-shrink:0;display:flex;flex-direction:column;height:100%;"></aside>
+
+  <div class="flex-1 flex flex-col min-w-0 overflow-hidden">
+    <header style="background:#080b0a;border-bottom:1px solid rgba(255,255,255,0.08);" class="h-14 flex items-center justify-between px-5 flex-shrink-0">
+      <div class="flex items-center gap-3">
+        <span style="color:#78fcd6;"><i data-lucide="user-check" class="w-4 h-4"></i></span>
+        <h1 style="font-size:15px;font-weight:600;color:#e7eceb;">Altas de conductores</h1>
+      </div>
+      <div class="flex items-center gap-2">
+        <button onclick="cargarAltas()" class="btn-secondary">
+          <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Recargar
+        </button>
+        <button onclick="exportarCSV()" class="btn-primary">
+          <i data-lucide="download" class="w-3.5 h-3.5"></i> Exportar CSV
+        </button>
+      </div>
+    </header>
+
+    <div class="flex-1 overflow-y-auto p-5 space-y-5">
+
+      <!-- Stats -->
+      <div class="grid grid-cols-4 gap-4">
+        <div class="card">
+          <p class="label mb-3">Total altas</p>
+          <div class="flex items-end justify-between">
+            <span id="statTotal" style="font-size:28px;font-weight:900;color:#78fcd6;">—</span>
+            <i data-lucide="users" style="width:18px;height:18px;color:#78fcd6;opacity:.3;"></i>
+          </div>
+        </div>
+        <div class="card">
+          <p class="label mb-3">Pendientes</p>
+          <div class="flex items-end justify-between">
+            <span id="statPending" style="font-size:28px;font-weight:900;color:#f59e0b;">—</span>
+            <i data-lucide="clock" style="width:18px;height:18px;color:#f59e0b;opacity:.4;"></i>
+          </div>
+        </div>
+        <div class="card">
+          <p class="label mb-3">Completadas</p>
+          <div class="flex items-end justify-between">
+            <span id="statOk" style="font-size:28px;font-weight:900;color:#78fcd6;">—</span>
+            <i data-lucide="check-circle-2" style="width:18px;height:18px;color:#78fcd6;opacity:.3;"></i>
+          </div>
+        </div>
+        <div class="card">
+          <p class="label mb-3">Rechazadas</p>
+          <div class="flex items-end justify-between">
+            <span id="statRej" style="font-size:28px;font-weight:900;color:#ef4444;">—</span>
+            <i data-lucide="x-circle" style="width:18px;height:18px;color:#ef4444;opacity:.4;"></i>
+          </div>
+        </div>
+      </div>
+
+      <!-- Filters + search -->
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <div style="display:flex;gap:4px;background:#181c1b;border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:4px;">
+          <button class="filter-tab active" onclick="setFiltro('todos',this)">Todos</button>
+          <button class="filter-tab" onclick="setFiltro('pendiente',this)">Pendientes</button>
+          <button class="filter-tab" onclick="setFiltro('completado',this)">Completados</button>
+          <button class="filter-tab" onclick="setFiltro('rechazado',this)">Rechazados</button>
+        </div>
+        <div style="flex:1;position:relative;min-width:200px;">
+          <i data-lucide="search" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);width:13px;height:13px;color:rgba(231,236,235,.3);"></i>
+          <input id="busqueda" type="text" class="input" placeholder="Buscar por nombre, RUT o patente..." style="padding-left:32px;" oninput="filtrarYRender()">
+        </div>
+      </div>
+
+      <!-- Table -->
+      <div class="card" style="padding:0;overflow:hidden;">
+        <table style="width:100%;border-collapse:collapse;">
+          <thead>
+            <tr style="background:#1e2221;border-bottom:1px solid rgba(255,255,255,.07);">
+              <th style="padding:11px 20px;text-align:left;" class="label">Conductor</th>
+              <th style="padding:11px 20px;text-align:left;" class="label">RUT</th>
+              <th style="padding:11px 20px;text-align:left;" class="label">Patente</th>
+              <th style="padding:11px 20px;text-align:left;" class="label">Fecha alta</th>
+              <th style="padding:11px 20px;text-align:left;" class="label">Estado</th>
+            </tr>
+          </thead>
+          <tbody id="altasBody"></tbody>
+        </table>
+        <div id="altasEmpty" style="text-align:center;padding:48px;color:rgba(231,236,235,.3);font-size:13px;display:none;">
+          No hay registros
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/sidebar.js"></script>
+<script>
+let todasAltas = [];
+let filtroActivo = 'todos';
+
+const STATUS = {
+  pendiente:  { label:'Pendiente',  color:'#f59e0b', bg:'rgba(245,158,11,.12)', border:'rgba(245,158,11,.25)' },
+  completado: { label:'Completado', color:'#78fcd6', bg:'rgba(120,252,214,.12)', border:'rgba(120,252,214,.25)' },
+  rechazado:  { label:'Rechazado',  color:'#ef4444', bg:'rgba(239,68,68,.12)',   border:'rgba(239,68,68,.25)'  },
+};
+
+function statusBadge(s) {
+  const st = STATUS[s] || STATUS.pendiente;
+  return `<span style="font-size:10px;font-weight:700;text-transform:uppercase;background:${st.bg};color:${st.color};border:1px solid ${st.border};padding:2px 10px;border-radius:99px;">${st.label}</span>`;
+}
+
+function fmtDate(iso) {
+  return new Date(iso).toLocaleDateString('es', { day:'2-digit', month:'short', year:'numeric' });
+}
+
+function setFiltro(f, btn) {
+  filtroActivo = f;
+  document.querySelectorAll('.filter-tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  filtrarYRender();
+}
+
+function filtrarYRender() {
+  const q = document.getElementById('busqueda').value.toLowerCase();
+  let lista = todasAltas;
+  if (filtroActivo !== 'todos') lista = lista.filter(a => a.status === filtroActivo);
+  if (q) lista = lista.filter(a =>
+    (a.name||'').toLowerCase().includes(q) ||
+    (a.rut||'').toLowerCase().includes(q) ||
+    (a.patente||'').toLowerCase().includes(q)
+  );
+  renderAltas(lista);
+}
+
+function renderAltas(lista) {
+  const tbody = document.getElementById('altasBody');
+  const empty  = document.getElementById('altasEmpty');
+  if (!lista.length) {
+    tbody.innerHTML = '';
+    empty.style.display = '';
+    return;
+  }
+  empty.style.display = 'none';
+  tbody.innerHTML = lista.map(a => `
+    <tr style="border-bottom:1px solid rgba(255,255,255,.05);">
+      <td style="padding:13px 20px;">
+        <p style="font-size:13px;font-weight:500;color:#e7eceb;">${a.name}</p>
+        <p style="font-size:11px;color:rgba(231,236,235,.4);">${a.phone||'—'}</p>
+      </td>
+      <td style="padding:13px 20px;font-size:12px;font-family:'JetBrains Mono',monospace;color:rgba(231,236,235,.6);">${a.rut||'—'}</td>
+      <td style="padding:13px 20px;font-size:13px;font-weight:600;color:#78fcd6;font-family:'JetBrains Mono',monospace;">${a.patente||'—'}</td>
+      <td style="padding:13px 20px;font-size:12px;color:rgba(231,236,235,.5);">${fmtDate(a.createdAt)}</td>
+      <td style="padding:13px 20px;">${statusBadge(a.status)}</td>
+    </tr>`).join('');
+}
+
+async function cargarAltas() {
+  try {
+    const data = await fetch('/api/ob/altas').then(r => r.json());
+    todasAltas = Array.isArray(data) ? data : [];
+  } catch { todasAltas = []; }
+
+  const total     = todasAltas.length;
+  const pendiente = todasAltas.filter(a => a.status === 'pendiente').length;
+  const completado= todasAltas.filter(a => a.status === 'completado').length;
+  const rechazado = todasAltas.filter(a => a.status === 'rechazado').length;
+
+  document.getElementById('statTotal').textContent   = total;
+  document.getElementById('statPending').textContent = pendiente;
+  document.getElementById('statOk').textContent      = completado;
+  document.getElementById('statRej').textContent     = rechazado;
+
+  filtrarYRender();
+}
+
+function exportarCSV() {
+  if (!todasAltas.length) return;
+  const rows = [['nombre','rut','patente','telefono','estado','fecha'],
+    ...todasAltas.map(a => [a.name, a.rut, a.patente, a.phone, a.status, a.createdAt])];
+  const csv = rows.map(r => r.map(v => `"${v||''}"`).join(',')).join('\n');
+  const el  = document.createElement('a');
+  el.href   = URL.createObjectURL(new Blob([csv], { type:'text/csv' }));
+  el.download = 'altas.csv';
+  el.click();
+}
+
+initSidebar('ob-altas').then(() => lucide.createIcons());
+cargarAltas();
+</script>
+</body>
+</html>

@@ -45,7 +45,7 @@ function extraerFila(row) {
     SKU_DESC: get(COL.SKU_DESC),
     COSTO:    get(COL.COSTO),
     MOTIVO:   get(COL.MOTIVO),
-    PPU:      get(COL.PPU),
+    PPU:      get(COL.PPU).toUpperCase().replace(/[^A-Z0-9]/g, ''),
   };
 }
 
@@ -105,7 +105,7 @@ async function leerGeosort() {
   for (const row of rows.slice(1)) {
     const fecha = row[iFecha] ? String(row[iFecha]).trim() : '';
     if (!fecha) continue;
-    const ppu = iPPU !== -1 ? String(row[iPPU] || '').trim().toUpperCase().replace(/-/g, '') : '';
+    const ppu = iPPU !== -1 ? String(row[iPPU] || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '') : '';
 
     const add = (prefix, val) => {
       if (!val) return;
@@ -120,7 +120,7 @@ async function leerGeosort() {
 }
 
 function buscarFechaRuta(fila, geosortLookup, ppu) {
-  const ppuNorm = String(ppu).toUpperCase().replace(/-/g, '');
+  const ppuNorm = String(ppu).toUpperCase().replace(/[^A-Z0-9]/g, '');
   const try_ = (prefix, val) => {
     if (!val) return null;
     return geosortLookup[`${prefix}:${val}:${ppuNorm}`]

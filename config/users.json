@@ -1,0 +1,22 @@
+{
+  "users": [
+    {
+      "id": "1",
+      "username": "admin",
+      "password": "karri2025",
+      "role": "admin",
+      "name": "Administrador",
+      "sections": []
+    },
+    {
+      "id": "1780804560200",
+      "name": "Daniela Saez",
+      "username": "Daniela",
+      "password": "karri2026",
+      "role": "beginner",
+      "sections": [
+        "onboarding"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Karri — WhatsApp masivo</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="/socket.io/socket.io.js"></script>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { height: 100%; overflow: hidden; }
+  body { background: #0f1211; color: #e7eceb; font-family: Inter, sans-serif; }
+  .card { background:#181c1b; border:1px solid rgba(255,255,255,0.08); border-radius:12px; padding:20px; }
+  .btn-primary { display:inline-flex;align-items:center;gap:6px;background:#78fcd6;color:#080b0a;font-weight:700;font-size:12px;border-radius:8px;padding:7px 16px;border:none;cursor:pointer;transition:background .15s,box-shadow .15s; }
+  .btn-primary:hover:not(:disabled) { background:#00ffb6; box-shadow:0 0 18px rgba(120,252,214,.35); }
+  .btn-primary:disabled { opacity:.3;cursor:not-allowed; }
+  .btn-secondary { display:inline-flex;align-items:center;gap:6px;background:#1e2221;color:#e7eceb;border:1px solid rgba(255,255,255,0.08);font-weight:600;font-size:12px;border-radius:8px;padding:6px 14px;cursor:pointer;transition:background .12s; }
+  .btn-secondary:hover:not(:disabled) { background:#3f3f42; }
+  .btn-wa { display:inline-flex;align-items:center;gap:6px;background:#00ff41;color:#080b0a;font-weight:700;font-size:11px;border-radius:8px;padding:6px 14px;border:none;cursor:pointer; }
+  .btn-wa:hover { background:#00cc33; }
+  .input { background:#27272a;border:1px solid rgba(255,255,255,0.08);color:#e7eceb;border-radius:8px;padding:7px 12px;font-size:13px;outline:none;transition:border-color .15s;width:100%; }
+  .input:focus { border-color:#78fcd6; }
+  .input::placeholder { color:rgba(231,236,235,.3); }
+  .label { font-size:10px;color:rgba(231,236,235,.5);font-weight:600;text-transform:uppercase;letter-spacing:.08em; }
+  .nav-item { display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:10px;font-size:13px;font-weight:500;cursor:pointer;transition:all .15s;color:rgba(231,236,235,.5);text-decoration:none;border:1px solid transparent; }
+  .nav-item:hover { background:rgba(255,255,255,.04);color:#e7eceb; }
+  .nav-item.active { background:rgba(120,252,214,.08);color:#78fcd6;border-color:rgba(120,252,214,.15); }
+  .step-pill { padding:5px 14px;border-radius:99px;font-size:11px;font-weight:600;cursor:default; }
+  .step-active { background:#78fcd6;color:#080b0a;box-shadow:0 0 10px rgba(120,252,214,.4); }
+  .step-done   { background:#1e2221;color:#78fcd6;cursor:pointer; }
+  .step-pending{ background:#181c1b;color:rgba(231,236,235,.3); }
+  .drop-zone { border:2px dashed rgba(255,255,255,.1);border-radius:12px;padding:40px;text-align:center;cursor:pointer;transition:border-color .2s; }
+  .drop-zone:hover,.drop-zone.drag { border-color:#78fcd6; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.2} }
+  .dot-blink { animation:blink 1.2s infinite; }
+</style>
+</head>
+<body>
+<div class="flex h-screen overflow-hidden">
+  <aside id="sidebar" style="background:#080b0a;border-right:1px solid rgba(255,255,255,0.08);width:220px;flex-shrink:0;display:flex;flex-direction:column;height:100%;"></aside>
+
+  <div class="flex-1 flex flex-col min-w-0 overflow-hidden">
+    <header style="background:#080b0a;border-bottom:1px solid rgba(255,255,255,0.08);" class="h-14 flex items-center justify-between px-5 flex-shrink-0">
+      <div class="flex items-center gap-3">
+        <span style="color:#78fcd6;"><i data-lucide="message-circle" class="w-4 h-4"></i></span>
+        <h1 style="font-size:15px;font-weight:600;color:#e7eceb;">WhatsApp masivo</h1>
+      </div>
+      <div class="flex items-center gap-3">
+        <!-- WA Status bar -->
+        <div style="display:flex;align-items:center;gap:8px;padding:5px 12px;border-radius:8px;border:1px solid rgba(255,255,255,.08);background:#1e2221;">
+          <div id="waDot" style="width:7px;height:7px;border-radius:50%;background:#ef4444;"></div>
+          <span id="waLabel" style="font-size:11px;font-weight:600;color:#ef4444;">Desconectado</span>
+          <span id="waPhone" style="font-size:10px;color:rgba(231,236,235,.4);"></span>
+        </div>
+        <button id="btnConectar" onclick="conectarWA()" class="btn-wa">Conectar WA</button>
+        <button id="btnDesconectar" onclick="desconectarWA()" disabled class="btn-secondary" style="font-size:11px;padding:5px 10px;">Desconectar</button>
+        <!-- Steps -->
+        <div class="flex items-center gap-2 ml-2" id="stepsBar"></div>
+      </div>
+    </header>
+
+    <!-- QR modal -->
+    <div id="qrModal" class="hidden fixed inset-0 z-50 flex items-center justify-center" style="background:rgba(0,0,0,.8);">
+      <div class="card" style="padding:24px;text-align:center;max-width:280px;">
+        <p style="font-size:13px;font-weight:600;margin-bottom:16px;">Escanea el QR con WhatsApp</p>
+        <img id="qrImg" src="" style="width:220px;height:220px;border-radius:8px;background:white;padding:8px;">
+        <p style="font-size:11px;color:rgba(231,236,235,.4);margin-top:12px;">Dispositivos vinculados → Vincular dispositivo</p>
+        <button onclick="document.getElementById('qrModal').classList.add('hidden')" class="btn-secondary" style="margin-top:12px;width:100%;justify-content:center;">Cerrar</button>
+      </div>
+    </div>
+
+    <div class="flex-1 overflow-y-auto p-5">
+      <!-- Step 1: Contactos -->
+      <div id="step-contacts" class="max-w-2xl mx-auto space-y-4">
+        <div class="card">
+          <p style="font-size:14px;font-weight:600;margin-bottom:4px;">Subir lista de contactos</p>
+          <p class="label">Excel/CSV con columnas: nombre, teléfono (o whatsapp), y variables opcionales</p>
+          <div id="drop-contacts" class="drop-zone mt-4" onclick="document.getElementById('inp-contacts').click()" ondragover="ev(event,'over')" ondragleave="ev(event,'leave')" ondrop="ev(event,'drop')">
+            <i data-lucide="upload" style="width:32px;height:32px;color:rgba(120,252,214,.4);margin:0 auto 12px;display:block;"></i>
+            <p style="color:#e7eceb;font-size:13px;margin-bottom:4px;">Arrastra tu archivo aquí</p>
+            <p style="color:rgba(231,236,235,.35);font-size:12px;">o haz clic para seleccionar</p>
+          </div>
+          <input id="inp-contacts" type="file" accept=".xlsx,.csv,.xls" class="hidden" onchange="handleContacts(this.files[0])">
+          <div id="contacts-info" class="hidden mt-4">
+            <div style="padding:12px;background:#0f1211;border-radius:8px;border:1px solid rgba(120,252,214,.2);margin-bottom:12px;">
+              <p id="contacts-name" style="font-size:13px;font-weight:600;color:#78fcd6;"></p>
+              <p id="contacts-count" style="font-size:11px;color:rgba(231,236,235,.5);margin-top:2px;"></p>
+            </div>
+            <p class="label mb-1">Columna de teléfono</p>
+            <select id="phone-col" class="input">
+              <option value="">Selecciona columna...</option>
+            </select>
+          </div>
+        </div>
+        <div class="flex justify-end">
+          <button id="btn-contacts-next" onclick="goStep('message')" disabled class="btn-primary">
+            Siguiente <i data-lucide="chevron-right" class="w-4 h-4"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Step 2: Mensaje -->
+      <div id="step-message" class="hidden max-w-2xl mx-auto space-y-4">
+        <div class="card space-y-4">
+          <p style="font-size:14px;font-weight:600;">Redactar mensaje</p>
+          <p class="label">Usa {'{'}{'{'}nombre{'}'}{'}'}, {'{'}{'{'}empresa{'}'}{'}'}, etc. para personalizar</p>
+          <div>
+            <textarea id="msg-text" rows="8" class="input" style="resize:vertical;font-family:'JetBrains Mono',monospace;font-size:12px;" placeholder="Hola {{nombre}}, te contactamos de Karri..."></textarea>
+          </div>
+          <!-- Preview -->
+          <div id="preview-wrap" class="hidden" style="background:#0f1211;border-radius:8px;padding:12px;border:1px solid rgba(255,255,255,.06);">
+            <p class="label mb-2">Vista previa (primer contacto)</p>
+            <p id="preview-text" style="font-size:12px;color:#e7eceb;white-space:pre-wrap;font-family:'JetBrains Mono',monospace;"></p>
+          </div>
+        </div>
+        <div class="flex justify-between">
+          <button onclick="goStep('contacts')" class="btn-secondary"><i data-lucide="chevron-left" class="w-4 h-4"></i> Atrás</button>
+          <button id="btn-msg-next" onclick="goStep('config')" class="btn-primary">Siguiente <i data-lucide="chevron-right" class="w-4 h-4"></i></button>
+        </div>
+      </div>
+
+      <!-- Step 3: Config -->
+      <div id="step-config" class="hidden max-w-2xl mx-auto space-y-4">
+        <div class="card space-y-4">
+          <p style="font-size:14px;font-weight:600;">Configurar campaña</p>
+          <div><p class="label mb-1">Nombre de la campaña</p><input id="cfg-name" type="text" class="input" placeholder="Ej: Bienvenida Mayo 2025"></div>
+          <div>
+            <p class="label mb-1">Delay entre mensajes (ms)</p>
+            <input id="cfg-delay" type="number" class="input" value="2500" min="500" max="30000">
+            <p style="font-size:10px;color:rgba(231,236,235,.35);margin-top:4px;">Recomendado: 2500–5000ms para evitar bloqueos</p>
+          </div>
+        </div>
+        <div class="flex justify-between">
+          <button onclick="goStep('message')" class="btn-secondary"><i data-lucide="chevron-left" class="w-4 h-4"></i> Atrás</button>
+          <button onclick="goStep('send')" class="btn-primary">Siguiente <i data-lucide="chevron-right" class="w-4 h-4"></i></button>
+        </div>
+      </div>
+
+      <!-- Step 4: Enviar -->
+      <div id="step-send" class="hidden max-w-2xl mx-auto space-y-4">
+        <div class="card space-y-3">
+          <p style="font-size:14px;font-weight:600;">Listo para enviar</p>
+          <div style="background:#0f1211;border-radius:10px;padding:16px;display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+            <div><p class="label">Campaña</p><p id="sum-name" style="font-size:13px;color:#e7eceb;margin-top:2px;"></p></div>
+            <div><p class="label">Contactos</p><p id="sum-count" style="font-size:13px;color:#78fcd6;font-weight:700;margin-top:2px;"></p></div>
+            <div><p class="label">Delay</p><p id="sum-delay" style="font-size:13px;color:#e7eceb;margin-top:2px;"></p></div>
+            <div><p class="label">Columna tel.</p><p id="sum-col" style="font-size:13px;color:#e7eceb;margin-top:2px;"></p></div>
+          </div>
+          <!-- Progress -->
+          <div id="send-progress" class="hidden space-y-2">
+            <div style="display:flex;justify-content:space-between;">
+              <span id="send-status" style="font-size:12px;color:rgba(231,236,235,.6);"></span>
+              <span id="send-pct" style="font-size:12px;color:#78fcd6;font-weight:700;"></span>
+            </div>
+            <div style="height:4px;background:#1e2221;border-radius:99px;overflow:hidden;">
+              <div id="send-bar" style="height:100%;background:#78fcd6;width:0%;transition:width .3s;box-shadow:0 0 8px rgba(120,252,214,.5);"></div>
+            </div>
+          </div>
+          <div id="send-done" class="hidden p-4 rounded-xl" style="background:rgba(120,252,214,.05);border:1px solid rgba(120,252,214,.2);">
+            <p style="color:#78fcd6;font-weight:600;font-size:13px;">✓ Campaña completada</p>
+            <p id="send-result" style="font-size:11px;color:rgba(231,236,235,.5);margin-top:4px;"></p>
+          </div>
+          <p id="wa-warning" class="hidden" style="color:#f59e0b;font-size:12px;padding:10px;border-radius:8px;background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.2);">
+            ⚠️ WhatsApp no conectado. Conéctalo desde el botón "Conectar WA" en la barra superior.
+          </p>
+        </div>
+        <div class="flex justify-between">
+          <button onclick="goStep('config')" class="btn-secondary"><i data-lucide="chevron-left" class="w-4 h-4"></i> Atrás</button>
+          <button id="btn-send" onclick="enviar()" class="btn-primary">
+            <i data-lucide="send" class="w-3.5 h-3.5"></i> Enviar campaña
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/sidebar.js"></script>
+<script>
+const socket = io();
+const STEPS = ['contacts','message','config','send'];
+const STEP_LABELS = { contacts:'Contactos', message:'Mensaje', config:'Configurar', send:'Enviar' };
+let currentStep = 'contacts';
+let contactsData = null;
+let waConnected = false;
+let sending = false;
+
+// ── WA ──────────────────────────────────────────────────────────────
+socket.on('wa_estado', ({ estado, qr, phone }) => {
+  waConnected = estado === 'listo';
+  const dot = document.getElementById('waDot');
+  const lbl = document.getElementById('waLabel');
+  const ph  = document.getElementById('waPhone');
+  const btnC = document.getElementById('btnConectar');
+  const btnD = document.getElementById('btnDesconectar');
+  const colors = { listo:'#78fcd6', conectando:'#f59e0b', qr:'#f59e0b', desconectado:'#ef4444', error:'#ef4444' };
+  const labels = { listo:'Conectado', conectando:'Conectando...', qr:'Escanea QR', desconectado:'Desconectado', error:'Error' };
+  dot.style.background = colors[estado] || '#ef4444';
+  lbl.style.color      = colors[estado] || '#ef4444';
+  lbl.textContent      = labels[estado] || 'Desconectado';
+  ph.textContent       = phone ? `+${phone}` : '';
+  [btnC.disabled, btnD.disabled] = [estado === 'listo', estado !== 'listo'];
+  if (qr) { document.getElementById('qrImg').src = qr; document.getElementById('qrModal').classList.remove('hidden'); }
+  if (estado === 'listo') document.getElementById('qrModal').classList.add('hidden');
+  checkWaWarning();
+});
+
+socket.on('ob:wa:progress', ({ sent, failed, total }) => {
+  const pct = Math.round((sent + failed) / total * 100);
+  document.getElementById('send-bar').style.width = pct + '%';
+  document.getElementById('send-status').textContent = `Enviado: ${sent} / ${total} · Errores: ${failed}`;
+  document.getElementById('send-pct').textContent = pct + '%';
+});
+
+socket.on('campaign:complete', ({ stats }) => {
+  document.getElementById('send-progress').classList.add('hidden');
+  document.getElementById('send-done').classList.remove('hidden');
+  document.getElementById('send-result').textContent = `${stats.sent} enviados · ${stats.failed} errores`;
+  sending = false;
+});
+
+async function conectarWA() { await fetch('/api/whatsapp/conectar', { method:'POST' }); }
+async function desconectarWA() { await fetch('/api/whatsapp/desconectar', { method:'POST' }); }
+
+function checkWaWarning() {
+  const w = document.getElementById('wa-warning');
+  if (w) w.classList.toggle('hidden', waConnected || currentStep !== 'send');
+}
+
+// ── Steps ────────────────────────────────────────────────────────────
+function renderSteps() {
+  const idx = STEPS.indexOf(currentStep);
+  document.getElementById('stepsBar').innerHTML = STEPS.map((s, i) => {
+    const cls = s === currentStep ? 'step-active' : i < idx ? 'step-done' : 'step-pending';
+    const action = i < idx ? `onclick="goStep('${s}')"` : '';
+    return `<span class="step-pill ${cls}" ${action}>${i+1}. ${STEP_LABELS[s]}</span>`;
+  }).join('<i data-lucide="chevron-right" style="width:12px;height:12px;color:rgba(231,236,235,.2);"></i>');
+  lucide.createIcons();
+}
+
+function goStep(s) {
+  document.getElementById(`step-${currentStep}`).classList.add('hidden');
+  currentStep = s;
+  document.getElementById(`step-${s}`).classList.remove('hidden');
+  if (s === 'send') fillSummary();
+  renderSteps();
+  checkWaWarning();
+}
+
+// ── Contacts ─────────────────────────────────────────────────────────
+function ev(e, action) {
+  e.preventDefault();
+  const el = document.getElementById('drop-contacts');
+  if (action === 'over') el.classList.add('drag');
+  else if (action === 'leave') el.classList.remove('drag');
+  else { el.classList.remove('drag'); if (e.dataTransfer.files[0]) handleContacts(e.dataTransfer.files[0]); }
+}
+
+async function handleContacts(file) {
+  if (!file) return;
+  const fd = new FormData(); fd.append('file', file);
+  try {
+    const r = await fetch('/api/ob/whatsapp/parse-contacts', { method:'POST', body:fd }).then(x => x.json());
+    if (r.error) throw new Error(r.error);
+    contactsData = r;
+    document.getElementById('contacts-info').classList.remove('hidden');
+    document.getElementById('contacts-name').textContent = file.name;
+    document.getElementById('contacts-count').textContent = `${r.total} contactos · ${r.headers.length} columnas`;
+    const sel = document.getElementById('phone-col');
+    sel.innerHTML = r.headers.map(h => `<option value="${h}" ${/tel|phone|celular|numero|número|whatsapp/i.test(h)?'selected':''}>${h}</option>`).join('');
+    document.getElementById('btn-contacts-next').disabled = false;
+  } catch (e) { alert('Error: ' + e.message); }
+}
+
+// ── Message preview ───────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('msg-text').addEventListener('input', updatePreview);
+});
+
+function updatePreview() {
+  const msg = document.getElementById('msg-text').value;
+  const preview = contactsData?.preview?.[0] || {};
+  const personalized = msg.replace(/\{\{(\w+)\}\}/g, (_, k) => preview[k] || `{{${k}}}`);
+  const pw = document.getElementById('preview-wrap');
+  if (msg.trim()) {
+    pw.classList.remove('hidden');
+    document.getElementById('preview-text').textContent = personalized;
+  } else { pw.classList.add('hidden'); }
+}
+
+function fillSummary() {
+  document.getElementById('sum-name').textContent  = document.getElementById('cfg-name').value || '—';
+  document.getElementById('sum-count').textContent = `${contactsData?.total || 0} contactos`;
+  document.getElementById('sum-delay').textContent = `${document.getElementById('cfg-delay').value}ms`;
+  document.getElementById('sum-col').textContent   = document.getElementById('phone-col').value || '—';
+}
+
+async function enviar() {
+  if (sending) return;
+  if (!waConnected) { document.getElementById('wa-warning').classList.remove('hidden'); return; }
+  sending = true;
+  document.getElementById('btn-send').disabled = true;
+  document.getElementById('send-progress').classList.remove('hidden');
+  document.getElementById('send-done').classList.add('hidden');
+  document.getElementById('send-bar').style.width = '0%';
+
+  await fetch('/api/ob/whatsapp/send', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({
+      contactsTempId: contactsData.tempId,
+      name:     document.getElementById('cfg-name').value,
+      message:  document.getElementById('msg-text').value,
+      phoneColumn: document.getElementById('phone-col').value,
+      delay:    Number(document.getElementById('cfg-delay').value),
+    }),
+  });
+}
+
+initSidebar('ob-whatsapp').then(() => { lucide.createIcons(); renderSteps(); });
+</script>
+</body>
+</html>
