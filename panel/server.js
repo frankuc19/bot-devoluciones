@@ -19,6 +19,9 @@ const { cargarContactos, cargarNombres, limpiarCache, cargarDesdeEnv } = require
 const { leerDevoluciones, marcarFilas,
         asegurarEncabezados, leerConsolidado,
         escribirTelefonos }                        = require('../src/googleSheets');
+const { leerConciliaciones, leerGeosort,
+        buscarFechaRuta }                          = require('../src/googleSheetsConciliaciones');
+const { generarMensajeConciliacion }               = require('../src/generarMensajeConciliacion');
 
 const DELAY_MS   = 5000;
 const PORT       = process.env.PORT || 3000;
@@ -281,6 +284,107 @@ app.post('/api/enviar', requireAuthApi, async (req, res) => {
   res.json({ ok: true, total: lista.length });
   enviarConProgreso(lista);
 });
+
+// ─── Conciliaciones ───────────────────────────────────────────────────────────
+let _geosortCache   = null;
+let _geosortCacheTs = 0;
+const GEOSORT_TTL   = 10 * 60 * 1000;
+
+async function obtenerGeosort() {
+  const ahora = Date.now();
+  if (_geosortCache && (ahora - _geosortCacheTs) < GEOSORT_TTL) return _geosortCache;
+  try {
+    _geosortCache   = await leerGeosort();
+    _geosortCacheTs = ahora;
+  } catch (e) {
+    console.error('Error leyendo geosort:', e.message);
+    if (!_geosortCache) _geosortCache = {};
+  }
+  return _geosortCache;
+}
+
+let mensajesConciliaciones = [];
+
+async function cargarDatosConciliaciones() {
+  const contactos = await obtenerContactos();
+  const nombres   = cargarNombres();
+  const geosort   = await obtenerGeosort();
+  const registros = await leerConciliaciones();
+
+  const grupos = new Map();
+  for (const r of registros) {
+    const ppuNorm = (r.data.PPU || '').toUpperCase().replace(/-/g, '');
+    if (!ppuNorm) continue;
+    if (!grupos.has(ppuNorm)) {
+      grupos.set(ppuNorm, { filas: [], rowIndices: [], tabName: r.tabName, ppuOrig: r.data.PPU });
+    }
+    const g = grupos.get(ppuNorm);
+    g.filas.push(r.data);
+    g.rowIndices.push(r.rowIndex);
+  }
+
+  mensajesConciliaciones = [];
+  for (const [ppuNorm, { filas, rowIndices, tabName, ppuOrig }] of grupos.entries()) {
+    const numero      = contactos[ppuNorm] || null;
+    const fechasRuta  = filas.map(f => buscarFechaRuta(f, geosort, ppuNorm));
+    mensajesConciliaciones.push({
+      patente:    ppuOrig || ppuNorm,
+      numero,
+      nombre:     nombres[ppuNorm] || null,
+      items:      filas.length,
+      mensaje:    generarMensajeConciliacion(ppuOrig || ppuNorm, filas, fechasRuta),
+      rowIndices,
+      tabName,
+    });
+  }
+  return mensajesConciliaciones;
+}
+
+app.get('/api/conciliaciones/datos', requireAuthApi, async (req, res) => {
+  try {
+    const datos = await cargarDatosConciliaciones();
+    res.json({ ok: true, datos, waEstado });
+  } catch (err) {
+    res.json({ ok: false, error: err.message });
+  }
+});
+
+app.get('/api/conciliaciones/mensaje/:patente', requireAuthApi, (req, res) => {
+  const item = mensajesConciliaciones.find(m => m.patente === decodeURIComponent(req.params.patente));
+  if (!item) return res.json({ ok: false, error: 'Patente no encontrada' });
+  res.json({ ok: true, mensaje: item.mensaje, patente: item.patente, numero: item.numero });
+});
+
+app.post('/api/conciliaciones/enviar', requireAuthApi, async (req, res) => {
+  if (waEstado !== 'listo') return res.json({ ok: false, error: 'WhatsApp no conectado' });
+  const { patentes } = req.body;
+  const lista = patentes?.length > 0
+    ? mensajesConciliaciones.filter(m => patentes.includes(m.patente))
+    : mensajesConciliaciones;
+  res.json({ ok: true, total: lista.length });
+  enviarConciliacionesConProgreso(lista);
+});
+
+async function enviarConciliacionesConProgreso(lista) {
+  io.emit('envio_inicio', { total: lista.length });
+  let enviados = 0;
+  for (let i = 0; i < lista.length; i++) {
+    const { patente, numero, mensaje } = lista[i];
+    if (!numero) {
+      io.emit('envio_log', { patente, ok: false, msg: 'Sin numero — no enviado', i: i + 1, total: lista.length });
+      continue;
+    }
+    try {
+      await waClient.sendMessage(`${numero}@s.whatsapp.net`, { text: mensaje });
+      io.emit('envio_log', { patente, ok: true, numero, msg: 'Enviado', i: i + 1, total: lista.length });
+      enviados++;
+    } catch (err) {
+      io.emit('envio_log', { patente, ok: false, numero, msg: `Error: ${err.message}`, i: i + 1, total: lista.length });
+    }
+    if (i < lista.length - 1) await sleep(DELAY_MS);
+  }
+  io.emit('envio_fin', { total: lista.length, enviados });
+}
 
 // ─── WhatsApp ─────────────────────────────────────────────────────────────────
 async function iniciarWhatsApp() {
