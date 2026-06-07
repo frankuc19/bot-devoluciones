@@ -174,84 +174,50 @@
   if (new URLSearchParams(location.search).get('error'))
     document.getElementById('err').classList.add('show');
 
-  // Canvas: fetch como blob (evita CORS taint) → elimina fondo blanco → bounding box trim
+  // 1. Fetch logo → base64  2. Canvas 3x  3. Pixel loop brillo>210 → alpha=0
   (function () {
     const SRC = 'https://res.cloudinary.com/dkkab5dea/image/upload/v1780803640/karri-logo_kmgmzm.png';
     const el  = document.getElementById('logoImg');
 
     function fallback() { el.src = SRC; el.style.opacity = '1'; }
 
-    function process(blobUrl) {
-      const img = new Image();
-      img.onerror = fallback;
-      img.onload = function () {
-        try {
-          const W = img.naturalWidth * 3;
-          const H = img.naturalHeight * 3;
-
-          const c = document.createElement('canvas');
-          c.width = W; c.height = H;
-          const ctx = c.getContext('2d');
-          ctx.drawImage(img, 0, 0, W, H);
-
-          const id = ctx.getImageData(0, 0, W, H);
-          const px = id.data;
-
-          // BFS desde todo el borde para eliminar fondo blanco conectado
-          const visited = new Uint8Array(W * H);
-          const q = [];
-
-          function white(x, y) {
-            const i = (y * W + x) * 4;
-            return px[i] > 245 && px[i+1] > 245 && px[i+2] > 245 && px[i+3] > 0;
-          }
-          function seed(x, y) {
-            const i = y * W + x;
-            if (!visited[i] && white(x, y)) { visited[i] = 1; q.push(x, y); }
-          }
-
-          for (let x = 0; x < W; x++) { seed(x, 0); seed(x, H-1); }
-          for (let y = 1; y < H-1; y++) { seed(0, y); seed(W-1, y); }
-
-          while (q.length) {
-            const x = q.shift(), y = q.shift();
-            px[(y * W + x) * 4 + 3] = 0;
-            if (x > 0)   seed(x-1, y);
-            if (x < W-1) seed(x+1, y);
-            if (y > 0)   seed(x, y-1);
-            if (y < H-1) seed(x, y+1);
-          }
-
-          ctx.putImageData(id, 0, 0);
-
-          // Bounding box del contenido visible
-          let x0=W, x1=0, y0=H, y1=0;
-          for (let y = 0; y < H; y++)
-            for (let x = 0; x < W; x++)
-              if (px[(y*W+x)*4+3] > 0) {
-                if (x<x0) x0=x; if (x>x1) x1=x;
-                if (y<y0) y0=y; if (y>y1) y1=y;
-              }
-
-          if (x0 > x1 || y0 > y1) { fallback(); return; }
-
-          const out = document.createElement('canvas');
-          out.width = x1-x0+1; out.height = y1-y0+1;
-          out.getContext('2d').drawImage(c, x0, y0, out.width, out.height, 0, 0, out.width, out.height);
-
-          el.src = out.toDataURL('image/png');
-          el.style.opacity = '1';
-        } catch (e) {
-          console.error('Canvas logo error:', e);
-          fallback();
-        }
-      };
-      img.src = blobUrl;
-    }
-
     fetch(SRC, { mode: 'cors' })
-      .then(r => r.blob())
-      .then(blob => process(URL.createObjectURL(blob)))
+      .then(r => r.arrayBuffer())
+      .then(buf => {
+        // Convertir a base64
+        const bytes = new Uint8Array(buf);
+        let binary = '';
+        for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+        const base64 = 'data:image/png;base64,' + btoa(binary);
+
+        // Cargar como Image
+        const img = new Image();
+        img.onerror = fallback;
+        img.onload = function () {
+          try {
+            const scale  = 3;
+            const canvas = document.createElement('canvas');
+            canvas.width  = img.naturalWidth  * scale;
+            canvas.height = img.naturalHeight * scale;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+            // Pixel a pixel: brillo > 210 → transparente
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const px = imageData.data;
+            for (let i = 0; i < px.length; i += 4) {
+              if (px[i] > 210 && px[i+1] > 210 && px[i+2] > 210) {
+                px[i+3] = 0;
+              }
+            }
+            ctx.putImageData(imageData, 0, 0);
+
+            el.src = canvas.toDataURL('image/png');
+            el.style.opacity = '1';
+          } catch (e) { fallback(); }
+        };
+        img.src = base64;
+      })
       .catch(fallback);
   })();
 </script>
