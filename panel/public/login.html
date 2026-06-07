@@ -4,83 +4,85 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Karri — Iniciar sesión</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   body {
     background: #0f1211;
-    color: #e7eceb;
     font-family: Inter, sans-serif;
     min-height: 100vh;
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 16px;
-    position: relative;
-    overflow: hidden;
+    padding: 24px;
   }
 
-  /* gradient background */
   body::before {
     content: '';
-    position: absolute;
+    position: fixed;
     inset: 0;
-    background: radial-gradient(ellipse at 30% 20%, rgba(120,252,214,0.07) 0%, transparent 60%),
-                radial-gradient(ellipse at 70% 80%, rgba(120,252,214,0.04) 0%, transparent 50%);
+    background:
+      radial-gradient(ellipse at 25% 15%, rgba(120,252,214,0.08) 0%, transparent 55%),
+      radial-gradient(ellipse at 75% 85%, rgba(120,252,214,0.05) 0%, transparent 50%);
     pointer-events: none;
   }
 
   .card {
     position: relative;
-    z-index: 10;
-    width: 100%;
-    max-width: 400px;
-    background: rgba(24,28,27,0.97);
+    z-index: 1;
+    background: #181c1b;
     border: 1px solid rgba(255,255,255,0.08);
-    border-radius: 20px;
-    padding: 36px 32px;
-    box-shadow: 0 25px 60px rgba(0,0,0,0.5);
-    backdrop-filter: blur(12px);
+    border-radius: 24px;
+    padding: 40px 36px 36px;
+    width: 100%;
+    max-width: 420px;
+    box-shadow: 0 32px 80px rgba(0,0,0,0.55);
   }
 
+  /* Logo */
   .logo-wrap {
-    text-align: center;
+    display: flex;
+    justify-content: center;
     margin-bottom: 28px;
   }
 
   .logo-wrap img {
-    height: 32px;
+    height: 72px;
     width: auto;
     object-fit: contain;
-    margin-bottom: 20px;
   }
 
-  .logo-wrap h1 {
-    font-size: 22px;
-    font-weight: 700;
+  /* Heading */
+  .heading {
+    text-align: center;
+    margin-bottom: 32px;
+  }
+
+  .heading h1 {
+    font-size: 26px;
+    font-weight: 800;
     color: #e7eceb;
+    letter-spacing: -0.03em;
     margin-bottom: 6px;
-    letter-spacing: -0.02em;
   }
 
-  .logo-wrap p {
+  .heading p {
     font-size: 13px;
     color: rgba(231,236,235,0.45);
   }
 
+  /* Form */
   .form-group {
-    margin-bottom: 18px;
+    margin-bottom: 16px;
   }
 
   label {
     display: block;
-    font-size: 11px;
+    font-size: 13px;
     font-weight: 600;
-    color: rgba(231,236,235,0.5);
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    margin-bottom: 7px;
+    color: #e7eceb;
+    margin-bottom: 8px;
   }
 
   input {
@@ -88,8 +90,8 @@
     background: #27272a;
     border: 1px solid rgba(255,255,255,0.08);
     color: #e7eceb;
-    border-radius: 10px;
-    padding: 11px 14px;
+    border-radius: 12px;
+    padding: 14px 16px;
     font-size: 14px;
     font-family: Inter, sans-serif;
     outline: none;
@@ -103,6 +105,7 @@
     box-shadow: 0 0 0 3px rgba(120,252,214,0.1);
   }
 
+  /* Error */
   .error {
     background: rgba(239,68,68,0.08);
     border: 1px solid rgba(239,68,68,0.2);
@@ -110,37 +113,42 @@
     border-radius: 10px;
     padding: 11px 14px;
     font-size: 12px;
-    margin-bottom: 18px;
+    margin-bottom: 16px;
     display: none;
   }
-
   .error.show { display: block; }
 
+  /* Submit */
   button[type="submit"] {
     width: 100%;
     background: #78fcd6;
     color: #080b0a;
     border: none;
-    border-radius: 10px;
-    padding: 12px;
-    font-size: 14px;
+    border-radius: 12px;
+    padding: 14px;
+    font-size: 15px;
     font-weight: 700;
     font-family: Inter, sans-serif;
     cursor: pointer;
     margin-top: 8px;
     transition: background 0.15s, box-shadow 0.15s;
+    letter-spacing: -0.01em;
   }
 
   button[type="submit"]:hover {
     background: #00ffb6;
-    box-shadow: 0 0 20px rgba(120,252,214,0.3);
+    box-shadow: 0 0 24px rgba(120,252,214,0.3);
   }
 </style>
 </head>
 <body>
 <div class="card">
+
   <div class="logo-wrap">
-    <img src="https://res.cloudinary.com/dkkab5dea/image/upload/v1778254790/guphgo6mzpq46e71nk0f.png" alt="Karri">
+    <img src="https://res.cloudinary.com/dkkab5dea/image/upload/v1780803640/karri-logo_kmgmzm.png" alt="Karri">
+  </div>
+
+  <div class="heading">
     <h1>Bienvenido</h1>
     <p>Inicia sesión en tu cuenta para continuar</p>
   </div>
@@ -149,7 +157,7 @@
 
   <form method="POST" action="/login">
     <div class="form-group">
-      <label>Correo / Usuario</label>
+      <label>Usuario</label>
       <input type="text" name="user" autocomplete="username" autofocus placeholder="Ingresa tu usuario">
     </div>
     <div class="form-group">
@@ -158,8 +166,8 @@
     </div>
     <button type="submit">Iniciar Sesión</button>
   </form>
-</div>
 
+</div>
 <script>
   if (new URLSearchParams(location.search).get('error'))
     document.getElementById('err').classList.add('show');
