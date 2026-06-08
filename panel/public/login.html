@@ -47,7 +47,7 @@
     margin-bottom: 28px;
   }
 
-  .logo-wrap img {
+  .logo-wrap img, .logo-wrap canvas {
     height: 100px;
     width: auto;
     display: block;
@@ -145,7 +145,7 @@
 <div class="card">
 
   <div class="logo-wrap">
-    <img src="https://res.cloudinary.com/dkkab5dea/image/upload/v1780809949/Karri_2.1_ng9gss.png" alt="Karri">
+    <canvas id="logo-canvas"></canvas>
   </div>
 
   <div class="heading">
@@ -172,6 +172,31 @@
   if (new URLSearchParams(location.search).get('error'))
     document.getElementById('err').classList.add('show');
 
+  (async () => {
+    const canvas = document.getElementById('logo-canvas');
+    const ctx = canvas.getContext('2d');
+    const img = new Image();
+    img.onload = () => {
+      canvas.width  = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      ctx.drawImage(img, 0, 0);
+      const id = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const d = id.data;
+      for (let i = 0; i < d.length; i += 4) {
+        if (d[i] > 220 && d[i+1] > 220 && d[i+2] > 220) d[i+3] = 0;
+      }
+      ctx.putImageData(id, 0, 0);
+    };
+    img.onerror = () => {
+      // Fallback: mostrar imagen directa si el proxy falla
+      canvas.style.display = 'none';
+      const fb = document.createElement('img');
+      fb.src = 'https://res.cloudinary.com/dkkab5dea/image/upload/v1780809949/Karri_2.1_ng9gss.png';
+      fb.alt = 'Karri';
+      canvas.parentElement.appendChild(fb);
+    };
+    img.src = '/api/logo-proxy';
+  })();
 </script>
 </body>
 </html>

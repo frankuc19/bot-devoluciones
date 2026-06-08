@@ -35,6 +35,21 @@
     beginner: { label: 'Beginner', color: 'rgba(231,236,235,0.6)', bg: 'rgba(255,255,255,0.07)', border: 'rgba(255,255,255,0.1)' },
   };
 
+  async function applyLogoCanvas(canvas) {
+    const img = new Image();
+    await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = '/api/logo-proxy'; });
+    canvas.width  = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0);
+    const id = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const d = id.data;
+    for (let i = 0; i < d.length; i += 4) {
+      if (d[i] > 220 && d[i+1] > 220 && d[i+2] > 220) d[i+3] = 0;
+    }
+    ctx.putImageData(id, 0, 0);
+  }
+
   async function init(activeKey) {
     let me = { role: 'beginner', username: '', name: '', sections: [] };
     try { me = await fetch('/api/me').then(r => r.json()); } catch {}
@@ -61,9 +76,22 @@
     const badge = ROLE_BADGE[me.role] || ROLE_BADGE.beginner;
 
     el.innerHTML = `
-      <div class="px-5 pt-6 pb-5" style="border-bottom:1px solid rgba(255,255,255,0.06);">
-        <img src="https://res.cloudinary.com/dkkab5dea/image/upload/v1778254790/guphgo6mzpq46e71nk0f.png"
-             alt="Karri" style="height:28px;width:auto;object-fit:contain;">
+      <div style="padding:18px 16px 16px;border-bottom:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;gap:10px;">
+        <canvas id="sidebar-logo" style="height:36px;width:auto;display:block;flex-shrink:0;"></canvas>
+        <div style="
+          display:flex;align-items:center;justify-content:center;
+          padding:5px 10px;
+          border-radius:8px;
+          background:linear-gradient(145deg,#1e2423,#141817);
+          border:1px solid rgba(255,255,255,0.09);
+          box-shadow:
+            0 2px 8px rgba(0,0,0,0.55),
+            0 1px 0 rgba(255,255,255,0.06) inset,
+            0 -1px 0 rgba(0,0,0,0.4) inset;
+        ">
+          <img src="https://res.cloudinary.com/dkkab5dea/image/upload/v1778254790/guphgo6mzpq46e71nk0f.png"
+               alt="Karri" style="height:18px;width:auto;display:block;object-fit:contain;">
+        </div>
       </div>
       <nav class="flex-1 px-3 py-4 overflow-y-auto">${navHTML}</nav>
       <div class="px-3 pb-5" style="border-top:1px solid rgba(255,255,255,0.06);">
@@ -82,6 +110,9 @@
       </div>`;
 
     if (window.lucide) lucide.createIcons({ el });
+
+    const logoCanvas = el.querySelector('#sidebar-logo');
+    if (logoCanvas) applyLogoCanvas(logoCanvas).catch(() => {});
   }
 
   window.initSidebar = init;

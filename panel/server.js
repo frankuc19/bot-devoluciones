@@ -178,6 +178,17 @@ app.post('/logout', (req, res) => {
   res.redirect('/login');
 });
 
+// Proxy de imagen para el logo (sin auth, permite canvas sin CORS)
+app.get('/api/logo-proxy', async (req, res) => {
+  try {
+    const r = await fetch('https://res.cloudinary.com/dkkab5dea/image/upload/v1780809949/Karri_2.1_ng9gss.png');
+    const buf = Buffer.from(await r.arrayBuffer());
+    res.set('Content-Type', 'image/png');
+    res.set('Cache-Control', 'public, max-age=86400');
+    res.send(buf);
+  } catch { res.status(502).end(); }
+});
+
 // ─── Rutas protegidas ─────────────────────────────────────────────────────────
 app.use(requireAuth);
 
