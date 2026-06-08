@@ -70,8 +70,17 @@ router.post('/send', async (req, res) => {
   saveCampaign(campaign);
   res.json({ campaignId, total: rows.length });
 
-  const flotistas = rows.map(row => ({ ...row, htmlFinal: personalize(html, row) }));
-  const payload = { flotistas, subject, fromName, fromEmail, campaignId };
+  const flotistas = rows.map(row => ({
+    to:       String(row.correo || row.email || row.Email || ''),
+    subject,
+    html:     personalize(html, row),
+    fromName,
+    from:     fromEmail,
+    campaignId,
+    // datos originales del contacto por si el workflow los necesita
+    ...row,
+  }));
+  const payload = { flotistas, campaignId };
 
   try {
     await sendViaWebhook(webhookUrl, payload);

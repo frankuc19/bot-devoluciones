@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bienvenido a Karri</title>
+</head>
+<body style="margin:0;padding:0;background:#f4f4f5;font-family:Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;padding:40px 16px;">
+  <tr>
+    <td align="center">
+      <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;">
+
+        <!-- Header -->
+        <tr>
+          <td align="center" style="padding-bottom:24px;">
+            <img src="https://res.cloudinary.com/dkkab5dea/image/upload/v1780809949/Karri_2.1_ng9gss.png"
+                 alt="Karri" width="48" height="48"
+                 style="display:block;border-radius:12px;">
+          </td>
+        </tr>
+
+        <!-- Card principal -->
+        <tr>
+          <td style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 2px 16px rgba(0,0,0,0.06);">
+
+            <!-- Banner superior -->
+            <table width="100%" cellpadding="0" cellspacing="0">
+              <tr>
+                <td style="background:linear-gradient(135deg,#0f2e27 0%,#0a1f1a 100%);padding:40px 40px 36px;text-align:center;">
+                  <p style="margin:0 0 8px;font-size:13px;color:rgba(120,252,214,0.8);font-weight:600;letter-spacing:.06em;text-transform:uppercase;">Bienvenido a la familia</p>
+                  <h1 style="margin:0;font-size:30px;font-weight:800;color:#ffffff;letter-spacing:-0.02em;">
+                    Hola, {{nombre}} 👋
+                  </h1>
+                  <p style="margin:14px 0 0;font-size:15px;color:rgba(255,255,255,0.6);line-height:1.6;">
+                    Estamos felices de tenerte en Karri.<br>Tu cuenta ya está lista para comenzar.
+                  </p>
+                </td>
+              </tr>
+            </table>
+
+            <!-- Contenido -->
+            <table width="100%" cellpadding="0" cellspacing="0">
+              <tr>
+                <td style="padding:36px 40px;">
+
+                  <p style="margin:0 0 24px;font-size:15px;color:#374151;line-height:1.7;">
+                    Te damos la bienvenida como conductor de <strong>{{empresa}}</strong>. A continuación encontrarás todo lo que necesitas para empezar.
+                  </p>
+
+                  <!-- Datos del conductor -->
+                  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;border-radius:12px;margin-bottom:28px;overflow:hidden;">
+                    <tr>
+                      <td style="padding:20px 24px;border-bottom:1px solid #e5e7eb;">
+                        <p style="margin:0 0 2px;font-size:11px;color:#9ca3af;font-weight:600;text-transform:uppercase;letter-spacing:.06em;">Nombre</p>
+                        <p style="margin:0;font-size:14px;color:#111827;font-weight:600;">{{nombre}}</p>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="padding:20px 24px;border-bottom:1px solid #e5e7eb;">
+                        <p style="margin:0 0 2px;font-size:11px;color:#9ca3af;font-weight:600;text-transform:uppercase;letter-spacing:.06em;">RUT</p>
+                        <p style="margin:0;font-size:14px;color:#111827;font-weight:600;">{{rut}}</p>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="padding:20px 24px;">
+                        <p style="margin:0 0 2px;font-size:11px;color:#9ca3af;font-weight:600;text-transform:uppercase;letter-spacing:.06em;">Patente</p>
+                        <p style="margin:0;font-size:14px;color:#111827;font-weight:600;">{{patente}}</p>
+                      </td>
+                    </tr>
+                  </table>
+
+                  <!-- Pasos -->
+                  <p style="margin:0 0 16px;font-size:14px;font-weight:700;color:#111827;">Próximos pasos</p>
+
+                  <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
+                    <tr>
+                      <td style="padding:0 0 12px;">
+                        <table cellpadding="0" cellspacing="0">
+                          <tr>
+                            <td style="width:32px;height:32px;background:#d1fae5;border-radius:8px;text-align:center;vertical-align:middle;font-size:14px;">✓</td>
+                            <td style="padding-left:12px;font-size:14px;color:#374151;line-height:1.5;">Completa tu documentación en la app</td>
+                          </tr>
+                        </table>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="padding:0 0 12px;">
+                        <table cellpadding="0" cellspacing="0">
+                          <tr>
+                            <td style="width:32px;height:32px;background:#e0f2fe;border-radius:8px;text-align:center;vertical-align:middle;font-size:14px;">📱</td>
+                            <td style="padding-left:12px;font-size:14px;color:#374151;line-height:1.5;">Descarga la app Karri desde tu tienda</td>
+                          </tr>
+                        </table>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <table cellpadding="0" cellspacing="0">
+                          <tr>
+                            <td style="width:32px;height:32px;background:#fef3c7;border-radius:8px;text-align:center;vertical-align:middle;font-size:14px;">🚚</td>
+                            <td style="padding-left:12px;font-size:14px;color:#374151;line-height:1.5;">Espera tu primera asignación de ruta</td>
+                          </tr>
+                        </table>
+                      </td>
+                    </tr>
+                  </table>
+
+                  <!-- CTA -->
+                  <table width="100%" cellpadding="0" cellspacing="0">
+                    <tr>
+                      <td align="center" style="padding:8px 0 0;">
+                        <a href="https://karri.cl"
+                           style="display:inline-block;background:#0f2e27;color:#78fcd6;font-weight:700;font-size:14px;text-decoration:none;padding:14px 36px;border-radius:10px;letter-spacing:.01em;">
+                          Ir a mi cuenta →
+                        </a>
+                      </td>
+                    </tr>
+                  </table>
+
+                </td>
+              </tr>
+            </table>
+
+          </td>
+        </tr>
+
+        <!-- Footer -->
+        <tr>
+          <td style="padding:28px 0 0;text-align:center;">
+            <p style="margin:0 0 6px;font-size:12px;color:#9ca3af;">
+              Este correo fue enviado a <strong>{{correo}}</strong> por Karri Onboarding.
+            </p>
+            <p style="margin:0;font-size:11px;color:#d1d5db;">
+              © 2025 Karri · Todos los derechos reservados
+            </p>
+          </td>
+        </tr>
+
+      </table>
+    </td>
+  </tr>
+</table>
+
+</body>
+</html>

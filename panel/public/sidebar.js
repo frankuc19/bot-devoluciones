@@ -112,7 +112,7 @@
     const navHTML = SECTIONS
       .filter(s => perms.includes(s.perm))
       .map(s => {
-        const isCollapsed = !!collapsed[s.perm];
+        const isCollapsed = collapsed[s.perm] !== false; // cerrado por defecto
         return `
         <div style="margin-bottom:1px;overflow:hidden;">
           <button onclick="window._sidebarToggle('${s.perm}')" style="

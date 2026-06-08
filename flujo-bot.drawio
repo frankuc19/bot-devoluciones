@@ -1,0 +1,125 @@
+<mxfile host="app.diagrams.net">
+  <diagram name="Bot Devoluciones" id="flujo-bot-devoluciones">
+    <mxGraphModel dx="1422" dy="762" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <!-- TITULO -->
+        <mxCell id="2" value="Bot de Devoluciones — Flujo General" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;fontSize=18;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="280" y="20" width="600" height="40" as="geometry"/>
+        </mxCell>
+
+        <!-- OPERADOR -->
+        <mxCell id="3" value="Operador" style="ellipse;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=13;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="490" y="90" width="130" height="60" as="geometry"/>
+        </mxCell>
+
+        <!-- PANEL WEB -->
+        <mxCell id="4" value="Panel Web (Render)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=13;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="460" y="230" width="190" height="65" as="geometry"/>
+        </mxCell>
+
+        <!-- GITHUB ACTIONS -->
+        <mxCell id="5" value="GitHub Actions&#xa;(12:00 / 15:00 / 17:00)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="100" y="310" width="190" height="65" as="geometry"/>
+        </mxCell>
+
+        <!-- GS DEVOLUCIONES -->
+        <mxCell id="6" value="Google Sheets&#xa;Devoluciones" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=12;fillColor=#f8cecc;strokeColor=#b85450;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="840" y="160" width="170" height="90" as="geometry"/>
+        </mxCell>
+
+        <!-- GS CONSOLIDADO -->
+        <mxCell id="7" value="Google Sheets&#xa;Consolidado Conductores" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=12;fillColor=#f8cecc;strokeColor=#b85450;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="840" y="360" width="170" height="90" as="geometry"/>
+        </mxCell>
+
+        <!-- BAILEYS -->
+        <mxCell id="8" value="WhatsApp (Baileys)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=13;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="460" y="430" width="190" height="65" as="geometry"/>
+        </mxCell>
+
+        <!-- CONDUCTOR -->
+        <mxCell id="9" value="Conductor&#xa;(recibe mensaje)" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="480" y="580" width="150" height="65" as="geometry"/>
+        </mxCell>
+
+        <!-- ── CONEXIONES ─────────────────────────────────────────── -->
+
+        <!-- 1. Operador → Panel Web -->
+        <mxCell id="10" value="1. accede al panel" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=11;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" source="3" target="4" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- 2. Panel Web → GS Devoluciones (lee) -->
+        <mxCell id="11" value="2. lee devoluciones" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=11;exitX=1;exitY=0.3;exitDx=0;exitDy=0;entryX=0;entryY=0.3;entryDx=0;entryDy=0;" edge="1" source="4" target="6" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- 3. Panel Web → GS Consolidado (lee contactos) -->
+        <mxCell id="12" value="3. lee contactos (caché 5 min)" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=11;exitX=1;exitY=0.7;exitDx=0;exitDy=0;entryX=0;entryY=0.3;entryDx=0;entryDy=0;" edge="1" source="4" target="7" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- 4. Operador → Baileys (escanea QR) -->
+        <mxCell id="13" value="4. escanea QR" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=11;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" source="3" target="8" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="410" y="120"/>
+              <mxPoint x="410" y="462"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 5. Panel Web → Baileys (enviar) -->
+        <mxCell id="14" value="5. enviar mensajes" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=11;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" source="4" target="8" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- 6. Baileys → Conductor -->
+        <mxCell id="15" value="6. envía WhatsApp" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=11;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" source="8" target="9" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- 7. Baileys → GS Devoluciones (marca ENVIADO) -->
+        <mxCell id="16" value="7. marca ENVIADO + fecha&#xa;(col. N y O)" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=11;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.7;entryDx=0;entryDy=0;" edge="1" source="8" target="6" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="800" y="462"/>
+              <mxPoint x="800" y="223"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 8. GitHub Actions → GS Consolidado (lee) -->
+        <mxCell id="17" value="8. lee contactos" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=11;exitX=1;exitY=0.7;exitDx=0;exitDy=0;entryX=0;entryY=0.7;entryDx=0;entryDy=0;" edge="1" source="5" target="7" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- 9. GitHub Actions → GS Devoluciones (escribe teléfonos) -->
+        <mxCell id="18" value="9. escribe teléfonos (col. P)" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=11;exitX=1;exitY=0.3;exitDx=0;exitDy=0;entryX=0;entryY=0.7;entryDx=0;entryDy=0;" edge="1" source="5" target="6" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- LEYENDA -->
+        <mxCell id="19" value="Leyenda" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="100" y="530" width="80" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="20" value="Actor / Usuario" style="ellipse;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="100" y="565" width="130" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="21" value="Servicio / App" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="100" y="610" width="130" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="22" value="Automatización" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="100" y="655" width="130" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="23" value="Base de datos (Sheet)" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=8;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="100" y="700" width="130" height="40" as="geometry"/>
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
