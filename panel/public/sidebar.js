@@ -14,8 +14,6 @@
       perm:  'onboarding',
       items: [
         { label: 'Resumen',      href: '/onboarding/resumen.html',   icon: 'layout-dashboard', key: 'ob-resumen'  },
-        { label: 'Altas OB',     href: 'https://docs.google.com/spreadsheets/d/1pHVpNMirkUmjp4jHsAPsSOFRRMRbE2e9cY6xVSDM8jo/edit?gid=0#gid=0', icon: 'table-2', key: 'ob-altas', external: true },
-        { label: 'KPI',          href: 'https://datastudio.google.com/reporting/8247fa84-63cd-4f18-90ab-9ec32dbd1ae2/page/p_h06xxldt3d', icon: 'bar-chart-2', key: 'ob-kpi', external: true },
         { label: 'Email masivo', href: '/onboarding/email.html',     icon: 'mail',             key: 'ob-email'    },
         { label: 'WhatsApp',     href: '/onboarding/whatsapp.html',  icon: 'message-circle',   key: 'ob-whatsapp' },
       ],
@@ -38,16 +36,46 @@
   async function applyLogoCanvas(canvas) {
     const img = new Image();
     await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = '/api/logo-proxy'; });
-    canvas.width  = img.naturalWidth;
-    canvas.height = img.naturalHeight;
-    const ctx = canvas.getContext('2d');
-    ctx.drawImage(img, 0, 0);
-    const id = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+    const tmp = document.createElement('canvas');
+    tmp.width  = img.naturalWidth;
+    tmp.height = img.naturalHeight;
+    const tCtx = tmp.getContext('2d');
+    tCtx.drawImage(img, 0, 0);
+    const id = tCtx.getImageData(0, 0, tmp.width, tmp.height);
     const d = id.data;
+
+    // Eliminar fondo blanco y píxeles anti-alias (brillo alto + saturación baja)
     for (let i = 0; i < d.length; i += 4) {
-      if (d[i] > 220 && d[i+1] > 220 && d[i+2] > 220) d[i+3] = 0;
+      const r = d[i], g = d[i+1], b = d[i+2];
+      const brightness  = (r + g + b) / 3;
+      const saturation  = Math.max(r, g, b) - Math.min(r, g, b);
+      if (brightness > 200 && saturation < 60) {
+        d[i+3] = 0;
+      } else if (brightness > 160 && saturation < 40) {
+        d[i+3] = Math.round(d[i+3] * ((brightness - 160) < 40 ? 1 - (brightness - 160) / 40 : 0));
+      }
     }
-    ctx.putImageData(id, 0, 0);
+    tCtx.putImageData(id, 0, 0);
+
+    // Bounding box usando umbral de alpha > 30 para ignorar residuos
+    let minX = tmp.width, minY = tmp.height, maxX = 0, maxY = 0;
+    for (let y = 0; y < tmp.height; y++) {
+      for (let x = 0; x < tmp.width; x++) {
+        if (d[(y * tmp.width + x) * 4 + 3] > 30) {
+          if (x < minX) minX = x;
+          if (x > maxX) maxX = x;
+          if (y < minY) minY = y;
+          if (y > maxY) maxY = y;
+        }
+      }
+    }
+
+    const w = maxX - minX + 1;
+    const h = maxY - minY + 1;
+    canvas.width  = w;
+    canvas.height = h;
+    canvas.getContext('2d').drawImage(tmp, minX, minY, w, h, 0, 0, w, h);
   }
 
   async function init(activeKey) {
