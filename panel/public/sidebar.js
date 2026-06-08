@@ -88,18 +88,57 @@
     const el = document.getElementById('sidebar');
     if (!el) return;
 
+    // Estado de colapso persistido en localStorage
+    const collapseKey = 'sidebar_collapsed';
+    let collapsed = {};
+    try { collapsed = JSON.parse(localStorage.getItem(collapseKey) || '{}'); } catch {}
+
+    function toggleSection(perm) {
+      collapsed[perm] = !collapsed[perm];
+      localStorage.setItem(collapseKey, JSON.stringify(collapsed));
+      const items   = document.getElementById(`sec-items-${perm}`);
+      const chevron = document.getElementById(`sec-chevron-${perm}`);
+      const header  = document.getElementById(`sec-header-${perm}`);
+      const open = !collapsed[perm];
+      if (items) {
+        items.style.maxHeight = open ? '500px' : '0';
+        items.style.opacity   = open ? '1' : '0';
+        items.style.padding   = open ? '4px 6px' : '0';
+      }
+      if (chevron) chevron.style.transform = open ? 'rotate(0deg)' : 'rotate(-90deg)';
+    }
+    window._sidebarToggle = toggleSection;
+
     const navHTML = SECTIONS
       .filter(s => perms.includes(s.perm))
-      .map(s => `
-        <div class="mb-3">
-          <p style="font-size:9px;color:rgba(231,236,235,0.3);font-weight:700;text-transform:uppercase;letter-spacing:.12em;padding:0 14px 6px;">${s.label}</p>
-          ${s.items.map(item => `
-            <a href="${item.href}" class="nav-item ${item.key === activeKey ? 'active' : ''}" style="margin-bottom:2px;"${item.external ? ' target="_blank" rel="noopener"' : ''}>
-              <i data-lucide="${item.icon}" style="width:15px;height:15px;flex-shrink:0;"></i>
-              ${item.label}
-              ${item.external ? `<i data-lucide="external-link" style="width:11px;height:11px;margin-left:auto;opacity:.35;"></i>` : ''}
-            </a>`).join('')}
-        </div>`).join('');
+      .map(s => {
+        const isCollapsed = !!collapsed[s.perm];
+        return `
+        <div style="margin-bottom:1px;overflow:hidden;">
+          <button onclick="window._sidebarToggle('${s.perm}')" style="
+            display:flex;align-items:center;justify-content:space-between;
+            width:100%;padding:7px 16px 5px;background:none;border:none;
+            border-bottom:none;
+            cursor:pointer;transition:border-color .2s;
+          " id="sec-header-${s.perm}">
+            <span style="font-size:13px;color:rgba(231,236,235,0.5);font-weight:500;">${s.label}</span>
+            <i id="sec-chevron-${s.perm}" data-lucide="chevron-down" style="width:12px;height:12px;color:rgba(231,236,235,0.25);transition:transform .2s;${isCollapsed ? 'transform:rotate(-90deg);' : ''}"></i>
+          </button>
+          <div id="sec-items-${s.perm}" style="
+            overflow:hidden;transition:max-height .22s ease,opacity .18s ease;
+            max-height:${isCollapsed ? '0' : '500px'};
+            opacity:${isCollapsed ? '0' : '1'};
+            padding:${isCollapsed ? '0' : '4px 6px'};
+          ">
+            ${s.items.map(item => `
+              <a href="${item.href}" class="nav-item ${item.key === activeKey ? 'active' : ''}" style="margin-bottom:2px;"${item.external ? ' target="_blank" rel="noopener"' : ''}>
+                <i data-lucide="${item.icon}" style="width:15px;height:15px;flex-shrink:0;"></i>
+                ${item.label}
+                ${item.external ? `<i data-lucide="external-link" style="width:11px;height:11px;margin-left:auto;opacity:.35;"></i>` : ''}
+              </a>`).join('')}
+          </div>
+        </div>`;
+      }).join('');
 
     const badge = ROLE_BADGE[me.role] || ROLE_BADGE.beginner;
 
