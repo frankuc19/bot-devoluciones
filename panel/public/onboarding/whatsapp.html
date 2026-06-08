@@ -105,7 +105,14 @@
       <div id="step-message" class="hidden max-w-2xl mx-auto space-y-4">
         <div class="card space-y-4">
           <p style="font-size:14px;font-weight:600;">Redactar mensaje</p>
-          <p class="label">Usa {'{'}{'{'}nombre{'}'}{'}'}, {'{'}{'{'}empresa{'}'}{'}'}, etc. para personalizar</p>
+          <p class="label">Usa {{nombre}}, {{empresa}}, etc. para personalizar · Haz clic en un ejemplo para cargarlo</p>
+
+          <!-- Ejemplos -->
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <p style="font-size:10px;color:rgba(231,236,235,.4);font-weight:600;text-transform:uppercase;letter-spacing:.08em;">Ejemplos</p>
+            <div style="display:flex;flex-wrap:wrap;gap:6px;" id="ejemplos-chips"></div>
+          </div>
+
           <div>
             <textarea id="msg-text" rows="8" class="input" style="resize:vertical;font-family:'JetBrains Mono',monospace;font-size:12px;" placeholder="Hola {{nombre}}, te contactamos de Karri..."></textarea>
           </div>
@@ -317,6 +324,76 @@ async function enviar() {
     }),
   });
 }
+
+// ── Ejemplos de mensajes ─────────────────────────────────────────────
+const EJEMPLOS = [
+  {
+    label: '👋 Bienvenida',
+    texto: `¡Hola {{nombre}}! 👋
+
+Te damos la bienvenida a *Karri*. A partir de hoy eres parte de nuestra red de conductores.
+
+📋 *Tus datos:*
+• Nombre: {{nombre}}
+• Empresa: {{empresa}}
+• Patente: {{patente}}
+
+Pronto recibirás tu primera asignación. Cualquier consulta estamos disponibles. ¡Bienvenido! 🚚`,
+  },
+  {
+    label: '📄 Documentación pendiente',
+    texto: `Hola {{nombre}}, te escribimos desde *Karri Onboarding*.
+
+Notamos que tienes documentación pendiente para completar tu registro.
+
+Por favor, envía los siguientes documentos a la brevedad:
+• Licencia de conducir vigente
+• Cédula de identidad
+• Revisión técnica al día
+
+Ante cualquier duda, responde este mensaje. ¡Gracias! 🙏`,
+  },
+  {
+    label: '✅ Alta confirmada',
+    texto: `¡Buenas noticias, {{nombre}}! ✅
+
+Tu registro como conductor en *{{empresa}}* ha sido aprobado exitosamente.
+
+Ya puedes comenzar a recibir rutas. Recuerda mantener tu app activa y con notificaciones habilitadas.
+
+¡Éxito en tus rutas! 🚀`,
+  },
+  {
+    label: '🔔 Recordatorio de app',
+    texto: `Hola {{nombre}} 👋
+
+Te recordamos descargar la app de *Karri* si aún no lo has hecho.
+
+📱 Disponible en App Store y Google Play buscando *"Karri Conductor"*.
+
+Con la app podrás ver tus rutas, reportar novedades y gestionar tus entregas. ¡Cualquier duda estamos aquí!`,
+  },
+];
+
+document.addEventListener('DOMContentLoaded', () => {
+  const chips = document.getElementById('ejemplos-chips');
+  EJEMPLOS.forEach(ej => {
+    const btn = document.createElement('button');
+    btn.textContent = ej.label;
+    btn.style.cssText = `
+      padding:5px 12px;border-radius:99px;font-size:11px;font-weight:600;cursor:pointer;
+      background:rgba(120,252,214,.08);color:#78fcd6;
+      border:1px solid rgba(120,252,214,.2);transition:background .12s;
+    `;
+    btn.onmouseenter = () => btn.style.background = 'rgba(120,252,214,.15)';
+    btn.onmouseleave = () => btn.style.background = 'rgba(120,252,214,.08)';
+    btn.onclick = () => {
+      document.getElementById('msg-text').value = ej.texto;
+      updatePreview();
+    };
+    chips.appendChild(btn);
+  });
+});
 
 initSidebar('ob-whatsapp').then(() => { lucide.createIcons(); renderSteps(); });
 </script>
