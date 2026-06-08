@@ -1,10 +1,39 @@
-/* Shared design system — bot-devoluciones panel */
+/* ═══════════════════════════════════════════════════════════
+   Karri Panel — Shared Design System
+   Fuente única de verdad para todos los HTML del panel.
+   Las páginas importan este archivo y agregan solo estilos
+   propios en su <style> local.
+   ═══════════════════════════════════════════════════════════ */
 
+/* ── Design tokens ── */
+:root {
+  --electric:   #78fcd6;
+  --bg-900:     #080b0a;
+  --bg-800:     #0f1211;
+  --bg-700:     #181c1b;
+  --bg-600:     #1e2221;
+  --bg-500:     #27272a;
+  --bg-400:     #3f3f42;
+  --text:       rgba(231,236,235,1);
+  --text-muted: rgba(231,236,235,0.5);
+  --text-faint: rgba(231,236,235,0.3);
+  --border:     rgba(255,255,255,0.07);
+}
+
+/* ── Reset ── */
 *, *::before, *::after { box-sizing: border-box; }
 html, body { height: 100%; overflow: hidden; }
 body { background: #0f1211; color: #e7eceb; font-family: Inter, sans-serif; }
 
-/* Cards */
+/* ── Custom scrollbar ── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #3f3f42; border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: #27272a; }
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* ── Card ── */
 .card {
   background: #181c1b;
   border: 1px solid rgba(255,255,255,0.08);
@@ -12,7 +41,7 @@ body { background: #0f1211; color: #e7eceb; font-family: Inter, sans-serif; }
   padding: 20px;
 }
 
-/* Buttons */
+/* ── Buttons ── */
 .btn-primary {
   display: inline-flex; align-items: center; gap: 6px;
   background: #78fcd6; color: #080b0a;
@@ -20,6 +49,7 @@ body { background: #0f1211; color: #e7eceb; font-family: Inter, sans-serif; }
   border-radius: 8px; padding: 7px 16px;
   border: none; cursor: pointer;
   transition: background .15s, box-shadow .15s;
+  white-space: nowrap;
 }
 .btn-primary:hover:not(:disabled) {
   background: #00ffb6;
@@ -34,8 +64,10 @@ body { background: #0f1211; color: #e7eceb; font-family: Inter, sans-serif; }
   font-weight: 600; font-size: 12px;
   border-radius: 8px; padding: 6px 14px;
   cursor: pointer; transition: background .12s;
+  white-space: nowrap;
 }
 .btn-secondary:hover:not(:disabled) { background: #3f3f42; }
+.btn-secondary:disabled { opacity: .3; cursor: not-allowed; }
 
 .btn-danger {
   display: inline-flex; align-items: center; gap: 6px;
@@ -46,6 +78,7 @@ body { background: #0f1211; color: #e7eceb; font-family: Inter, sans-serif; }
   cursor: pointer; transition: background .12s;
 }
 .btn-danger:hover { background: rgba(239,68,68,.08); }
+.btn-danger:disabled { opacity: .3; cursor: not-allowed; }
 
 .btn-wa {
   display: inline-flex; align-items: center; gap: 6px;
@@ -55,9 +88,10 @@ body { background: #0f1211; color: #e7eceb; font-family: Inter, sans-serif; }
   border: none; cursor: pointer;
   transition: background .15s, box-shadow .15s;
 }
-.btn-wa:hover { background: #00cc33; box-shadow: 0 0 18px rgba(0,255,65,.3); }
+.btn-wa:hover:not(:disabled) { background: #00cc33; box-shadow: 0 0 14px rgba(0,255,65,.35); }
+.btn-wa:disabled { opacity: .35; cursor: not-allowed; }
 
-/* Form elements */
+/* ── Form elements ── */
 .input {
   background: #27272a;
   border: 1px solid rgba(255,255,255,0.08);
@@ -68,6 +102,7 @@ body { background: #0f1211; color: #e7eceb; font-family: Inter, sans-serif; }
 }
 .input:focus { border-color: #78fcd6; }
 .input::placeholder { color: rgba(231,236,235,.3); }
+select.input { cursor: pointer; }
 
 .label {
   font-size: 10px; color: rgba(231,236,235,.5);
@@ -75,7 +110,7 @@ body { background: #0f1211; color: #e7eceb; font-family: Inter, sans-serif; }
   letter-spacing: .08em;
 }
 
-/* Nav items (sidebar) */
+/* ── Nav items (sidebar) ── */
 .nav-item {
   display: flex; align-items: center; gap: 10px;
   padding: 10px 14px; border-radius: 10px;
@@ -91,36 +126,108 @@ body { background: #0f1211; color: #e7eceb; font-family: Inter, sans-serif; }
   color: #78fcd6;
   border-color: rgba(120,252,214,.15);
 }
+.nav-item.active svg { stroke: #78fcd6; }
 
-/* Table rows */
-.tbl-row { border-bottom: 1px solid rgba(255,255,255,.05); }
-.tbl-row:hover { background: rgba(255,255,255,.02); }
+/* ── Table rows ── */
+.tbl-row { border-bottom: 1px solid rgba(255,255,255,.05); transition: background .1s; }
+.tbl-row:hover { background: rgba(255,255,255,.03); }
+.tbl-row.row-enviado { background: rgba(120,252,214,.03); }
+.tbl-row.row-sinnum  { background: rgba(245,158,11,.04); }
+.tbl-row.row-sel     { box-shadow: inset 2px 0 0 #78fcd6; background: rgba(120,252,214,.04); }
 
-/* Badges */
+/* ── Badges ── */
+.badge {
+  display: inline-flex; align-items: center;
+  padding: 2px 9px; border-radius: 99px;
+  font-size: 11px; font-weight: 700;
+}
 .badge-electric {
+  background: rgba(120,252,214,.12); color: #78fcd6;
+  border: 1px solid rgba(120,252,214,.25);
+}
+.badge-amber {
+  background: rgba(245,158,11,.12); color: #f59e0b;
+  border: 1px solid rgba(245,158,11,.25);
+}
+.badge-muted {
+  background: rgba(255,255,255,.07); color: rgba(231,236,235,.6);
+  border: 1px solid rgba(255,255,255,.1);
+}
+.badge-red {
+  background: rgba(239,68,68,.1); color: #ef4444;
+  border: 1px solid rgba(239,68,68,.2);
+}
+.badge-blue {
+  background: rgba(96,165,250,.12); color: #60a5fa;
+  border: 1px solid rgba(96,165,250,.25);
+}
+
+/* Role badges (perfiles) */
+.badge-admin {
   background: rgba(120,252,214,.12); color: #78fcd6;
   border: 1px solid rgba(120,252,214,.25);
   padding: 2px 10px; border-radius: 99px;
   font-size: 10px; font-weight: 700; text-transform: uppercase;
 }
-.badge-amber {
+.badge-advanced {
   background: rgba(245,158,11,.12); color: #f59e0b;
   border: 1px solid rgba(245,158,11,.25);
   padding: 2px 10px; border-radius: 99px;
   font-size: 10px; font-weight: 700; text-transform: uppercase;
 }
-.badge-muted {
+.badge-beginner {
   background: rgba(255,255,255,.07); color: rgba(231,236,235,.6);
   border: 1px solid rgba(255,255,255,.1);
   padding: 2px 10px; border-radius: 99px;
   font-size: 10px; font-weight: 700; text-transform: uppercase;
 }
-.badge-red {
-  background: rgba(239,68,68,.1); color: #ef4444;
-  border: 1px solid rgba(239,68,68,.2);
-  padding: 2px 10px; border-radius: 99px;
-  font-size: 10px; font-weight: 700; text-transform: uppercase;
-}
 
-/* Scrollbar */
-.scrollbar-hide::-webkit-scrollbar { display: none; }
+/* ── Step pills (email / whatsapp wizard) ── */
+.step-pill { padding: 5px 14px; border-radius: 99px; font-size: 11px; font-weight: 600; cursor: default; }
+.step-active  { background: #78fcd6; color: #080b0a; box-shadow: 0 0 10px rgba(120,252,214,.4); }
+.step-done    { background: #1e2221; color: #78fcd6; cursor: pointer; }
+.step-pending { background: #181c1b; color: rgba(231,236,235,.3); }
+
+/* ── Drop zone (file upload) ── */
+.drop-zone {
+  border: 2px dashed rgba(255,255,255,.1);
+  border-radius: 12px; padding: 40px;
+  text-align: center; cursor: pointer;
+  transition: border-color .2s;
+}
+.drop-zone:hover, .drop-zone.drag { border-color: #78fcd6; }
+
+/* ── Status dot ── */
+.status-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+
+/* ── Filter tab (altas) ── */
+.filter-tab {
+  padding: 6px 14px; border-radius: 8px;
+  font-size: 12px; font-weight: 600;
+  cursor: pointer; border: 1px solid transparent;
+  transition: all .12s; color: rgba(231,236,235,.45);
+}
+.filter-tab.active { background: rgba(120,252,214,.1); color: #78fcd6; border-color: rgba(120,252,214,.2); }
+.filter-tab:hover:not(.active) { background: rgba(255,255,255,.04); color: #e7eceb; }
+
+/* ── Section checkboxes (perfiles) ── */
+.sec-option {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px; border: 1px solid rgba(255,255,255,.08);
+  border-radius: 10px; cursor: pointer;
+  transition: border-color .15s, background .15s;
+}
+.sec-option:hover { background: rgba(255,255,255,.03); }
+.sec-option input[type=checkbox] { accent-color: #78fcd6; width: 15px; height: 15px; flex-shrink: 0; }
+.sec-option.checked { border-color: rgba(120,252,214,.3); background: rgba(120,252,214,.05); }
+
+/* ── Animations ── */
+@keyframes blink { 0%,100%{ opacity:1 } 50%{ opacity:.2 } }
+.dot-blink { animation: blink 1.2s infinite; }
+
+/* ── Utility ── */
+.glow-electric { box-shadow: 0 0 16px rgba(120,252,214,.25); }
+#qrWrap { display: none; }
+#qrWrap.show { display: flex; }
+#progressBar { display: none; }
+#progressBar.show { display: block; }

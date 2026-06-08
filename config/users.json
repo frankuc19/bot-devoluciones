@@ -17,6 +17,16 @@
       "sections": [
         "onboarding"
       ]
+    },
+    {
+      "id": "1780936029303",
+      "name": "Nicolas Ruiz",
+      "username": "Nicolas",
+      "password": "Karri2026",
+      "role": "beginner",
+      "sections": [
+        "finanzas"
+      ]
     }
   ]
 }

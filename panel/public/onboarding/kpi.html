@@ -7,26 +7,13 @@
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/styles.css">
 <style>
-  *, *::before, *::after { box-sizing: border-box; }
-  html, body { height: 100%; overflow: hidden; }
-  body { background: #0f1211; color: #e7eceb; font-family: Inter, sans-serif; }
-  .card { background:#181c1b; border:1px solid rgba(255,255,255,0.08); border-radius:12px; padding:20px; }
-  .btn-secondary { display:inline-flex;align-items:center;gap:6px;background:#1e2221;color:#e7eceb;border:1px solid rgba(255,255,255,0.08);font-weight:600;font-size:12px;border-radius:8px;padding:6px 14px;cursor:pointer;transition:background .12s; }
-  .btn-secondary:hover { background:#3f3f42; }
-  .label { font-size:10px;color:rgba(231,236,235,.5);font-weight:600;text-transform:uppercase;letter-spacing:.08em; }
-  .nav-item { display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:10px;font-size:13px;font-weight:500;cursor:pointer;transition:all .15s;color:rgba(231,236,235,.5);text-decoration:none;border:1px solid transparent; }
-  .nav-item:hover { background:rgba(255,255,255,.04);color:#e7eceb; }
-  .nav-item.active { background:rgba(120,252,214,.08);color:#78fcd6;border-color:rgba(120,252,214,.15); }
-
-  /* Horizontal bar */
-  .bar-wrap { display:flex;align-items:center;gap:12px;margin-bottom:10px; }
+  .bar-wrap  { display:flex;align-items:center;gap:12px;margin-bottom:10px; }
   .bar-label { font-size:12px;color:rgba(231,236,235,.6);width:110px;flex-shrink:0;text-align:right; }
   .bar-track { flex:1;background:#27272a;border-radius:99px;height:8px;overflow:hidden; }
   .bar-fill  { height:100%;border-radius:99px;transition:width .6s ease; }
   .bar-pct   { font-size:12px;font-weight:700;width:38px;text-align:right;flex-shrink:0; }
-
-  /* Trend pill */
   .trend-up   { color:#78fcd6;font-size:11px;font-weight:600; }
   .trend-down { color:#ef4444;font-size:11px;font-weight:600; }
 </style>

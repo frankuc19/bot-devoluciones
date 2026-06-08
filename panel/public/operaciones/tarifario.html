@@ -1,0 +1,1215 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Karri — Tarifario Conductores</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
+<link rel="stylesheet" href="/styles.css">
+<style>
+  /* ── Layout ── */
+  .sidebar { width:220px;min-width:220px;background:#0f1211;border-right:1px solid rgba(255,255,255,.07);display:flex;flex-direction:column; }
+
+  /* ── Tabs ── */
+  .tab-nav { display:flex;gap:2px;border-bottom:1px solid rgba(255,255,255,.07);padding:0; }
+  .tab-btn { font-size:13px;font-weight:500;padding:10px 16px;border:none;background:none;color:rgba(231,236,235,.5);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:color .15s,border-color .15s;display:flex;align-items:center;gap:6px; }
+  .tab-btn.active { color:#78fcd6;border-bottom-color:#78fcd6; }
+  .tab-btn:hover:not(.active) { color:#e7eceb; }
+  .tab-panel { display:none; }
+  .tab-panel.active { display:block; }
+
+  /* ── Data table ── */
+  .tbl-wrap { overflow-x:auto;border:1px solid rgba(255,255,255,.07);border-radius:10px; }
+  table { width:100%;border-collapse:collapse;font-size:12.5px; }
+  th { background:#1e2221;color:rgba(231,236,235,.35);font-weight:600;font-size:11px;letter-spacing:.04em;padding:9px 12px;text-align:left;white-space:nowrap;border-bottom:1px solid rgba(255,255,255,.07); }
+  td { padding:9px 12px;border-bottom:1px solid rgba(255,255,255,.05);color:#e7eceb;vertical-align:middle;white-space:nowrap; }
+  tr:last-child td { border-bottom:none; }
+  tr:hover td { background:rgba(255,255,255,.02); }
+  .td-mono { font-family:'JetBrains Mono',monospace;font-size:12px; }
+
+  /* ── Modal ── */
+  .modal-bg { position:fixed;inset:0;background:rgba(0,0,0,.65);display:flex;align-items:center;justify-content:center;z-index:1000;padding:20px; }
+  .modal { background:#181c1b;border:1px solid rgba(255,255,255,.07);border-radius:14px;width:100%;max-width:640px;max-height:90vh;display:flex;flex-direction:column; }
+  .modal-header { display:flex;align-items:center;justify-content:space-between;padding:18px 20px 14px;border-bottom:1px solid rgba(255,255,255,.07); }
+  .modal-body { overflow-y:auto;padding:20px;flex:1; }
+  .modal-footer { display:flex;justify-content:flex-end;gap:8px;padding:14px 20px;border-top:1px solid rgba(255,255,255,.07); }
+
+  /* ── Ghost buttons (row actions) ── */
+  .btn-ghost { background:none;color:rgba(231,236,235,.5);font-size:12px;padding:5px 8px;border-radius:6px;border:none;cursor:pointer;display:inline-flex;align-items:center;gap:5px; }
+  .btn-ghost:hover { background:#27272a;color:#e7eceb; }
+  .btn-danger-ghost { background:none;color:rgba(248,113,113,.7);font-size:12px;padding:5px 8px;border-radius:6px;border:none;cursor:pointer;display:inline-flex;align-items:center;gap:5px; }
+  .btn-danger-ghost:hover { background:rgba(248,113,113,.1);color:#f87171; }
+
+  /* ── Pagination ── */
+  .pagination { display:flex;align-items:center;gap:4px; }
+  .pg-btn { min-width:30px;height:30px;border-radius:6px;border:1px solid rgba(255,255,255,.07);background:#1e2221;color:rgba(231,236,235,.5);font-size:12px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center; }
+  .pg-btn:hover,.pg-btn.active { background:#27272a;color:#e7eceb; }
+  .pg-btn.active { color:#78fcd6;border-color:rgba(120,252,214,.3); }
+  .pg-btn:disabled { opacity:.35;cursor:default; }
+
+  /* ── Toggle ── */
+  .toggle-wrap { display:flex;align-items:center;gap:8px; }
+  .toggle { position:relative;width:36px;height:20px; }
+  .toggle input { opacity:0;width:0;height:0; }
+  .toggle-slider { position:absolute;inset:0;background:#3f3f42;border-radius:99px;cursor:pointer;transition:background .15s; }
+  .toggle-slider::before { content:'';position:absolute;left:3px;top:3px;width:14px;height:14px;border-radius:50%;background:#fff;transition:transform .15s; }
+  .toggle input:checked + .toggle-slider { background:#78fcd6; }
+  .toggle input:checked + .toggle-slider::before { transform:translateX(16px);background:#080b0a; }
+
+  /* ── Form layout ── */
+  .form-row { display:grid;grid-template-columns:1fr 1fr;gap:14px; }
+  .form-group { display:flex;flex-direction:column;gap:6px; }
+  .form-section { font-size:11px;font-weight:700;letter-spacing:.06em;color:rgba(231,236,235,.3);text-transform:uppercase;padding:6px 0 4px;border-bottom:1px solid rgba(255,255,255,.07);margin-bottom:12px; }
+
+  /* ── Geocerca map ── */
+  #geocerca-map { width:100%;height:480px;border-radius:8px;background:#131a18; }
+  .leaflet-container { background:#0f1a16; }
+  .geo-tooltip { background:#1e2221;border:1px solid rgba(255,255,255,.1);border-radius:8px;color:#e7eceb;font-size:12px;padding:6px 10px; }
+
+  /* ── Badge variants (tarifario) ── */
+  .badge-green  { background:rgba(52,211,153,.12);color:#34d399;border:1px solid rgba(52,211,153,.25); }
+  .badge-yellow { background:rgba(251,191,36,.12);color:#fbbf24;border:1px solid rgba(251,191,36,.25); }
+  .badge-elec   { background:rgba(120,252,214,.12);color:#78fcd6;border:1px solid rgba(120,252,214,.25); }
+
+  /* ── Misc ── */
+  .kpi-card:hover { border-color:rgba(255,255,255,.13); }
+  .history-dot { width:6px;height:6px;border-radius:50%;background:#78fcd6;display:inline-block; }
+</style>
+</head>
+<body class="flex h-screen overflow-hidden">
+
+<aside id="sidebar" class="sidebar"></aside>
+
+<div class="flex-1 flex flex-col overflow-hidden">
+  <!-- Header -->
+  <header style="background:var(--bg-800);border-bottom:1px solid var(--border);padding:14px 24px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+    <div>
+      <h1 style="font-size:16px;font-weight:700;color:var(--text);">Administrador de Tarifario</h1>
+      <p style="font-size:11px;color:var(--text-muted);margin-top:2px;">Conductores · Última Milla · Supermercados · Cencosud</p>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <button class="btn-secondary" onclick="exportExcel()">
+        <i data-lucide="download" style="width:13px;height:13px;"></i> Exportar Excel
+      </button>
+      <button class="btn-secondary" onclick="document.getElementById('import-file').click()">
+        <i data-lucide="upload" style="width:13px;height:13px;"></i> Importar
+      </button>
+      <input type="file" id="import-file" accept=".xlsx,.csv" style="display:none" onchange="importFile(this)">
+      <button class="btn-primary" onclick="openModal()">
+        <i data-lucide="plus" style="width:14px;height:14px;"></i> Nueva Tarifa
+      </button>
+    </div>
+  </header>
+
+  <!-- Scrollable content -->
+  <div class="flex-1 overflow-y-auto" style="padding:20px 24px;display:flex;flex-direction:column;gap:20px;">
+
+    <!-- KPI Cards -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;">
+      <div class="card kpi-card" style="padding:16px 18px;cursor:default;transition:border-color .15s;">
+        <div class="label" style="margin-bottom:8px;">Tarifas Activas</div>
+        <div style="font-size:26px;font-weight:700;color:var(--electric);" id="kpi-activas">—</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:3px;">en todas las categorías</div>
+      </div>
+      <div class="card kpi-card" style="padding:16px 18px;cursor:default;transition:border-color .15s;">
+        <div class="label" style="margin-bottom:8px;">Contingencias Activas</div>
+        <div style="font-size:26px;font-weight:700;color:#fbbf24;" id="kpi-contingencias">—</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:3px;">eventos vigentes hoy</div>
+      </div>
+      <div class="card kpi-card" style="padding:16px 18px;cursor:default;transition:border-color .15s;">
+        <div class="label" style="margin-bottom:8px;">Geocercas Cencosud</div>
+        <div style="font-size:26px;font-weight:700;color:#60a5fa;" id="kpi-geocercas">—</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:3px;">zonas configuradas</div>
+      </div>
+      <div class="card kpi-card" style="padding:16px 18px;cursor:default;transition:border-color .15s;">
+        <div class="label" style="margin-bottom:8px;">Último Pago Adicional</div>
+        <div style="font-size:22px;font-weight:700;color:var(--text);" id="kpi-pago">—</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:3px;" id="kpi-pago-fecha">—</div>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="card" style="overflow:hidden;">
+      <div class="tab-nav" style="padding:0 20px;">
+        <button class="tab-btn active" onclick="switchTab('um', this)">
+          <i data-lucide="truck" style="width:13px;height:13px;"></i> Última Milla
+          <span class="badge badge-elec" id="cnt-um">0</span>
+        </button>
+        <button class="tab-btn" onclick="switchTab('super', this)">
+          <i data-lucide="shopping-cart" style="width:13px;height:13px;"></i> Supermercados
+          <span class="badge badge-blue" id="cnt-super">0</span>
+        </button>
+        <button class="tab-btn" onclick="switchTab('cencosud', this)">
+          <i data-lucide="map-pin" style="width:13px;height:13px;"></i> Cencosud
+          <span class="badge badge-yellow" id="cnt-cencosud">0</span>
+        </button>
+        <button class="tab-btn" onclick="switchTab('eventos', this)">
+          <i data-lucide="zap" style="width:13px;height:13px;"></i> Eventos / Contingencias
+          <span class="badge badge-red" id="cnt-eventos">0</span>
+        </button>
+      </div>
+
+      <!-- Panel Última Milla -->
+      <div id="tab-um" class="tab-panel active" style="padding:16px 20px;">
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:14px;flex-wrap:wrap;">
+          <div style="position:relative;flex:1;min-width:200px;">
+            <i data-lucide="search" style="position:absolute;left:9px;top:50%;transform:translateY(-50%);width:13px;height:13px;color:var(--text-faint);"></i>
+            <input class="input" id="um-search" placeholder="Buscar cliente, servicio, vehículo..." style="padding-left:30px;" oninput="renderTable('um')">
+          </div>
+          <select class="input" id="um-filter-vehiculo" style="width:140px;" onchange="renderTable('um')">
+            <option value="">Vehículo</option>
+            <option>Moto</option><option>Auto</option><option>Furgón</option><option>Camión</option>
+          </select>
+          <select class="input" id="um-filter-estado" style="width:130px;" onchange="renderTable('um')">
+            <option value="">Estado</option>
+            <option>activo</option><option>inactivo</option><option>vencido</option>
+          </select>
+          <select class="input" id="um-filter-contingencia" style="width:140px;" onchange="renderTable('um')">
+            <option value="">Contingencia</option>
+            <option value="si">Con contingencia</option>
+            <option value="no">Sin contingencia</option>
+          </select>
+        </div>
+        <div class="tbl-wrap">
+          <table id="tbl-um">
+            <thead>
+              <tr>
+                <th>ID</th><th>Cliente</th><th>Servicio</th><th>Vehículo</th><th>Ruta</th>
+                <th>NDS</th><th>Tarifa Base</th><th>Postura</th><th>Multa</th>
+                <th>Contingencia</th><th>Vigencia</th><th>Estado</th><th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-um"></tbody>
+          </table>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;">
+          <span style="font-size:12px;color:var(--text-muted);" id="um-count-label">— registros</span>
+          <div class="pagination" id="pg-um"></div>
+        </div>
+      </div>
+
+      <!-- Panel Supermercados -->
+      <div id="tab-super" class="tab-panel" style="padding:16px 20px;">
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:14px;flex-wrap:wrap;">
+          <div style="position:relative;flex:1;min-width:200px;">
+            <i data-lucide="search" style="position:absolute;left:9px;top:50%;transform:translateY(-50%);width:13px;height:13px;color:var(--text-faint);"></i>
+            <input class="input" id="super-search" placeholder="Buscar convenio, estación, rol..." style="padding-left:30px;" oninput="renderTable('super')">
+          </div>
+          <select class="input" id="super-filter-rol" style="width:140px;" onchange="renderTable('super')">
+            <option value="">Rol</option>
+            <option>Picker</option><option>Shopper</option><option>Driver</option>
+          </select>
+          <select class="input" id="super-filter-estado" style="width:130px;" onchange="renderTable('super')">
+            <option value="">Estado</option>
+            <option>activo</option><option>inactivo</option><option>vencido</option>
+          </select>
+        </div>
+        <div class="tbl-wrap">
+          <table id="tbl-super">
+            <thead>
+              <tr>
+                <th>ID</th><th>Convenio</th><th>Estación</th><th>Rol</th>
+                <th>Asegurado</th><th>M. Pedido</th><th>M. Bulto</th>
+                <th>Vigencia</th><th>Estado</th><th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-super"></tbody>
+          </table>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;">
+          <span style="font-size:12px;color:var(--text-muted);" id="super-count-label">— registros</span>
+          <div class="pagination" id="pg-super"></div>
+        </div>
+      </div>
+
+      <!-- Panel Cencosud -->
+      <div id="tab-cencosud" class="tab-panel" style="padding:16px 20px;">
+        <!-- Sub-tabs Cencosud -->
+        <div style="display:flex;gap:6px;margin-bottom:14px;align-items:center;">
+          <button class="btn-secondary" id="ctab-tabla" onclick="switchCencoTab('tabla')" style="border-color:rgba(120,252,214,.4);color:var(--electric);">
+            <i data-lucide="table-2" style="width:12px;height:12px;"></i> Tarifas
+          </button>
+          <button class="btn-secondary" id="ctab-mapa" onclick="switchCencoTab('mapa')">
+            <i data-lucide="map" style="width:12px;height:12px;"></i> Mapa de Geocercas
+          </button>
+          <div style="flex:1;"></div>
+          <div style="position:relative;width:220px;">
+            <i data-lucide="search" style="position:absolute;left:9px;top:50%;transform:translateY(-50%);width:13px;height:13px;color:var(--text-faint);"></i>
+            <input class="input" id="cencosud-search" placeholder="Buscar sala, zona..." style="padding-left:30px;" oninput="renderTable('cencosud')">
+          </div>
+          <select class="input" id="cencosud-filter-vehiculo" style="width:130px;" onchange="renderTable('cencosud')">
+            <option value="">Vehículo</option>
+            <option>Moto</option><option>Auto</option><option>Furgón</option>
+          </select>
+        </div>
+        <!-- Tabla Cencosud -->
+        <div id="ctab-tabla-content">
+          <div class="tbl-wrap">
+            <table id="tbl-cencosud">
+              <thead>
+                <tr>
+                  <th>ID</th><th>Sala Origen</th><th>Geocerca / Zona</th><th>Dist. (km)</th>
+                  <th>Vehículo</th><th>Tarifa</th><th>Tarifa Adicional / km</th>
+                  <th>Estado</th><th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="tbody-cencosud"></tbody>
+            </table>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;">
+            <span style="font-size:12px;color:var(--text-muted);" id="cencosud-count-label">— registros</span>
+            <div class="pagination" id="pg-cencosud"></div>
+          </div>
+        </div>
+        <!-- Mapa Geocercas -->
+        <div id="ctab-mapa-content" style="display:none;">
+          <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;">
+            <button class="btn-secondary" onclick="openDrawMode()">
+              <i data-lucide="pencil" style="width:12px;height:12px;"></i> Dibujar Geocerca
+            </button>
+            <div style="font-size:12px;color:var(--text-muted);flex:1;">Haz clic en un polígono para ver su tarifa · Arrastra para mover el mapa</div>
+          </div>
+          <div id="geocerca-map"></div>
+          <!-- Leyenda -->
+          <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap;" id="geocerca-legend"></div>
+        </div>
+      </div>
+
+      <!-- Panel Eventos/Contingencias -->
+      <div id="tab-eventos" class="tab-panel" style="padding:16px 20px;">
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:14px;flex-wrap:wrap;">
+          <div style="position:relative;flex:1;min-width:200px;">
+            <i data-lucide="search" style="position:absolute;left:9px;top:50%;transform:translateY(-50%);width:13px;height:13px;color:var(--text-faint);"></i>
+            <input class="input" id="eventos-search" placeholder="Buscar evento, cliente..." style="padding-left:30px;" oninput="renderTable('eventos')">
+          </div>
+          <select class="input" id="eventos-filter-tipo" style="width:150px;" onchange="renderTable('eventos')">
+            <option value="">Tipo</option>
+            <option>Cyber</option><option>Navidad</option><option>Verano</option><option>Peak</option><option>Manual</option>
+          </select>
+          <select class="input" id="eventos-filter-estado" style="width:130px;" onchange="renderTable('eventos')">
+            <option value="">Estado</option>
+            <option>activo</option><option>programado</option><option>finalizado</option>
+          </select>
+        </div>
+        <div class="tbl-wrap">
+          <table id="tbl-eventos">
+            <thead>
+              <tr>
+                <th>ID</th><th>Evento</th><th>Tipo</th><th>Convenio</th>
+                <th>Desde</th><th>Hasta</th>
+                <th>Bono Driver</th><th>Tarifa Especial</th>
+                <th>Estado</th><th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-eventos"></tbody>
+          </table>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;">
+          <span style="font-size:12px;color:var(--text-muted);" id="eventos-count-label">— registros</span>
+          <div class="pagination" id="pg-eventos"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ====================================================
+     MODAL NUEVA / EDITAR TARIFA
+===================================================== -->
+<div id="modal-tarifa" class="modal-bg" style="display:none;" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <div style="font-size:15px;font-weight:700;" id="modal-title">Nueva Tarifa</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">Completa los campos según la categoría seleccionada</div>
+      </div>
+      <button class="btn-ghost" onclick="closeModal()"><i data-lucide="x" style="width:15px;height:15px;"></i></button>
+    </div>
+    <div class="modal-body">
+      <!-- Selector de tipo -->
+      <div class="form-group" style="margin-bottom:18px;">
+        <label class="label">Categoría</label>
+        <div style="display:flex;gap:6px;">
+          <button class="btn-secondary tipo-btn active" data-tipo="um" onclick="setTipo('um',this)">Última Milla</button>
+          <button class="btn-secondary tipo-btn" data-tipo="super" onclick="setTipo('super',this)">Supermercados</button>
+          <button class="btn-secondary tipo-btn" data-tipo="cencosud" onclick="setTipo('cencosud',this)">Cencosud</button>
+          <button class="btn-secondary tipo-btn" data-tipo="eventos" onclick="setTipo('eventos',this)">Evento</button>
+        </div>
+      </div>
+
+      <!-- Campos comunes -->
+      <div class="form-section">Identificación</div>
+      <div class="form-row" style="margin-bottom:14px;">
+        <div class="form-group">
+          <label class="label">ID Tarifa</label>
+          <input class="input" id="f-id" placeholder="ej. UM012" readonly style="opacity:.5;">
+        </div>
+        <div class="form-group">
+          <label class="label">Cliente / Convenio</label>
+          <input class="input" id="f-cliente" placeholder="ej. Falabella">
+        </div>
+      </div>
+
+      <!-- Bloque Última Milla -->
+      <div id="bloque-um">
+        <div class="form-section">Configuración UM</div>
+        <div class="form-row" style="margin-bottom:14px;">
+          <div class="form-group">
+            <label class="label">Servicio</label>
+            <select class="input" id="f-servicio">
+              <option>SDX</option><option>SD</option><option>Click & Collect</option><option>Same Day</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="label">Vehículo</label>
+            <select class="input" id="f-vehiculo">
+              <option>Moto</option><option>Auto</option><option>Furgón</option><option>Camión</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row" style="margin-bottom:14px;">
+          <div class="form-group">
+            <label class="label">Ruta</label>
+            <select class="input" id="f-ruta">
+              <option>Urbana</option><option>Extra Urbana</option><option>Rural</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="label">NDS Desde → Hasta</label>
+            <div style="display:flex;gap:6px;">
+              <input class="input" type="number" id="f-nds-desde" placeholder="1" style="width:48%;">
+              <input class="input" type="number" id="f-nds-hasta" placeholder="20" style="width:48%;">
+            </div>
+          </div>
+        </div>
+        <div class="form-row" style="margin-bottom:14px;">
+          <div class="form-group">
+            <label class="label">Tarifa Base (CLP)</label>
+            <input class="input" type="number" id="f-tarifa-base" placeholder="3000">
+          </div>
+          <div class="form-group">
+            <label class="label">Postura (CLP)</label>
+            <input class="input" type="number" id="f-postura" placeholder="350">
+          </div>
+        </div>
+        <div class="form-row" style="margin-bottom:14px;">
+          <div class="form-group">
+            <label class="label">Multa (CLP)</label>
+            <input class="input" type="number" id="f-multa" placeholder="1500">
+          </div>
+          <div class="form-group"></div>
+        </div>
+      </div>
+
+      <!-- Bloque Supermercados -->
+      <div id="bloque-super" style="display:none;">
+        <div class="form-section">Configuración Supermercados</div>
+        <div class="form-row" style="margin-bottom:14px;">
+          <div class="form-group">
+            <label class="label">Estación / Sala</label>
+            <input class="input" id="f-estacion" placeholder="ej. Tottus Kennedy">
+          </div>
+          <div class="form-group">
+            <label class="label">Rol</label>
+            <select class="input" id="f-rol">
+              <option>Picker</option><option>Shopper</option><option>Driver</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row" style="margin-bottom:14px;">
+          <div class="form-group">
+            <label class="label">Monto Asegurado (CLP)</label>
+            <input class="input" type="number" id="f-asegurado" placeholder="8500">
+          </div>
+          <div class="form-group">
+            <label class="label">Monto por Pedido</label>
+            <input class="input" type="number" id="f-m-pedido" placeholder="1200">
+          </div>
+        </div>
+        <div class="form-row" style="margin-bottom:14px;">
+          <div class="form-group">
+            <label class="label">Monto por Bulto</label>
+            <input class="input" type="number" id="f-m-bulto" placeholder="120">
+          </div>
+          <div class="form-group"></div>
+        </div>
+      </div>
+
+      <!-- Bloque Cencosud -->
+      <div id="bloque-cencosud" style="display:none;">
+        <div class="form-section">Configuración Cencosud / Geocercas</div>
+        <div class="form-row" style="margin-bottom:14px;">
+          <div class="form-group">
+            <label class="label">Sala Origen</label>
+            <input class="input" id="f-sala" placeholder="ej. Jumbo Kennedy">
+          </div>
+          <div class="form-group">
+            <label class="label">Geocerca / Zona</label>
+            <select class="input" id="f-geocerca">
+              <option value="">Seleccionar geocerca</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row" style="margin-bottom:14px;">
+          <div class="form-group">
+            <label class="label">Distancia máx. (km)</label>
+            <input class="input" type="number" id="f-distancia" placeholder="15">
+          </div>
+          <div class="form-group">
+            <label class="label">Vehículo</label>
+            <select class="input" id="f-vehiculo-cen">
+              <option>Moto</option><option>Auto</option><option>Furgón</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row" style="margin-bottom:14px;">
+          <div class="form-group">
+            <label class="label">Tarifa Base (CLP)</label>
+            <input class="input" type="number" id="f-tarifa-cen" placeholder="3500">
+          </div>
+          <div class="form-group">
+            <label class="label">Tarifa Adicional / km</label>
+            <input class="input" type="number" id="f-tarifa-km" placeholder="180">
+          </div>
+        </div>
+      </div>
+
+      <!-- Bloque Eventos -->
+      <div id="bloque-eventos" style="display:none;">
+        <div class="form-section">Configuración Evento</div>
+        <div class="form-row" style="margin-bottom:14px;">
+          <div class="form-group">
+            <label class="label">Nombre del Evento</label>
+            <input class="input" id="f-evento-nombre" placeholder="ej. Cyber Lunes 2026">
+          </div>
+          <div class="form-group">
+            <label class="label">Tipo</label>
+            <select class="input" id="f-evento-tipo">
+              <option>Cyber</option><option>Navidad</option><option>Verano</option><option>Peak</option><option>Manual</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row" style="margin-bottom:14px;">
+          <div class="form-group">
+            <label class="label">Bono Driver (CLP)</label>
+            <input class="input" type="number" id="f-bono" placeholder="500">
+          </div>
+          <div class="form-group">
+            <label class="label">Tarifa Especial (CLP)</label>
+            <input class="input" type="number" id="f-tarifa-evento" placeholder="3200">
+          </div>
+        </div>
+      </div>
+
+      <!-- Vigencia + Contingencia (comunes) -->
+      <div class="form-section" style="margin-top:4px;">Vigencia</div>
+      <div class="form-row" style="margin-bottom:14px;">
+        <div class="form-group">
+          <label class="label">Fecha Inicio</label>
+          <input class="input" type="date" id="f-vigencia-inicio">
+        </div>
+        <div class="form-group">
+          <label class="label">Fecha Fin</label>
+          <input class="input" type="date" id="f-vigencia-fin">
+        </div>
+      </div>
+
+      <!-- Toggle Contingencia -->
+      <div id="contingencia-toggle-wrap" style="margin-bottom:14px;">
+        <div class="form-section">Opciones</div>
+        <div class="toggle-wrap" style="margin-top:8px;">
+          <label class="toggle">
+            <input type="checkbox" id="f-contingencia" onchange="toggleContingencia(this)">
+            <span class="toggle-slider"></span>
+          </label>
+          <span style="font-size:13px;color:var(--text);">Es tarifa de contingencia</span>
+        </div>
+        <div id="contingencia-rango" style="display:none;margin-top:12px;">
+          <div class="form-row">
+            <div class="form-group">
+              <label class="label">Desde (contingencia)</label>
+              <input class="input" type="date" id="f-cont-inicio">
+            </div>
+            <div class="form-group">
+              <label class="label">Hasta (contingencia)</label>
+              <input class="input" type="date" id="f-cont-fin">
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal()">Cancelar</button>
+      <button class="btn-primary" onclick="saveTarifa()">
+        <i data-lucide="save" style="width:13px;height:13px;"></i> Guardar Tarifa
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ====================================================
+     MODAL HISTORIAL
+===================================================== -->
+<div id="modal-historial" class="modal-bg" style="display:none;" onclick="if(event.target===this)closeHistorial()">
+  <div class="modal" style="max-width:480px;">
+    <div class="modal-header">
+      <div style="font-size:15px;font-weight:700;">Historial de cambios</div>
+      <button class="btn-ghost" onclick="closeHistorial()"><i data-lucide="x" style="width:15px;height:15px;"></i></button>
+    </div>
+    <div class="modal-body" id="historial-body" style="padding:16px 20px;"></div>
+  </div>
+</div>
+
+<!-- ====================================================
+     MODAL GEOCERCA (Leaflet)
+===================================================== -->
+<div id="modal-geo-detail" class="modal-bg" style="display:none;" onclick="if(event.target===this)closeGeoDetail()">
+  <div class="modal" style="max-width:400px;">
+    <div class="modal-header">
+      <div style="font-size:15px;font-weight:700;" id="geo-detail-title">Detalle Geocerca</div>
+      <button class="btn-ghost" onclick="closeGeoDetail()"><i data-lucide="x" style="width:15px;height:15px;"></i></button>
+    </div>
+    <div class="modal-body" id="geo-detail-body"></div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeGeoDetail()">Cerrar</button>
+      <button class="btn-primary" onclick="editGeoTarifa()">
+        <i data-lucide="edit-2" style="width:13px;height:13px;"></i> Editar Tarifa
+      </button>
+    </div>
+  </div>
+</div>
+
+<script src="/sidebar.js"></script>
+<script>
+window.initSidebar('op-tarifario');
+
+// ══════════════════════════════════════════════════════
+// MOCK DATA
+// ══════════════════════════════════════════════════════
+const MOCK = {
+  ultimaMilla: [
+    { id:'UM001', cliente:'Falabella', servicio:'SDX', vehiculo:'Moto', ruta:'Urbana', nds_desde:1, nds_hasta:10, tarifa_base:2800, postura:320, multa:1500, contingencia:false, vigencia_inicio:'2026-01-01', vigencia_fin:'2026-12-31', estado:'activo', _hist:[{fecha:'2025-11-10',accion:'Creación',usuario:'admin'},{fecha:'2026-01-01',accion:'Activación',usuario:'admin'}] },
+    { id:'UM002', cliente:'Falabella', servicio:'SDX', vehiculo:'Furgón', ruta:'Urbana', nds_desde:11, nds_hasta:25, tarifa_base:3800, postura:420, multa:2000, contingencia:false, vigencia_inicio:'2026-01-01', vigencia_fin:'2026-12-31', estado:'activo', _hist:[{fecha:'2025-12-01',accion:'Creación',usuario:'admin'}] },
+    { id:'UM003', cliente:'Mercado Libre', servicio:'SD', vehiculo:'Moto', ruta:'Urbana', nds_desde:1, nds_hasta:15, tarifa_base:2600, postura:290, multa:1200, contingencia:false, vigencia_inicio:'2026-02-01', vigencia_fin:'2026-08-31', estado:'activo', _hist:[{fecha:'2026-01-28',accion:'Creación',usuario:'admin'}] },
+    { id:'UM004', cliente:'Ripley', servicio:'Click & Collect', vehiculo:'Auto', ruta:'Extra Urbana', nds_desde:1, nds_hasta:12, tarifa_base:3200, postura:350, multa:1800, contingencia:true, vigencia_inicio:'2026-05-01', vigencia_fin:'2026-06-30', estado:'activo', _hist:[{fecha:'2026-04-20',accion:'Creación',usuario:'admin'},{fecha:'2026-04-25',accion:'Se activó contingencia',usuario:'admin'}] },
+    { id:'UM005', cliente:'Paris', servicio:'Same Day', vehiculo:'Camión', ruta:'Extra Urbana', nds_desde:1, nds_hasta:8, tarifa_base:5200, postura:600, multa:3000, contingencia:false, vigencia_inicio:'2025-07-01', vigencia_fin:'2025-12-31', estado:'vencido', _hist:[{fecha:'2025-06-15',accion:'Creación',usuario:'admin'}] },
+    { id:'UM006', cliente:'Falabella', servicio:'SDX', vehiculo:'Moto', ruta:'Rural', nds_desde:1, nds_hasta:20, tarifa_base:3500, postura:400, multa:1800, contingencia:false, vigencia_inicio:'2026-03-01', vigencia_fin:'2026-12-31', estado:'activo', _hist:[{fecha:'2026-02-28',accion:'Creación',usuario:'admin'}] },
+    { id:'UM007', cliente:'Sodimac', servicio:'SD', vehiculo:'Furgón', ruta:'Urbana', nds_desde:1, nds_hasta:18, tarifa_base:4100, postura:480, multa:2200, contingencia:false, vigencia_inicio:'2026-04-01', vigencia_fin:'2026-12-31', estado:'activo', _hist:[{fecha:'2026-03-20',accion:'Creación',usuario:'admin'}] },
+    { id:'UM008', cliente:'Mercado Libre', servicio:'Same Day', vehiculo:'Auto', ruta:'Urbana', nds_desde:1, nds_hasta:20, tarifa_base:2900, postura:310, multa:1400, contingencia:false, vigencia_inicio:'2026-01-01', vigencia_fin:'2026-06-30', estado:'inactivo', _hist:[{fecha:'2025-12-20',accion:'Creación',usuario:'admin'},{fecha:'2026-02-01',accion:'Desactivado manualmente',usuario:'admin'}] },
+  ],
+  supermercados: [
+    { id:'SP001', convenio:'Tottus', estacion:'Tottus Kennedy', rol:'Picker', asegurado:9000, m_pedido:1100, m_bulto:110, vigencia_inicio:'2026-01-01', vigencia_fin:'2026-12-31', estado:'activo', _hist:[{fecha:'2025-12-15',accion:'Creación',usuario:'admin'}] },
+    { id:'SP002', convenio:'Tottus', estacion:'Tottus Kennedy', rol:'Shopper', asegurado:8500, m_pedido:900, m_bulto:95, vigencia_inicio:'2026-01-01', vigencia_fin:'2026-12-31', estado:'activo', _hist:[{fecha:'2025-12-15',accion:'Creación',usuario:'admin'}] },
+    { id:'SP003', convenio:'Tottus', estacion:'Tottus Maipú', rol:'Driver', asegurado:10000, m_pedido:1300, m_bulto:130, vigencia_inicio:'2026-01-01', vigencia_fin:'2026-12-31', estado:'activo', _hist:[{fecha:'2025-12-15',accion:'Creación',usuario:'admin'}] },
+    { id:'SP004', convenio:'Jumbo', estacion:'Jumbo Providencia', rol:'Picker', asegurado:9200, m_pedido:1150, m_bulto:115, vigencia_inicio:'2026-02-01', vigencia_fin:'2026-12-31', estado:'activo', _hist:[{fecha:'2026-01-20',accion:'Creación',usuario:'admin'}] },
+    { id:'SP005', convenio:'Jumbo', estacion:'Jumbo Las Condes', rol:'Shopper', asegurado:8800, m_pedido:1000, m_bulto:100, vigencia_inicio:'2026-02-01', vigencia_fin:'2026-12-31', estado:'activo', _hist:[{fecha:'2026-01-20',accion:'Creación',usuario:'admin'}] },
+    { id:'SP006', convenio:'Unimarc', estacion:'Unimarc Ñuñoa', rol:'Picker', asegurado:8000, m_pedido:950, m_bulto:90, vigencia_inicio:'2025-09-01', vigencia_fin:'2025-12-31', estado:'vencido', _hist:[{fecha:'2025-08-10',accion:'Creación',usuario:'admin'}] },
+    { id:'SP007', convenio:'Alvi', estacion:'Alvi Pudahuel', rol:'Driver', asegurado:11000, m_pedido:1500, m_bulto:150, vigencia_inicio:'2026-03-01', vigencia_fin:'2026-12-31', estado:'activo', _hist:[{fecha:'2026-02-20',accion:'Creación',usuario:'admin'}] },
+  ],
+  cencosud: [
+    { id:'CEN001', sala:'Jumbo Kennedy',    geocerca:'Zona Norte',          distancia:12, vehiculo:'Auto',   tarifa:3500, tarifa_km:180, estado:'activo', _hist:[{fecha:'2026-01-05',accion:'Creación',usuario:'admin'}] },
+    { id:'CEN002', sala:'Jumbo Kennedy',    geocerca:'Zona Oriente',        distancia:18, vehiculo:'Auto',   tarifa:4200, tarifa_km:200, estado:'activo', _hist:[{fecha:'2026-01-05',accion:'Creación',usuario:'admin'}] },
+    { id:'CEN003', sala:'Jumbo Kennedy',    geocerca:'Zona Sur',            distancia:22, vehiculo:'Furgón', tarifa:5100, tarifa_km:220, estado:'activo', _hist:[{fecha:'2026-01-05',accion:'Creación',usuario:'admin'}] },
+    { id:'CEN004', sala:'Santa Isabel Las Condes', geocerca:'Zona Centro', distancia:8,  vehiculo:'Moto',   tarifa:2800, tarifa_km:150, estado:'activo', _hist:[{fecha:'2026-02-01',accion:'Creación',usuario:'admin'}] },
+    { id:'CEN005', sala:'Santa Isabel Las Condes', geocerca:'Zona Poniente',distancia:25, vehiculo:'Furgón', tarifa:5800, tarifa_km:240, estado:'activo', _hist:[{fecha:'2026-02-01',accion:'Creación',usuario:'admin'}] },
+    { id:'CEN006', sala:'Jumbo Providencia', geocerca:'Zona Norte',         distancia:10, vehiculo:'Auto',   tarifa:3300, tarifa_km:170, estado:'activo', _hist:[{fecha:'2026-03-10',accion:'Creación',usuario:'admin'}] },
+    { id:'CEN007', sala:'Jumbo Maipú',      geocerca:'Zona Poniente',       distancia:15, vehiculo:'Furgón', tarifa:4500, tarifa_km:210, estado:'inactivo', _hist:[{fecha:'2026-01-20',accion:'Creación',usuario:'admin'},{fecha:'2026-03-01',accion:'Desactivado',usuario:'admin'}] },
+  ],
+  eventos: [
+    { id:'EVT001', nombre:'Cyber Lunes Junio 2026', tipo:'Cyber', convenio:'Falabella', desde:'2026-06-02', hasta:'2026-06-06', bono:500, tarifa_especial:3200, estado:'activo', _hist:[{fecha:'2026-05-20',accion:'Creación',usuario:'admin'}] },
+    { id:'EVT002', nombre:'Cyber Monday Noviembre', tipo:'Cyber', convenio:'Mercado Libre', desde:'2026-11-03', hasta:'2026-11-07', bono:600, tarifa_especial:3400, estado:'programado', _hist:[{fecha:'2026-03-15',accion:'Creación',usuario:'admin'}] },
+    { id:'EVT003', nombre:'Navidad 2026', tipo:'Navidad', convenio:'Todos', desde:'2026-12-20', hasta:'2026-12-26', bono:800, tarifa_especial:3800, estado:'programado', _hist:[{fecha:'2026-04-01',accion:'Creación',usuario:'admin'}] },
+    { id:'EVT004', nombre:'Verano Alto Flujo', tipo:'Verano', convenio:'Tottus', desde:'2026-01-15', hasta:'2026-02-28', bono:400, tarifa_especial:2900, estado:'finalizado', _hist:[{fecha:'2026-01-10',accion:'Creación',usuario:'admin'},{fecha:'2026-03-01',accion:'Finalizado automáticamente',usuario:'sistema'}] },
+    { id:'EVT005', nombre:'Peak Día de la Madre', tipo:'Peak', convenio:'Paris', desde:'2026-05-08', hasta:'2026-05-11', bono:450, tarifa_especial:3100, estado:'finalizado', _hist:[{fecha:'2026-04-20',accion:'Creación',usuario:'admin'}] },
+  ],
+  geocercas: [
+    { id:'GEO001', nombre:'Zona Norte', color:'#78fcd6',
+      coords:[[-33.35,-70.65],[-33.35,-70.57],[-33.40,-70.57],[-33.40,-70.65]],
+      tarifa_auto:3500, tarifa_moto:2800, tarifa_furgon:4800 },
+    { id:'GEO002', nombre:'Zona Oriente', color:'#60a5fa',
+      coords:[[-33.40,-70.58],[-33.40,-70.52],[-33.46,-70.52],[-33.46,-70.58]],
+      tarifa_auto:4200, tarifa_moto:3400, tarifa_furgon:5600 },
+    { id:'GEO003', nombre:'Zona Sur', color:'#f59e0b',
+      coords:[[-33.52,-70.68],[-33.52,-70.60],[-33.58,-70.60],[-33.58,-70.68]],
+      tarifa_auto:4800, tarifa_moto:3900, tarifa_furgon:6200 },
+    { id:'GEO004', nombre:'Zona Poniente', color:'#a78bfa',
+      coords:[[-33.46,-70.76],[-33.46,-70.68],[-33.52,-70.68],[-33.52,-70.76]],
+      tarifa_auto:5200, tarifa_moto:4100, tarifa_furgon:6800 },
+    { id:'GEO005', nombre:'Zona Centro', color:'#f87171',
+      coords:[[-33.43,-70.67],[-33.43,-70.63],[-33.47,-70.63],[-33.47,-70.67]],
+      tarifa_auto:3000, tarifa_moto:2400, tarifa_furgon:4200 },
+  ],
+};
+
+// ══════════════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════════════
+const PAGE_SIZE = 8;
+const state = { um: 1, super: 1, cencosud: 1, eventos: 1 };
+const currentData = {
+  um: [...MOCK.ultimaMilla],
+  super: [...MOCK.supermercados],
+  cencosud: [...MOCK.cencosud],
+  eventos: [...MOCK.eventos],
+};
+let editingId = null;
+let mapInstance = null;
+
+// ══════════════════════════════════════════════════════
+// TABS
+// ══════════════════════════════════════════════════════
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('tab-' + name).classList.add('active');
+  if (name === 'cencosud') {
+    // init map lazily
+    setTimeout(() => {
+      if (document.getElementById('ctab-mapa-content').style.display !== 'none') initMap();
+    }, 100);
+  }
+  lucide.createIcons();
+}
+
+function switchCencoTab(which) {
+  const isTabla = which === 'tabla';
+  document.getElementById('ctab-tabla-content').style.display = isTabla ? '' : 'none';
+  document.getElementById('ctab-mapa-content').style.display = isTabla ? 'none' : '';
+  document.getElementById('ctab-tabla').style.cssText = isTabla
+    ? 'border-color:rgba(120,252,214,.4);color:var(--electric);'
+    : '';
+  document.getElementById('ctab-mapa').style.cssText = !isTabla
+    ? 'border-color:rgba(120,252,214,.4);color:var(--electric);'
+    : '';
+  if (!isTabla) setTimeout(initMap, 150);
+}
+
+// ══════════════════════════════════════════════════════
+// RENDER TABLES
+// ══════════════════════════════════════════════════════
+function getFiltered(tab) {
+  const search = (document.getElementById(tab + '-search')?.value || '').toLowerCase();
+  let rows = [...currentData[tab]];
+
+  if (tab === 'um') {
+    const veh  = document.getElementById('um-filter-vehiculo')?.value;
+    const est  = document.getElementById('um-filter-estado')?.value;
+    const cont = document.getElementById('um-filter-contingencia')?.value;
+    if (veh)  rows = rows.filter(r => r.vehiculo === veh);
+    if (est)  rows = rows.filter(r => r.estado === est);
+    if (cont) rows = rows.filter(r => cont === 'si' ? r.contingencia : !r.contingencia);
+    if (search) rows = rows.filter(r =>
+      [r.id, r.cliente, r.servicio, r.vehiculo, r.ruta].join(' ').toLowerCase().includes(search));
+  }
+  if (tab === 'super') {
+    const rol = document.getElementById('super-filter-rol')?.value;
+    const est = document.getElementById('super-filter-estado')?.value;
+    if (rol) rows = rows.filter(r => r.rol === rol);
+    if (est) rows = rows.filter(r => r.estado === est);
+    if (search) rows = rows.filter(r =>
+      [r.id, r.convenio, r.estacion, r.rol].join(' ').toLowerCase().includes(search));
+  }
+  if (tab === 'cencosud') {
+    const veh = document.getElementById('cencosud-filter-vehiculo')?.value;
+    if (veh) rows = rows.filter(r => r.vehiculo === veh);
+    if (search) rows = rows.filter(r =>
+      [r.id, r.sala, r.geocerca, r.vehiculo].join(' ').toLowerCase().includes(search));
+  }
+  if (tab === 'eventos') {
+    const tipo = document.getElementById('eventos-filter-tipo')?.value;
+    const est  = document.getElementById('eventos-filter-estado')?.value;
+    if (tipo) rows = rows.filter(r => r.tipo === tipo);
+    if (est)  rows = rows.filter(r => r.estado === est);
+    if (search) rows = rows.filter(r =>
+      [r.id, r.nombre, r.tipo, r.convenio].join(' ').toLowerCase().includes(search));
+  }
+  return rows;
+}
+
+function estadoBadge(e) {
+  const map = { activo:'badge-green', inactivo:'badge-yellow', vencido:'badge-red', programado:'badge-blue', finalizado:'badge-red' };
+  const labels = { activo:'Activo', inactivo:'Inactivo', vencido:'Vencido', programado:'Programado', finalizado:'Finalizado' };
+  return `<span class="badge ${map[e]||'badge-blue'}">${labels[e]||e}</span>`;
+}
+
+function pesos(n) {
+  return '$' + Number(n).toLocaleString('es-CL');
+}
+
+function renderTable(tab) {
+  const filtered = getFiltered(tab);
+  state[tab] = Math.min(state[tab], Math.ceil(filtered.length / PAGE_SIZE) || 1);
+  const start = (state[tab] - 1) * PAGE_SIZE;
+  const page  = filtered.slice(start, start + PAGE_SIZE);
+
+  document.getElementById(tab + '-count-label').textContent =
+    `${filtered.length} registro${filtered.length !== 1 ? 's' : ''}`;
+
+  const tbody = document.getElementById('tbody-' + tab);
+
+  if (tab === 'um') {
+    tbody.innerHTML = page.map(r => `
+      <tr>
+        <td class="td-mono" style="color:var(--electric);font-size:11px;">${r.id}</td>
+        <td style="font-weight:500;">${r.cliente}</td>
+        <td><span class="badge badge-blue">${r.servicio}</span></td>
+        <td>${r.vehiculo}</td>
+        <td style="color:var(--text-muted);">${r.ruta}</td>
+        <td class="td-mono">${r.nds_desde}–${r.nds_hasta}</td>
+        <td class="td-mono">${pesos(r.tarifa_base)}</td>
+        <td class="td-mono">${pesos(r.postura)}</td>
+        <td class="td-mono" style="color:#f87171;">${pesos(r.multa)}</td>
+        <td>${r.contingencia ? '<span class="badge badge-yellow">Sí</span>' : '<span style="color:var(--text-faint);font-size:11px;">—</span>'}</td>
+        <td style="color:var(--text-muted);font-size:11px;">${r.vigencia_inicio} → ${r.vigencia_fin}</td>
+        <td>${estadoBadge(r.estado)}</td>
+        <td>${accionBtn(r.id, 'um')}</td>
+      </tr>`).join('');
+  }
+  if (tab === 'super') {
+    tbody.innerHTML = page.map(r => `
+      <tr>
+        <td class="td-mono" style="color:var(--electric);font-size:11px;">${r.id}</td>
+        <td style="font-weight:500;">${r.convenio}</td>
+        <td style="color:var(--text-muted);">${r.estacion}</td>
+        <td><span class="badge badge-blue">${r.rol}</span></td>
+        <td class="td-mono">${pesos(r.asegurado)}</td>
+        <td class="td-mono">${pesos(r.m_pedido)}</td>
+        <td class="td-mono">${pesos(r.m_bulto)}</td>
+        <td style="color:var(--text-muted);font-size:11px;">${r.vigencia_inicio} → ${r.vigencia_fin}</td>
+        <td>${estadoBadge(r.estado)}</td>
+        <td>${accionBtn(r.id, 'super')}</td>
+      </tr>`).join('');
+  }
+  if (tab === 'cencosud') {
+    tbody.innerHTML = page.map(r => `
+      <tr>
+        <td class="td-mono" style="color:var(--electric);font-size:11px;">${r.id}</td>
+        <td style="font-weight:500;">${r.sala}</td>
+        <td><span class="badge badge-blue">${r.geocerca}</span></td>
+        <td class="td-mono">${r.distancia} km</td>
+        <td>${r.vehiculo}</td>
+        <td class="td-mono">${pesos(r.tarifa)}</td>
+        <td class="td-mono" style="color:var(--text-muted);">+${pesos(r.tarifa_km)}/km</td>
+        <td>${estadoBadge(r.estado)}</td>
+        <td>${accionBtn(r.id, 'cencosud')}</td>
+      </tr>`).join('');
+  }
+  if (tab === 'eventos') {
+    tbody.innerHTML = page.map(r => `
+      <tr>
+        <td class="td-mono" style="color:var(--electric);font-size:11px;">${r.id}</td>
+        <td style="font-weight:500;">${r.nombre}</td>
+        <td><span class="badge ${r.tipo==='Cyber'?'badge-elec':r.tipo==='Navidad'?'badge-red':'badge-blue'}">${r.tipo}</span></td>
+        <td style="color:var(--text-muted);">${r.convenio}</td>
+        <td style="font-size:11px;">${r.desde}</td>
+        <td style="font-size:11px;">${r.hasta}</td>
+        <td class="td-mono" style="color:var(--electric);">${pesos(r.bono)}</td>
+        <td class="td-mono">${pesos(r.tarifa_especial)}</td>
+        <td>${estadoBadge(r.estado)}</td>
+        <td>${accionBtn(r.id, 'eventos')}</td>
+      </tr>`).join('');
+  }
+
+  renderPagination(tab, filtered.length);
+  lucide.createIcons({ el: tbody });
+}
+
+function accionBtn(id, tab) {
+  return `
+    <div style="display:flex;gap:2px;">
+      <button class="btn-ghost" title="Editar" onclick="editRow('${id}','${tab}')">
+        <i data-lucide="edit-2" style="width:13px;height:13px;"></i>
+      </button>
+      <button class="btn-ghost" title="Duplicar" onclick="duplicateRow('${id}','${tab}')">
+        <i data-lucide="copy" style="width:13px;height:13px;"></i>
+      </button>
+      <button class="btn-ghost" title="Historial" onclick="showHistorial('${id}','${tab}')">
+        <i data-lucide="clock" style="width:13px;height:13px;"></i>
+      </button>
+      <button class="btn-danger-ghost" title="Eliminar" onclick="deleteRow('${id}','${tab}')">
+        <i data-lucide="trash-2" style="width:13px;height:13px;"></i>
+      </button>
+    </div>`;
+}
+
+function renderPagination(tab, total) {
+  const pages = Math.ceil(total / PAGE_SIZE) || 1;
+  const cur   = state[tab];
+  const pg    = document.getElementById('pg-' + tab);
+  let html = `<button class="pg-btn" onclick="goPage('${tab}',${cur-1})" ${cur<=1?'disabled':''}>‹</button>`;
+  for (let i = 1; i <= pages; i++) {
+    if (pages > 7 && i > 2 && i < pages - 1 && Math.abs(i - cur) > 1) {
+      if (i === 3 || i === pages - 2) html += `<span style="padding:0 4px;color:var(--text-faint);">…</span>`;
+      continue;
+    }
+    html += `<button class="pg-btn ${i===cur?'active':''}" onclick="goPage('${tab}',${i})">${i}</button>`;
+  }
+  html += `<button class="pg-btn" onclick="goPage('${tab}',${cur+1})" ${cur>=pages?'disabled':''}>›</button>`;
+  pg.innerHTML = html;
+}
+
+function goPage(tab, n) {
+  const total = getFiltered(tab).length;
+  const pages = Math.ceil(total / PAGE_SIZE) || 1;
+  state[tab] = Math.max(1, Math.min(n, pages));
+  renderTable(tab);
+}
+
+// ══════════════════════════════════════════════════════
+// ROW ACTIONS
+// ══════════════════════════════════════════════════════
+function getRow(id, tab) {
+  return currentData[tab].find(r => r.id === id);
+}
+
+function editRow(id, tab) {
+  const r = getRow(id, tab);
+  if (!r) return;
+  editingId = id;
+  openModal(tab);
+  document.getElementById('modal-title').textContent = 'Editar Tarifa · ' + id;
+  document.getElementById('f-id').value = r.id;
+  document.getElementById('f-cliente').value = r.cliente || r.convenio || '';
+  if (tab === 'um') {
+    document.getElementById('f-servicio').value  = r.servicio;
+    document.getElementById('f-vehiculo').value  = r.vehiculo;
+    document.getElementById('f-ruta').value      = r.ruta;
+    document.getElementById('f-nds-desde').value = r.nds_desde;
+    document.getElementById('f-nds-hasta').value = r.nds_hasta;
+    document.getElementById('f-tarifa-base').value = r.tarifa_base;
+    document.getElementById('f-postura').value   = r.postura;
+    document.getElementById('f-multa').value     = r.multa;
+  }
+  if (tab === 'super') {
+    document.getElementById('f-estacion').value  = r.estacion;
+    document.getElementById('f-rol').value       = r.rol;
+    document.getElementById('f-asegurado').value = r.asegurado;
+    document.getElementById('f-m-pedido').value  = r.m_pedido;
+    document.getElementById('f-m-bulto').value   = r.m_bulto;
+  }
+  if (tab === 'cencosud') {
+    document.getElementById('f-sala').value         = r.sala;
+    document.getElementById('f-distancia').value    = r.distancia;
+    document.getElementById('f-vehiculo-cen').value = r.vehiculo;
+    document.getElementById('f-tarifa-cen').value   = r.tarifa;
+    document.getElementById('f-tarifa-km').value    = r.tarifa_km;
+  }
+  if (tab === 'eventos') {
+    document.getElementById('f-evento-nombre').value = r.nombre;
+    document.getElementById('f-evento-tipo').value   = r.tipo;
+    document.getElementById('f-bono').value           = r.bono;
+    document.getElementById('f-tarifa-evento').value  = r.tarifa_especial;
+    document.getElementById('f-vigencia-inicio').value = r.desde || r.vigencia_inicio || '';
+    document.getElementById('f-vigencia-fin').value   = r.hasta || r.vigencia_fin || '';
+  }
+}
+
+function duplicateRow(id, tab) {
+  const r = getRow(id, tab);
+  if (!r) return;
+  const prefix = { um:'UM', super:'SP', cencosud:'CEN', eventos:'EVT' }[tab];
+  const newId  = prefix + String(Date.now()).slice(-4);
+  const newRow = { ...r, id: newId, estado: 'inactivo', _hist: [{ fecha: new Date().toISOString().slice(0,10), accion: 'Duplicado desde ' + id, usuario: 'admin' }] };
+  currentData[tab].unshift(newRow);
+  state[tab] = 1;
+  renderTable(tab);
+  updateKPIs();
+}
+
+function deleteRow(id, tab) {
+  if (!confirm(`¿Eliminar tarifa ${id}? Esta acción no se puede deshacer.`)) return;
+  currentData[tab] = currentData[tab].filter(r => r.id !== id);
+  renderTable(tab);
+  updateKPIs();
+}
+
+function showHistorial(id, tab) {
+  const r = getRow(id, tab);
+  if (!r) return;
+  document.getElementById('modal-historial').style.display = 'flex';
+  const hist = r._hist || [];
+  document.getElementById('historial-body').innerHTML = `
+    <div style="font-size:13px;font-weight:600;margin-bottom:12px;color:var(--text-muted);">Tarifa ${id}</div>
+    ${hist.length === 0 ? '<p style="color:var(--text-faint);font-size:12px;">Sin historial registrado.</p>' :
+      hist.map(h => `
+        <div style="display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--border);">
+          <span class="history-dot" style="margin-top:5px;flex-shrink:0;"></span>
+          <div>
+            <div style="font-size:12px;color:var(--text);">${h.accion}</div>
+            <div style="font-size:11px;color:var(--text-faint);">${h.fecha} · ${h.usuario}</div>
+          </div>
+        </div>`).join('')}
+  `;
+  lucide.createIcons();
+}
+
+function closeHistorial() {
+  document.getElementById('modal-historial').style.display = 'none';
+}
+
+// ══════════════════════════════════════════════════════
+// MODAL NUEVA TARIFA
+// ══════════════════════════════════════════════════════
+let currentTipo = 'um';
+
+function openModal(presetTipo) {
+  editingId = null;
+  document.getElementById('modal-title').textContent = 'Nueva Tarifa';
+  document.getElementById('modal-tarifa').style.display = 'flex';
+  setTipo(presetTipo || 'um', document.querySelector(`.tipo-btn[data-tipo="${presetTipo||'um'}"]`));
+  const prefix = { um:'UM', super:'SP', cencosud:'CEN', eventos:'EVT' }[presetTipo||'um'];
+  document.getElementById('f-id').value = prefix + String(Date.now()).slice(-4);
+  document.getElementById('f-vigencia-inicio').value = new Date().toISOString().slice(0,10);
+  document.getElementById('f-vigencia-fin').value = '2026-12-31';
+  // Populate geocerca selector
+  const sel = document.getElementById('f-geocerca');
+  sel.innerHTML = '<option value="">Seleccionar geocerca</option>' +
+    MOCK.geocercas.map(g => `<option value="${g.id}">${g.nombre}</option>`).join('');
+  lucide.createIcons({ el: document.getElementById('modal-tarifa') });
+}
+
+function closeModal() {
+  document.getElementById('modal-tarifa').style.display = 'none';
+}
+
+function setTipo(tipo, btn) {
+  currentTipo = tipo;
+  document.querySelectorAll('.tipo-btn').forEach(b => {
+    b.style.borderColor = '';
+    b.style.color = '';
+  });
+  if (btn) {
+    btn.style.borderColor = 'rgba(120,252,214,.45)';
+    btn.style.color = 'var(--electric)';
+  }
+  ['um','super','cencosud','eventos'].forEach(t => {
+    document.getElementById('bloque-'+t).style.display = t === tipo ? '' : 'none';
+  });
+  const showCont = tipo !== 'eventos';
+  document.getElementById('contingencia-toggle-wrap').style.display = showCont ? '' : 'none';
+}
+
+function toggleContingencia(cb) {
+  document.getElementById('contingencia-rango').style.display = cb.checked ? '' : 'none';
+}
+
+function saveTarifa() {
+  const id = document.getElementById('f-id').value;
+  const cliente = document.getElementById('f-cliente').value || 'N/A';
+  const viIni = document.getElementById('f-vigencia-inicio').value;
+  const viFin = document.getElementById('f-vigencia-fin').value;
+  const hist = { fecha: new Date().toISOString().slice(0,10), accion: editingId ? 'Editado' : 'Creación', usuario: 'admin' };
+
+  if (currentTipo === 'um') {
+    const row = {
+      id, cliente, servicio: document.getElementById('f-servicio').value,
+      vehiculo: document.getElementById('f-vehiculo').value,
+      ruta: document.getElementById('f-ruta').value,
+      nds_desde: +document.getElementById('f-nds-desde').value || 1,
+      nds_hasta: +document.getElementById('f-nds-hasta').value || 10,
+      tarifa_base: +document.getElementById('f-tarifa-base').value || 0,
+      postura: +document.getElementById('f-postura').value || 0,
+      multa: +document.getElementById('f-multa').value || 0,
+      contingencia: document.getElementById('f-contingencia').checked,
+      vigencia_inicio: viIni, vigencia_fin: viFin, estado: 'activo',
+      _hist: editingId ? [...(getRow(editingId,'um')?._hist||[]), hist] : [hist],
+    };
+    if (editingId) {
+      const idx = currentData.um.findIndex(r => r.id === editingId);
+      if (idx >= 0) currentData.um[idx] = row; else currentData.um.unshift(row);
+    } else currentData.um.unshift(row);
+    renderTable('um');
+  }
+  if (currentTipo === 'super') {
+    const row = {
+      id, convenio: cliente, estacion: document.getElementById('f-estacion').value,
+      rol: document.getElementById('f-rol').value,
+      asegurado: +document.getElementById('f-asegurado').value || 0,
+      m_pedido: +document.getElementById('f-m-pedido').value || 0,
+      m_bulto: +document.getElementById('f-m-bulto').value || 0,
+      vigencia_inicio: viIni, vigencia_fin: viFin, estado: 'activo',
+      _hist: editingId ? [...(getRow(editingId,'super')?._hist||[]), hist] : [hist],
+    };
+    if (editingId) {
+      const idx = currentData.super.findIndex(r => r.id === editingId);
+      if (idx >= 0) currentData.super[idx] = row; else currentData.super.unshift(row);
+    } else currentData.super.unshift(row);
+    renderTable('super');
+  }
+  if (currentTipo === 'cencosud') {
+    const row = {
+      id, sala: document.getElementById('f-sala').value,
+      geocerca: document.getElementById('f-geocerca').options[document.getElementById('f-geocerca').selectedIndex]?.text || 'N/A',
+      distancia: +document.getElementById('f-distancia').value || 0,
+      vehiculo: document.getElementById('f-vehiculo-cen').value,
+      tarifa: +document.getElementById('f-tarifa-cen').value || 0,
+      tarifa_km: +document.getElementById('f-tarifa-km').value || 0,
+      estado: 'activo',
+      _hist: editingId ? [...(getRow(editingId,'cencosud')?._hist||[]), hist] : [hist],
+    };
+    if (editingId) {
+      const idx = currentData.cencosud.findIndex(r => r.id === editingId);
+      if (idx >= 0) currentData.cencosud[idx] = row; else currentData.cencosud.unshift(row);
+    } else currentData.cencosud.unshift(row);
+    renderTable('cencosud');
+  }
+  if (currentTipo === 'eventos') {
+    const row = {
+      id, nombre: document.getElementById('f-evento-nombre').value,
+      tipo: document.getElementById('f-evento-tipo').value,
+      convenio: cliente, desde: viIni, hasta: viFin,
+      bono: +document.getElementById('f-bono').value || 0,
+      tarifa_especial: +document.getElementById('f-tarifa-evento').value || 0,
+      estado: 'programado',
+      _hist: editingId ? [...(getRow(editingId,'eventos')?._hist||[]), hist] : [hist],
+    };
+    if (editingId) {
+      const idx = currentData.eventos.findIndex(r => r.id === editingId);
+      if (idx >= 0) currentData.eventos[idx] = row; else currentData.eventos.unshift(row);
+    } else currentData.eventos.unshift(row);
+    renderTable('eventos');
+  }
+  updateKPIs();
+  closeModal();
+}
+
+// ══════════════════════════════════════════════════════
+// KPIs
+// ══════════════════════════════════════════════════════
+function updateKPIs() {
+  const activas = [...currentData.um,...currentData.super,...currentData.cencosud]
+    .filter(r => r.estado === 'activo').length;
+  const contingencias = [...currentData.um,...currentData.eventos]
+    .filter(r => r.contingencia || r.estado === 'activo').length;
+  const geoCount = MOCK.geocercas.length;
+  const pagos = currentData.cencosud.filter(r => r.estado === 'activo');
+
+  document.getElementById('kpi-activas').textContent = activas;
+  document.getElementById('kpi-contingencias').textContent =
+    currentData.eventos.filter(r => r.estado === 'activo').length;
+  document.getElementById('kpi-geocercas').textContent = geoCount;
+  document.getElementById('kpi-pago').textContent = pagos.length
+    ? pesos(pagos[0].tarifa) : '—';
+  document.getElementById('kpi-pago-fecha').textContent = pagos.length
+    ? 'Actualizado hoy' : '—';
+
+  // Badge counts
+  document.getElementById('cnt-um').textContent = currentData.um.filter(r=>r.estado==='activo').length;
+  document.getElementById('cnt-super').textContent = currentData.super.filter(r=>r.estado==='activo').length;
+  document.getElementById('cnt-cencosud').textContent = currentData.cencosud.filter(r=>r.estado==='activo').length;
+  document.getElementById('cnt-eventos').textContent = currentData.eventos.filter(r=>r.estado==='activo').length;
+}
+
+// ══════════════════════════════════════════════════════
+// GEOCERCA MAP (Leaflet)
+// ══════════════════════════════════════════════════════
+function initMap() {
+  if (mapInstance) { mapInstance.invalidateSize(); return; }
+  mapInstance = L.map('geocerca-map', { center: [-33.47, -70.64], zoom: 11 });
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; CartoDB',
+    maxZoom: 18,
+  }).addTo(mapInstance);
+
+  MOCK.geocercas.forEach(geo => {
+    const poly = L.polygon(geo.coords, {
+      color: geo.color,
+      weight: 2,
+      fillColor: geo.color,
+      fillOpacity: 0.18,
+    }).addTo(mapInstance);
+
+    poly.bindTooltip(`<b style="color:${geo.color}">${geo.nombre}</b><br>
+      <small>Auto: ${pesos(geo.tarifa_auto)} | Moto: ${pesos(geo.tarifa_moto)} | Furgón: ${pesos(geo.tarifa_furgon)}</small>`,
+      { className: 'geo-tooltip', direction: 'center', sticky: true });
+
+    poly.on('click', () => {
+      document.getElementById('modal-geo-detail').style.display = 'flex';
+      document.getElementById('geo-detail-title').textContent = geo.nombre;
+      document.getElementById('geo-detail-body').innerHTML = `
+        <div style="display:flex;flex-direction:column;gap:10px;padding:4px 0;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="width:12px;height:12px;border-radius:3px;background:${geo.color};display:inline-block;flex-shrink:0;"></span>
+            <span style="font-size:14px;font-weight:600;">${geo.nombre}</span>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:6px;">
+            ${[['Moto',geo.tarifa_moto,'#f59e0b'],['Auto',geo.tarifa_auto,'#60a5fa'],['Furgón',geo.tarifa_furgon,'#a78bfa']].map(([v,t,c]) => `
+              <div style="background:var(--bg-600);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center;">
+                <div style="font-size:10px;color:var(--text-faint);margin-bottom:4px;">${v}</div>
+                <div style="font-size:16px;font-weight:700;color:${c};">${pesos(t)}</div>
+              </div>`).join('')}
+          </div>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Tarifas base por geocerca — se suman tarifas adicionales por km según contrato.</div>
+        </div>`;
+      lucide.createIcons();
+    });
+  });
+
+  // Add draw controls
+  const drawnItems = new L.FeatureGroup().addTo(mapInstance);
+  const drawControl = new L.Control.Draw({
+    edit: { featureGroup: drawnItems },
+    draw: {
+      polygon: { shapeOptions: { color: '#78fcd6', fillColor: '#78fcd6', fillOpacity: 0.15 } },
+      rectangle: false, circle: false, circlemarker: false, polyline: false, marker: false,
+    },
+  });
+  mapInstance.addControl(drawControl);
+  mapInstance.on(L.Draw.Event.CREATED, e => {
+    drawnItems.addLayer(e.layer);
+    alert('Geocerca dibujada. Asigna un nombre y tarifa para guardarla.');
+  });
+
+  // Legend
+  const legend = document.getElementById('geocerca-legend');
+  legend.innerHTML = MOCK.geocercas.map(g => `
+    <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-muted);">
+      <span style="width:12px;height:12px;border-radius:3px;background:${g.color};display:inline-block;"></span>
+      ${g.nombre}
+    </div>`).join('');
+}
+
+function openDrawMode() {
+  if (!mapInstance) return;
+  // Trigger the draw polygon control
+  const drawBtn = document.querySelector('.leaflet-draw-draw-polygon');
+  if (drawBtn) drawBtn.click();
+}
+
+function closeGeoDetail() {
+  document.getElementById('modal-geo-detail').style.display = 'none';
+}
+function editGeoTarifa() {
+  closeGeoDetail();
+  openModal('cencosud');
+}
+
+// ══════════════════════════════════════════════════════
+// IMPORT / EXPORT
+// ══════════════════════════════════════════════════════
+function exportExcel() {
+  const tab = document.querySelector('.tab-btn.active').textContent.trim();
+  alert(`Exportando tabla "${tab}" como Excel…\n(Integración con xlsx pendiente en producción)`);
+}
+function importFile(input) {
+  if (!input.files[0]) return;
+  alert(`Archivo "${input.files[0].name}" recibido.\nProcesando importación…\n(Parser xlsx disponible vía /api/tarifario/import)`);
+  input.value = '';
+}
+
+// ══════════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════════
+['um','super','cencosud','eventos'].forEach(renderTable);
+updateKPIs();
+lucide.createIcons();
+</script>
+</body>
+</html>

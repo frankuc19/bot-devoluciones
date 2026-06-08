@@ -19,6 +19,13 @@
       ],
     },
     {
+      label: 'Operaciones',
+      perm:  'operaciones',
+      items: [
+        { label: 'Tarifario', href: '/operaciones/tarifario.html', icon: 'clipboard-list', key: 'op-tarifario' },
+      ],
+    },
+    {
       label: 'Perfiles',
       perm:  'perfiles',
       items: [
