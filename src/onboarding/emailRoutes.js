@@ -71,13 +71,13 @@ router.post('/send', async (req, res) => {
   res.json({ campaignId, total: rows.length });
 
   const flotistas = rows.map(row => ({
-    to:       String(row.correo || row.email || row.Email || ''),
-    subject,
-    html:     personalize(html, row),
-    fromName,
-    from:     fromEmail,
+    // campos que espera el nodo "Parsear Datos Webhook" de n8n
+    nombre:        String(row.nombre || row.Nombre || ''),
+    correo:        String(row.correo || row.email  || row.Email || ''),
+    semanaReporte: subject,   // n8n usa semanaReporte como asunto del correo
+    html:          personalize(html, row),  // n8n mapea f.html → htmlFinal
     campaignId,
-    // datos originales del contacto por si el workflow los necesita
+    // resto de columnas del Excel por si el template las necesita
     ...row,
   }));
   const payload = { flotistas, campaignId };
