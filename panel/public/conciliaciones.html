@@ -272,7 +272,18 @@ function renderTabla() {
       </td>
       <td class="px-4 py-3 font-mono font-bold text-[13px]" style="color:#78fcd6;">${d.patente}</td>
       <td class="px-4 py-3 text-[13px] font-medium" style="color:#e7eceb;">${d.nombre || '—'}</td>
-      <td class="px-4 py-3">${telFmt}</td>
+      <td class="px-4 py-3" id="tel-cell-${d.patente}">
+        <div style="display:flex;align-items:center;gap:6px;">
+          ${telFmt}
+          <button onclick="editarTelefono('${d.patente}')"
+                  title="Editar teléfono"
+                  style="background:none;border:none;cursor:pointer;color:rgba(231,236,235,.25);padding:2px 3px;border-radius:4px;display:inline-flex;align-items:center;transition:color .15s;"
+                  onmouseenter="this.style.color='#78fcd6'"
+                  onmouseleave="this.style.color='rgba(231,236,235,.25)'">
+            <i data-lucide="pencil" style="width:11px;height:11px;"></i>
+          </button>
+        </div>
+      </td>
       <td class="px-4 py-3 text-center">
         <span class="badge badge-electric">${d.items}</span>
       </td>
@@ -286,6 +297,52 @@ function renderTabla() {
     </tr>`;
   }).join('');
   actualizarBotonModal();
+  if (window.lucide) lucide.createIcons();
+}
+
+// ─── Teléfono editable ────────────────────────────────────────
+function editarTelefono(patente) {
+  const d    = datos.find(x => x.patente === patente);
+  const cell = document.getElementById('tel-cell-' + patente);
+  if (!cell) return;
+  const current = d?.numero || '';
+  cell.innerHTML = `
+    <div style="display:flex;align-items:center;gap:4px;">
+      <input id="tel-inp-${patente}"
+             class="input"
+             style="width:130px;padding:4px 8px;font-size:12px;font-family:'JetBrains Mono',monospace;"
+             value="${current}"
+             placeholder="56912345678"
+             onkeydown="if(event.key==='Enter'){event.preventDefault();guardarTelefono('${patente}');}if(event.key==='Escape'){renderTabla();}">
+      <button onclick="guardarTelefono('${patente}')"
+              class="btn-primary"
+              style="padding:3px 8px;font-size:11px;min-width:0;">✓</button>
+      <button onclick="renderTabla()"
+              class="btn-secondary"
+              style="padding:3px 7px;font-size:11px;min-width:0;">✕</button>
+    </div>`;
+  const inp = document.getElementById('tel-inp-' + patente);
+  if (inp) { inp.focus(); inp.select(); }
+}
+
+async function guardarTelefono(patente) {
+  const inp = document.getElementById('tel-inp-' + patente);
+  if (!inp) return;
+  const telefono = inp.value.trim().replace(/[\s\-()]/g, '').replace(/^\+/, '');
+  if (!telefono) {
+    const r = await fetch(`/api/contactos/manual/${encodeURIComponent(patente)}`, { method:'DELETE' }).then(x => x.json());
+    if (!r.ok) { addLog('err', r.error || 'Error al eliminar teléfono'); return; }
+    addLog('ok', `${patente}: teléfono eliminado`);
+  } else {
+    const r = await fetch('/api/contactos/manual', {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json' },
+      body: JSON.stringify({ patente, telefono }),
+    }).then(x => x.json());
+    if (!r.ok) { addLog('err', r.error || 'Error al guardar teléfono'); return; }
+    addLog('ok', `${patente}: teléfono guardado → +${telefono}`);
+  }
+  await recargarDatos();
 }
 
 // ─── Acciones ─────────────────────────────────────────────────
