@@ -124,6 +124,13 @@
               <p style="font-size:11px;color:rgba(231,236,235,.4);">Resumen, Email masivo, WhatsApp</p>
             </div>
           </label>
+          <label class="sec-option" id="sec-operaciones">
+            <input type="checkbox" value="operaciones" onchange="onSecChange(this)">
+            <div>
+              <p style="font-size:13px;font-weight:500;color:#e7eceb;">Operaciones</p>
+              <p style="font-size:11px;color:rgba(231,236,235,.4);">Tarifario de conductores</p>
+            </div>
+          </label>
           <label class="sec-option" id="sec-perfiles">
             <input type="checkbox" value="perfiles" onchange="onSecChange(this)">
             <div>
@@ -148,7 +155,7 @@
 
 <script src="/sidebar.js"></script>
 <script>
-const SECTION_LABELS = { finanzas:'Finanzas', onboarding:'Onboarding', perfiles:'Perfiles' };
+const SECTION_LABELS = { finanzas:'Finanzas', onboarding:'Onboarding', operaciones:'Operaciones', perfiles:'Perfiles' };
 let editingId = null;
 
 function onRoleChange() {
