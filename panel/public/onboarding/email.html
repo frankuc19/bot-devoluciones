@@ -65,7 +65,12 @@
             </div>
             <input id="inp-html" type="file" accept=".html,.htm" class="hidden" onchange="handleHtml(this.files[0])">
             <div id="html-info" class="hidden mt-3 p-3 rounded-lg" style="background:#0f1211;border:1px solid rgba(120,252,214,.2);">
-              <p id="html-name" style="font-size:13px;font-weight:600;color:#78fcd6;"></p>
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:2px;">
+                <p id="html-name" style="font-size:13px;font-weight:600;color:#78fcd6;"></p>
+                <button onclick="abrirEditor()" class="btn-secondary" style="font-size:11px;padding:3px 10px;white-space:nowrap;flex-shrink:0;">
+                  <i data-lucide="eye" style="width:12px;height:12px;"></i> Vista previa / Editar
+                </button>
+              </div>
               <p id="html-vars" style="font-size:11px;color:rgba(231,236,235,.5);margin-top:2px;"></p>
               <!-- Guardar como plantilla -->
               <div style="display:flex;gap:8px;align-items:center;margin-top:10px;">
@@ -132,6 +137,42 @@
           <button onclick="goStep('config')" class="btn-secondary"><i data-lucide="chevron-left" class="w-4 h-4"></i> Atrás</button>
           <button id="btn-send" onclick="enviar()" class="btn-primary">
             <i data-lucide="send" class="w-3.5 h-3.5"></i> Enviar campaña
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Vista previa / Editar HTML -->
+<div id="modal-editor" class="hidden fixed inset-0 z-50 flex items-center justify-center" style="background:rgba(0,0,0,.85);">
+  <div style="background:#0f1211;border:1px solid rgba(255,255,255,.1);border-radius:14px;width:90vw;max-width:1100px;height:87vh;display:flex;flex-direction:column;overflow:hidden;">
+    <!-- Header tabs -->
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid rgba(255,255,255,.08);flex-shrink:0;">
+      <div style="display:flex;gap:6px;">
+        <button id="etab-preview" onclick="setViewTabEditor('preview')" class="btn-secondary" style="font-size:11px;padding:4px 12px;">
+          <i data-lucide="eye" style="width:12px;height:12px;"></i> Vista previa
+        </button>
+        <button id="etab-code" onclick="setViewTabEditor('code')" class="btn-secondary" style="font-size:11px;padding:4px 12px;">
+          <i data-lucide="code-2" style="width:12px;height:12px;"></i> Editar HTML
+        </button>
+      </div>
+      <button onclick="cerrarEditor()" style="background:none;border:none;cursor:pointer;color:rgba(231,236,235,.4);font-size:20px;line-height:1;padding:0 2px;" onmouseenter="this.style.color='#e7eceb'" onmouseleave="this.style.color='rgba(231,236,235,.4)'">✕</button>
+    </div>
+    <!-- Preview panel -->
+    <div id="epanel-preview" style="flex:1;overflow:hidden;display:flex;">
+      <iframe id="html-iframe" srcdoc="" style="width:100%;height:100%;border:none;background:white;"></iframe>
+    </div>
+    <!-- Code panel -->
+    <div id="epanel-code" style="flex:1;flex-direction:column;overflow:hidden;display:none;">
+      <textarea id="html-editor"
+                style="flex:1;background:#080b0a;color:#e7eceb;border:none;padding:16px;font-family:'JetBrains Mono',monospace;font-size:12px;resize:none;outline:none;overflow-y:auto;tab-size:2;white-space:pre;line-height:1.6;width:100%;box-sizing:border-box;"></textarea>
+      <div style="padding:10px 14px;border-top:1px solid rgba(255,255,255,.08);display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
+        <span id="editor-vars-hint" style="font-size:11px;color:rgba(231,236,235,.35);"></span>
+        <div style="display:flex;gap:8px;">
+          <button onclick="cerrarEditor()" class="btn-secondary" style="font-size:11px;">Cancelar</button>
+          <button onclick="aplicarCambios()" class="btn-primary" style="font-size:11px;">
+            <i data-lucide="check" style="width:12px;height:12px;"></i> Aplicar cambios
           </button>
         </div>
       </div>
@@ -297,6 +338,50 @@ async function enviar() {
     sending = false;
   }
 }
+
+// ─── Editor / Preview ─────────────────────────────────────────
+function abrirEditor() {
+  if (!rawHtml) return;
+  document.getElementById('html-iframe').srcdoc = rawHtml;
+  document.getElementById('modal-editor').classList.remove('hidden');
+  setViewTabEditor('preview');
+}
+
+function cerrarEditor() {
+  document.getElementById('modal-editor').classList.add('hidden');
+}
+
+function setViewTabEditor(tab) {
+  document.getElementById('epanel-preview').style.display = tab === 'preview' ? 'flex' : 'none';
+  document.getElementById('epanel-code').style.display    = tab === 'code'    ? 'flex' : 'none';
+  document.getElementById('etab-preview').style.background = tab === 'preview' ? 'rgba(120,252,214,.1)' : '';
+  document.getElementById('etab-code').style.background    = tab === 'code'    ? 'rgba(120,252,214,.1)' : '';
+  document.getElementById('etab-preview').style.color = tab === 'preview' ? '#78fcd6' : '';
+  document.getElementById('etab-code').style.color    = tab === 'code'    ? '#78fcd6' : '';
+  if (tab === 'code') {
+    document.getElementById('html-editor').value = rawHtml;
+    const vars = [...new Set([...rawHtml.matchAll(/\{\{([^}]+)\}\}/g)].map(m => m[1].trim()))];
+    document.getElementById('editor-vars-hint').textContent = vars.length ? `Variables: ${vars.join(', ')}` : '';
+  }
+  lucide.createIcons();
+}
+
+function aplicarCambios() {
+  rawHtml = document.getElementById('html-editor').value;
+  const vars = [...new Set([...rawHtml.matchAll(/\{\{([^}]+)\}\}/g)].map(m => m[1].trim()))];
+  if (htmlData) htmlData.variables = vars;
+  else htmlData = { tempId: null, variables: vars };
+  document.getElementById('html-vars').textContent = `Variables: ${vars.join(', ') || 'ninguna'}`;
+  document.getElementById('btn-html-next').disabled = false;
+  document.getElementById('html-info').classList.remove('hidden');
+  document.getElementById('html-iframe').srcdoc = rawHtml;
+  setViewTabEditor('preview');
+}
+
+// Cerrar modal con Escape
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') cerrarEditor();
+});
 
 initSidebar('ob-email').then(() => { lucide.createIcons(); renderSteps(); });
 </script>
