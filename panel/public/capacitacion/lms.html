@@ -1,0 +1,1362 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta http-equiv="X-Frame-Options" content="SAMEORIGIN"/>
+<meta http-equiv="Content-Security-Policy" content="frame-ancestors 'self'"/>
+<title>Karri — LMS Capacitación</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f4f5f7;min-height:100vh}
+.wrap{max-width:560px;margin:0 auto;background:#fff;min-height:100vh;box-shadow:0 0 20px rgba(0,0,0,0.08)}
+.topbar{background:#1f3444;padding:12px 18px;display:flex;align-items:center;gap:10px}
+.topbar-logo{background:#1c9996;color:#fff;font-size:12px;font-weight:600;padding:3px 10px;border-radius:6px}
+.topbar-title{color:#fff;font-size:14px;font-weight:500;flex:1}
+.topbar-rut{color:rgba(255,255,255,0.6);font-size:12px}
+.topbar-admin{background:rgba(255,255,255,0.12);border:none;color:rgba(255,255,255,0.8);font-size:11px;padding:3px 8px;border-radius:5px;cursor:pointer}
+.page{display:none;padding:20px}
+.page.active{display:block}
+h2{font-size:16px;font-weight:600;color:#1f3444;margin-bottom:4px}
+.sub{font-size:13px;color:#6b7280;margin-bottom:20px}
+label{font-size:13px;color:#6b7280;display:block;margin-bottom:5px}
+input[type=text],input[type=password],textarea,select{width:100%;padding:10px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:14px;color:#1f2937;background:#fff;outline:none;font-family:inherit}
+input[type=text]:focus,input[type=password]:focus,textarea:focus{border-color:#1c9996;box-shadow:0 0 0 3px rgba(28,153,150,0.1)}
+.err{font-size:12px;color:#dc2626;min-height:16px;margin-top:4px}
+.btn{display:flex;align-items:center;justify-content:center;gap:7px;width:100%;padding:11px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;border:none;margin-top:10px;font-family:inherit}
+.btn-primary{background:#1c9996;color:#fff}
+.btn-primary:hover{background:#167a77}
+.btn-primary:disabled{background:#9ca3af;cursor:not-allowed}
+.btn-dark{background:#1f3444;color:#fff}
+.btn-dark:hover{background:#162736}
+.btn-ghost{background:#fff;color:#374151;border:1px solid #d1d5db;margin-top:0}
+.btn-ghost:hover{background:#f9fafb}
+.btn-sm{padding:7px 13px;font-size:13px;width:auto;margin-top:0}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
+.stat{background:#f9fafb;border-radius:8px;padding:12px;text-align:center}
+.stat-n{font-size:22px;font-weight:700;color:#1c9996}
+.stat-l{font-size:11px;color:#6b7280;margin-top:2px}
+.prog-bg{background:#e5e7eb;border-radius:99px;height:7px;margin:6px 0 16px}
+.prog-fg{background:#1c9996;height:7px;border-radius:99px;transition:width .4s}
+.mod-card{border:1px solid #e5e7eb;border-radius:12px;padding:13px 15px;margin-bottom:10px;background:#fff;display:flex;align-items:center;gap:12px;transition:border-color .2s}
+.mod-card.clickable{cursor:pointer}
+.mod-card.clickable:hover{border-color:#1c9996;box-shadow:0 2px 8px rgba(28,153,150,0.1)}
+.mod-card.done{border-color:#1c9996;background:#f0fdf8}
+.mod-card.locked{opacity:.4}
+.mod-ico{width:40px;height:40px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+.ico-done{background:#dcfce7;color:#15803d}
+.ico-lock{background:#f3f4f6;color:#9ca3af}
+.ico-actv{background:#ccfbf1;color:#1c9996}
+.mod-info{flex:1;min-width:0}
+.mod-title{font-size:13px;font-weight:600;color:#1f2937}
+.mod-sub{font-size:11px;color:#6b7280;margin-top:2px}
+.badge{font-size:11px;padding:3px 9px;border-radius:99px;flex-shrink:0;font-weight:500}
+.b-done{background:#dcfce7;color:#15803d}
+.b-pend{background:#f3f4f6;color:#6b7280}
+.b-fail{background:#fee2e2;color:#dc2626}
+.video-wrap{background:#000;border-radius:10px;aspect-ratio:16/9;margin-bottom:12px;overflow:hidden;display:flex;align-items:center;justify-content:center}
+.video-wrap iframe{width:100%;height:100%;border:none}
+.vid-ph{display:flex;flex-direction:column;align-items:center;justify-content:center;color:rgba(255,255,255,.6);gap:8px;font-size:13px;text-align:center;padding:20px}
+.timer{font-size:12px;color:#6b7280;text-align:center;min-height:18px;margin-bottom:8px}
+.q-count{font-size:12px;color:#6b7280;margin-bottom:6px}
+.q-text{font-size:15px;font-weight:600;color:#1f2937;line-height:1.5;margin-bottom:14px}
+.opt-btn{width:100%;border:1px solid #d1d5db;background:#fff;color:#1f2937;padding:11px 14px;border-radius:8px;font-size:13px;text-align:left;cursor:pointer;display:block;margin-bottom:8px;font-family:inherit;line-height:1.4;transition:border-color .15s,background .15s}
+.opt-btn:hover{border-color:#1c9996;background:#f0fdf8}
+.opt-btn.selected{border-color:#1c9996;background:#ccfbf1;color:#0f766e;font-weight:500}
+.result-box{border-radius:12px;padding:16px;text-align:center;margin-bottom:16px}
+.r-pass{background:#f0fdf8;border:1px solid #6ee7b7}
+.r-fail{background:#fff1f2;border:1px solid #fca5a5}
+.r-score{font-size:36px;font-weight:700;margin-bottom:4px}
+.r-pass .r-score{color:#15803d}
+.r-fail .r-score{color:#dc2626}
+.r-msg{font-size:13px}
+.r-pass .r-msg{color:#15803d}
+.r-fail .r-msg{color:#dc2626}
+.dots{display:flex;gap:6px;justify-content:center;margin-bottom:12px}
+.dot{width:10px;height:10px;border-radius:50%}
+.dot-pass{background:#1c9996}
+.dot-fail{background:#dc2626}
+.dot-empty{background:#d1d5db}
+.review-item{border:1px solid #e5e7eb;border-radius:8px;padding:10px 12px;margin-bottom:8px;font-size:13px}
+.finish-ico{text-align:center;padding:24px 0 12px;font-size:60px}
+.alert{border-radius:8px;padding:10px 14px;font-size:13px;margin-bottom:14px;display:flex;align-items:flex-start;gap:8px;line-height:1.5}
+.a-info{background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe}
+.a-success{background:#f0fdf8;color:#15803d;border:1px solid #6ee7b7}
+.a-warn{background:#fffbeb;color:#92400e;border:1px solid #fcd34d}
+hr{border:none;border-top:1px solid #f3f4f6;margin:16px 0}
+.conv-badge{font-size:12px;font-weight:600;padding:3px 10px;border-radius:99px}
+.row{display:flex;gap:8px;align-items:center;justify-content:space-between}
+/* Admin */
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;padding:8px 10px;border-bottom:1px solid #e5e7eb;color:#6b7280;font-weight:500;font-size:12px}
+td{padding:8px 10px;border-bottom:1px solid #f3f4f6;color:#1f2937}
+tr:hover td{background:#f9fafb}
+.tab-row{display:flex;border-bottom:1px solid #e5e7eb;margin-bottom:16px}
+.tab-btn{padding:8px 14px;font-size:13px;border:none;background:transparent;cursor:pointer;color:#6b7280;border-bottom:2px solid transparent;margin-bottom:-1px;font-family:inherit}
+.tab-btn.active{color:#1c9996;border-bottom-color:#1c9996;font-weight:600}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1f3444;color:#fff;padding:9px 18px;border-radius:8px;font-size:13px;display:none;align-items:center;gap:8px;z-index:9999;box-shadow:0 4px 12px rgba(0,0,0,0.2)}
+@media(max-width:480px){.stats{grid-template-columns:repeat(3,1fr)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="topbar">
+  <span class="topbar-logo">Karri</span>
+  <span class="topbar-title">Capacitación de Conductores</span>
+  <span class="topbar-rut" id="topbar-rut"></span>
+  <button class="topbar-admin" id="btn-admin-top" onclick="showAdmin()" style="display:none">⚙ Admin</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- LOGIN -->
+<div class="page active" id="p-login">
+  <h2 style="margin-top:8px">Bienvenido/a</h2>
+  <p class="sub">Ingresa tu RUT para acceder a tu capacitación.</p>
+  <label>RUT (sin puntos, con guión)</label>
+  <input type="text" id="rut-in" placeholder="Ej: 12345678-9" maxlength="12" autocomplete="off"/>
+  <div class="err" id="rut-err"></div>
+  <button class="btn btn-primary" onclick="doLogin()">→ Ingresar</button>
+  <hr>
+  <button class="btn btn-ghost" onclick="showAdminLogin()">⚙ Acceso administrador</button>
+</div>
+
+<!-- ADMIN LOGIN -->
+<div class="page" id="p-admin-login">
+  <div class="row" style="margin-bottom:16px">
+    <button class="btn btn-ghost btn-sm" onclick="show('p-login')">← Volver</button>
+    <h2 style="margin:0">Administrador</h2>
+  </div>
+  <label>Contraseña</label>
+  <input type="password" id="admin-pass" placeholder="Contraseña de administrador"/>
+  <div class="err" id="admin-err"></div>
+  <button class="btn btn-primary" onclick="doAdminLogin()">🔓 Ingresar</button>
+</div>
+
+<!-- MÓDULOS -->
+<div class="page" id="p-modules">
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;margin-top:4px">
+    <span class="conv-badge" id="conv-badge"></span>
+    <span style="font-size:13px;color:#6b7280" id="mod-greeting"></span>
+    <button class="btn btn-dark btn-sm" onclick="mostrarModuloTurnos()" style="margin-left:auto;background:#1c9996;margin-top:0;padding:5px 12px;">⏱️ Turno</button>
+  </div>
+  <div class="stats">
+    <div class="stat"><div class="stat-n" id="s-done">0</div><div class="stat-l">Aprobados</div></div>
+    <div class="stat"><div class="stat-n" id="s-total">0</div><div class="stat-l">Total</div></div>
+    <div class="stat"><div class="stat-n" id="s-pct">0%</div><div class="stat-l">Avance</div></div>
+  </div>
+  <div class="prog-bg"><div class="prog-fg" id="prog-bar" style="width:0%"></div></div>
+  <div id="mod-list"></div>
+  <div id="historial-conductor" style="margin-top:4px"></div>
+  <hr>
+  <div class="row">
+    <button class="btn btn-ghost btn-sm" onclick="doLogout()">↩ Salir</button>
+  </div>
+</div>
+
+<!-- REGISTRO DE TURNOS (CONDUCTOR) -->
+<div class="page" id="p-registro-turnos">
+  <div style="display:flex; align-items:center; gap:8px; margin-bottom:14px; margin-top:4px">
+    <button class="btn btn-ghost btn-sm" onclick="volverAModulos()">← Volver a Cursos</button>
+    <h2 style="margin:0; font-size:15px;">Control de Asistencia</h2>
+  </div>
+  <div style="background:#fff; border:1px solid #e5e7eb; border-radius:12px; padding:20px; text-align:center; margin-bottom:16px; box-shadow:0 2px 6px rgba(0,0,0,0.02)">
+    <p style="font-size:14px; color:#6b7280; margin-bottom:4px;">Conductor autenticado:</p>
+    <p style="font-size:18px; font-weight:700; color:#1f3444; margin-bottom:2px;" id="t-conductor-rut"></p>
+    <p style="font-size:13px; color:#1c9996; font-weight:500;" id="t-conductor-nombre"></p>
+    <hr style="margin:16px 0;">
+    <p style="font-size:13px; color:#374151; margin-bottom:12px; font-weight:500;">Selecciona la acción a realizar:</p>
+    <div style="display:flex; gap:12px;">
+      <button class="btn btn-primary" onclick="registrarEventoTurno('ENTRADA')" style="margin-top:0; background:#15803d; flex:1; height:50px; font-size:15px;">🟩 Marcar Entrada</button>
+      <button class="btn btn-primary" onclick="registrarEventoTurno('SALIDA')" style="margin-top:0; background:#dc2626; flex:1; height:50px; font-size:15px;">🟥 Marcar Salida</button>
+    </div>
+  </div>
+  <div style="background:#f9fafb; border-radius:12px; padding:14px; border:1px solid #e5e7eb;">
+    <p style="font-size:12px; font-weight:600; color:#6b7280; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.5px;">⏰ Mis últimos registros</p>
+    <div id="lista-mis-turnos"></div>
+  </div>
+</div>
+
+<!-- VIDEO -->
+<div class="page" id="p-video">
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;margin-top:4px">
+    <button class="btn btn-ghost btn-sm" onclick="goMods()">← Volver</button>
+    <span style="font-size:13px;font-weight:600;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" id="vid-title"></span>
+  </div>
+  <div class="video-wrap" id="vid-frame"></div>
+  <div class="timer" id="vid-timer"></div>
+  <div style="display:flex;gap:8px">
+    <button class="btn btn-ghost" onclick="goMods()" style="flex:1;margin-top:0">Cancelar</button>
+    <button class="btn btn-primary" id="btn-quiz" onclick="startQuiz()" disabled style="flex:2;margin-top:0">📋 Iniciar evaluación</button>
+  </div>
+</div>
+
+<!-- QUIZ -->
+<div class="page" id="p-quiz">
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;margin-top:4px">
+    <button class="btn btn-ghost btn-sm" onclick="show('p-video')">← Video</button>
+    <span style="font-size:12px;color:#6b7280" id="quiz-name"></span>
+  </div>
+  <div class="alert a-info" id="quiz-info"></div>
+  <div class="q-count" id="q-num"></div>
+  <div class="q-text" id="q-txt"></div>
+  <div id="q-opts"></div>
+  <div style="display:flex;gap:8px;margin-top:4px">
+    <button class="btn btn-ghost btn-sm" id="btn-prev" onclick="qNav(-1)">← Anterior</button>
+    <button class="btn btn-primary" id="btn-next" onclick="qNav(1)" style="flex:1;margin-top:0">Siguiente →</button>
+  </div>
+</div>
+
+<!-- RESULTADO -->
+<div class="page" id="p-result">
+  <p style="font-size:14px;font-weight:600;margin-bottom:10px;margin-top:4px" id="res-name"></p>
+  <div class="dots" id="res-dots"></div>
+  <div class="result-box" id="res-box">
+    <div class="r-score" id="res-score"></div>
+    <div class="r-msg" id="res-msg"></div>
+  </div>
+  <div id="res-review"></div>
+  <div style="display:flex;gap:8px;margin-top:12px">
+    <button class="btn btn-ghost" onclick="goMods()" style="flex:1;margin-top:0">🏠 Mis cursos</button>
+    <button class="btn btn-primary" id="btn-retry" onclick="retryQ()" style="flex:2;margin-top:0"></button>
+  </div>
+</div>
+
+<!-- FINALIZADO -->
+<div class="page" id="p-done">
+  <div class="finish-ico">✅</div>
+  <h2 style="text-align:center;margin-bottom:6px">¡Capacitación completada!</h2>
+  <p style="font-size:13px;color:#6b7280;text-align:center;margin-bottom:20px" id="done-info"></p>
+  <div class="alert a-success">✓ Tu registro fue guardado. El equipo de operaciones Karri tiene acceso a tu historial.</div>
+  <button class="btn btn-primary" onclick="descargarCert()" style="margin-bottom:8px">🏆 Descargar certificado</button>
+  <button class="btn btn-ghost" onclick="doLogout()">Finalizar y salir</button>
+</div>
+
+<!-- ADMIN -->
+<div class="page" id="p-admin">
+  <div class="row" style="margin-bottom:14px;margin-top:4px">
+    <button class="btn btn-ghost btn-sm" onclick="doLogout()">← Salir</button>
+    <h2 style="margin:0">Panel de administración</h2>
+  </div>
+  <div class="tab-row">
+    <button class="tab-btn active" onclick="aTab('ruts')" id="tab-ruts">RUTs</button>
+    <button class="tab-btn" onclick="aTab('dash')" id="tab-dash">📊 Dashboard</button>
+    <button class="tab-btn" onclick="aTab('content')" id="tab-content">📹 Contenido</button>
+    <button class="tab-btn" onclick="aTab('seg')" id="tab-seg">🔒 Seguridad</button>
+    <button class="tab-btn" onclick="aTab('convs')" id="tab-convs">Convenios</button>
+    <button class="tab-btn" onclick="aTab('logs')" id="tab-logs">Registros</button>
+    <button class="tab-btn" onclick="aTab('turnos')" id="tab-turnos">⏱️ Turnos</button>
+  </div>
+  <!-- DASHBOARD -->
+  <div id="admin-dash" style="display:none">
+    <div id="dash-content"></div>
+  </div>
+  <!-- RUTs -->
+  <div id="admin-ruts">
+    <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+      <input type="text" id="srut" placeholder="Buscar RUT..." oninput="rARuts()" style="flex:1;min-width:120px"/>
+      <select id="fconv" onchange="rARuts()" style="font-size:13px;padding:9px 10px;border:1px solid #d1d5db;border-radius:8px;background:#fff;color:#1f2937;font-family:inherit"><option value="">Todos</option></select>
+    </div>
+    <div style="overflow-x:auto"><table><thead><tr><th>RUT</th><th>Convenio</th><th>Progreso</th><th></th></tr></thead><tbody id="rut-tb"></tbody></table></div>
+    <hr>
+    <p style="font-size:13px;font-weight:600;margin-bottom:8px">Agregar RUT</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+      <input type="text" id="nrut" placeholder="12345678-9" maxlength="12" style="flex:1;min-width:100px"/>
+      <input type="text" id="nnombre" placeholder="Nombre del conductor" style="flex:2;min-width:130px"/>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <select id="nconv" style="font-size:13px;padding:9px 10px;border:1px solid #d1d5db;border-radius:8px;background:#fff;color:#1f2937;font-family:inherit;flex:1"></select>
+      <input type="date" id="nvenc" title="Fecha de vencimiento (opcional)" style="flex:1;font-size:13px"/>
+      <button class="btn btn-ghost btn-sm" onclick="addRut()">+ Agregar</button>
+    </div>
+    <div class="err" id="add-err"></div>
+    <hr>
+    <p style="font-size:13px;font-weight:600;margin-bottom:4px">Importar masivo</p>
+    <p style="font-size:12px;color:#6b7280;margin-bottom:8px">Un RUT por línea: <code>RUT,convenio,nombre</code> (nombre es opcional)</p>
+    <textarea id="bulk" rows="4" placeholder="12345678-9,falabella,Juan Pérez&#10;98765432-1,tottus,María González&#10;11111111-1,jumbo"></textarea>
+    <button class="btn btn-ghost btn-sm" onclick="bulkImp()" style="margin-top:8px">↑ Importar</button>
+    <div class="err" id="bulk-err"></div>
+  </div>
+  <!-- CONTENIDO -->
+  <div id="admin-content" style="display:none">
+    <p style="font-size:13px;color:#6b7280;margin-bottom:14px">Selecciona un convenio para editar sus videos y preguntas.</p>
+    <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap" id="conv-tabs"></div>
+    <div id="mod-editor"></div>
+  </div>
+  <!-- SEGURIDAD -->
+  <div id="admin-seg" style="display:none">
+    <p style="font-size:13px;font-weight:600;margin-bottom:14px">Cambiar contraseña de administrador</p>
+    <label>Contraseña actual</label>
+    <input type="password" id="pass-actual" placeholder="Contraseña actual" style="margin-bottom:8px"/>
+    <label>Nueva contraseña</label>
+    <input type="password" id="pass-nueva" placeholder="Nueva contraseña" style="margin-bottom:8px"/>
+    <label>Confirmar nueva contraseña</label>
+    <input type="password" id="pass-confirm" placeholder="Repite la nueva contraseña" style="margin-bottom:4px"/>
+    <div class="err" id="pass-err"></div>
+    <button class="btn btn-primary" onclick="cambiarPass()" style="margin-top:8px">🔒 Guardar nueva contraseña</button>
+  </div>
+  <!-- CONVENIOS -->
+  <div id="admin-convs" style="display:none">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <p style="font-size:13px;color:#6b7280">Gestiona convenios y sus módulos.</p>
+      <button class="btn btn-primary btn-sm" onclick="showNewConv()">+ Nuevo convenio</button>
+    </div>
+    <div id="convs-list"></div>
+    <!-- FORMULARIO NUEVO CONVENIO -->
+    <div id="new-conv-form" style="display:none;border:1px solid #1c9996;border-radius:10px;padding:16px;margin-top:14px">
+      <p style="font-size:13px;font-weight:600;margin-bottom:12px">Nuevo convenio</p>
+      <label>Nombre del convenio</label>
+      <input type="text" id="nc-name" placeholder="Ej: Walmart" style="margin-bottom:8px"/>
+      <label>Color (hex)</label>
+      <div style="display:flex;gap:8px;margin-bottom:8px">
+        <input type="text" id="nc-color" placeholder="#1c9996" style="flex:1"/>
+        <input type="color" id="nc-color-pick" value="#1c9996" oninput="document.getElementById('nc-color').value=this.value" style="width:44px;padding:2px;border-radius:6px;border:1px solid #d1d5db;cursor:pointer"/>
+      </div>
+      <div class="err" id="nc-err"></div>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button class="btn btn-ghost btn-sm" onclick="hideNewConv()">Cancelar</button>
+        <button class="btn btn-primary btn-sm" onclick="createConv()">Crear convenio</button>
+      </div>
+    </div>
+  </div>
+  <!-- REGISTROS -->
+  <div id="admin-logs" style="display:none">
+    <div style="overflow-x:auto"><table><thead><tr><th>RUT</th><th>Convenio</th><th>Módulo</th><th>Puntaje</th><th>Estado</th><th>Intento</th><th>Fecha</th></tr></thead><tbody id="log-tb"></tbody></table></div>
+    <div style="display:flex;gap:8px;margin-top:12px;align-items:center;flex-wrap:wrap">
+      <button class="btn btn-ghost btn-sm" onclick="expCSV()">↓ Exportar CSV</button>
+      <a href="https://docs.google.com/spreadsheets/d/17K-DNwmzYENF2-9B0fCVKheiKOuUCPmX6MEnRFPs9pI/edit" target="_blank" style="font-size:12px;color:#1c9996;text-decoration:none">📊 Ver en Google Sheets</a>
+    </div>
+  </div>
+  <!-- TABLA GLOBAL DE TURNOS (ADMIN) -->
+  <div id="admin-turnos" style="display:none">
+    <p style="font-size:13px; color:#6b7280; margin-bottom:12px;">Listado histórico de entradas y salidas de conductores.</p>
+    <div style="overflow-x:auto">
+      <table>
+        <thead><tr>
+          <th>Conductor (RUT)</th><th>Convenio</th><th>Acción</th><th>Fecha</th><th>Hora</th>
+        </tr></thead>
+        <tbody id="turno-tb"></tbody>
+      </table>
+    </div>
+    <div style="display:flex; gap:8px; margin-top:12px; align-items:center; flex-wrap:wrap">
+      <button class="btn btn-ghost btn-sm" onclick="expTurnosCSV()">↓ Exportar Turnos CSV</button>
+      <button class="btn btn-ghost btn-sm" onclick="limpiarTurnosAntiguos()" style="color:#dc2626; border-color:#fca5a5;">🗑️ Vaciar Historial Local</button>
+    </div>
+  </div>
+</div>
+
+</div><!-- /wrap -->
+
+<script>
+var WH="https://script.google.com/macros/s/AKfycbxtvVo9rxjJ82s8VLsaKvAnFf507qLzoJaUy1BFCqYWQnrVzunRspWldcGUS9YCcusESA/exec";
+var AP="karri2026",PP=70,MA=3;
+
+var CV={
+  falabella:{name:"Falabella",color:"#006B3E",bg:"#E8F5EE",modules:[
+    {id:"f1",title:"Protocolo de entrega Falabella",desc:"Estándares de entrega para tiendas Falabella",driveId:"",questions:gQ("Falabella")},
+    {id:"f2",title:"App Falabella: uso y registro",desc:"Cómo operar la app de despacho Falabella",driveId:"",questions:gQ("Falabella")},
+    {id:"f3",title:"Manejo de devoluciones Falabella",desc:"Protocolo de retorno y gestión de rechazos",driveId:"",questions:gQ("Falabella")}
+  ]},
+  mercadolibre:{name:"Mercado Libre",color:"#7A6A00",bg:"#FFFBE6",modules:[
+    {id:"ml1",title:"Operación Flex Mercado Libre",desc:"Reglas y tiempos de la operación Flex",driveId:"",questions:gQ("Mercado Libre")},
+    {id:"ml2",title:"Calificaciones y reputación",desc:"Cómo mantener buena reputación",driveId:"",questions:gQ("Mercado Libre")},
+    {id:"ml3",title:"Gestión de incidencias ML",desc:"Reclamos, daños y envíos no entregados",driveId:"",questions:gQ("Mercado Libre")}
+  ]},
+  tottus:{name:"Tottus",color:"#A32D2D",bg:"#FEE8EC",modules:[
+    {id:"t1",title:"Despacho de supermercado Tottus",desc:"Manejo de productos fríos y frágiles",driveId:"",questions:gQ("Tottus")},
+    {id:"t2",title:"Ventanas horarias y prioridad",desc:"Gestión de despachos por hora comprometida",driveId:"",questions:gQ("Tottus")},
+    {id:"t3",title:"Devoluciones Tottus",desc:"Qué hacer con productos rechazados",driveId:"",questions:gQ("Tottus")}
+  ]},
+  jumbo:{name:"Jumbo",color:"#0055A5",bg:"#E6EEF9",modules:[
+    {id:"j1",title:"Protocolo Jumbo Express",desc:"Entregas en ventana de 2 horas",driveId:"",ytId:"MPuI_zjtNfM",questions:gQ("Jumbo")},
+    {id:"j2",title:"Gestión de productos Jumbo",desc:"Cadena de frío y productos especiales",driveId:"",questions:gQ("Jumbo")},
+    {id:"j3",title:"Sistema de confirmación Jumbo",desc:"Registro fotográfico y firma digital",driveId:"",questions:gQ("Jumbo")}
+  ]}
+};
+
+function gQ(c){return[
+  {q:"¿Cuál es el primer paso del protocolo de entrega en "+c+"?",opts:["Tomar foto del domicilio","Verificar identidad del receptor","Tocar el timbre y esperar","Registrar en la app"],ans:1},
+  {q:"¿Qué haces si el receptor de "+c+" no está presente?",opts:["Dejar con un vecino","Registrar intento fallido y notificar","Volver al HUB sin registrar","Llamar al cliente 10 veces"],ans:1},
+  {q:"¿Cuántos intentos de entrega se realizan en "+c+"?",opts:["1","2","3","4"],ans:2},
+  {q:"¿Qué documento firma el receptor en "+c+"?",opts:["Boleta","ODI / guía de despacho","Contrato","Ninguno"],ans:1},
+  {q:"¿Cómo registras una entrega exitosa en "+c+"?",opts:["Llamando al supervisor","En la app con foto y firma","Por WhatsApp","Anotando en papel"],ans:1},
+  {q:"¿Qué haces si el paquete de "+c+" está dañado antes de entregar?",opts:["Entregar igual","Fotografiar y reportar al coordinador","Abrir el paquete","Devolverlo sin registrar"],ans:1},
+  {q:"¿Quién puede recibir un paquete de "+c+" en ausencia del titular?",opts:["Cualquier vecino","Solo persona autorizada en el sistema","El portero siempre","Nadie, se devuelve"],ans:1},
+  {q:"¿Cuánto tiempo esperas en el domicilio en "+c+"?",opts:["1 minuto","3 minutos","10 minutos","Sin límite"],ans:1},
+  {q:"¿Qué foto es obligatoria en cada entrega de "+c+"?",opts:["Selfie del conductor","Foto del paquete entregado o puerta","Foto del vehículo","No es obligatoria"],ans:1},
+  {q:"¿Cuál es el canal de soporte operativo para "+c+"?",opts:["WhatsApp personal","Email repartidores@karri.cl o la app","Llamar a "+c+" directamente","Redes sociales"],ans:1}
+];}
+
+var S={rut:"",conv:null,prog:{},mod:null,qi:0,ans:[],vt:null,sl:0};
+var savedPass=localStorage.getItem("karri_ap");
+if(savedPass)AP=savedPass;
+(function(){
+  var saved=localStorage.getItem("karri_cvs");
+  if(saved){
+    try{
+      var data=JSON.parse(saved);
+      Object.entries(data).forEach(function(e){
+        var k=e[0],d=e[1];
+        if(!CV[k]){
+          CV[k]={name:d.name,color:d.color,bg:d.bg,modules:[]};
+        }
+        CV[k].name=d.name;CV[k].color=d.color;CV[k].bg=d.bg;
+        d.modules.forEach(function(m){
+          var existing=CV[k].modules.find(function(x){return x.id===m.id;});
+          if(!existing){CV[k].modules.push({id:m.id,title:m.title,desc:m.desc||"",driveId:m.driveId||"",ytId:m.ytId||"",questions:[]});}
+          else{existing.title=m.title;if(m.ytId)existing.ytId=m.ytId;}
+        });
+        var savedIds=d.modules.map(function(m){return m.id;});
+        CV[k].modules=CV[k].modules.filter(function(m){
+          return savedIds.indexOf(m.id)!==-1||m.id.indexOf("_m")===-1;
+        });
+      });
+    }catch(e){}
+  }
+})();
+loadSavedContent();
+function gM(){var r=localStorage.getItem("km");return r?JSON.parse(r):{"12345678-9":"falabella","98765432-1":"mercadolibre","11111111-1":"tottus","22222222-2":"jumbo"};}
+function sM(m){localStorage.setItem("km",JSON.stringify(m));}
+function gP(r){var x=localStorage.getItem("kp_"+r);return x?JSON.parse(x):{};}
+function sP(r,p){localStorage.setItem("kp_"+r,JSON.stringify(p));}
+function gL(){var x=localStorage.getItem("kl");return x?JSON.parse(x):[];}
+function aL(e){var l=gL();l.unshift(e);localStorage.setItem("kl",JSON.stringify(l.slice(0,500)));}
+
+function vRut(r){
+  var c=r.replace(/[^0-9kK]/g,"");
+  if(c.length<7||c.length>9)return false;
+  var dv=c.slice(-1).toUpperCase(),b=c.slice(0,-1),s=0,m=2;
+  for(var i=b.length-1;i>=0;i--){s+=parseInt(b[i])*m;m=m===7?2:m+1;}
+  var e=11-(s%11);
+  return dv===(e===11?"0":e===10?"K":String(e));
+}
+function fRut(v){var c=v.replace(/[^0-9kK]/g,"").toUpperCase();if(c.length>1)return c.slice(0,-1)+"-"+c.slice(-1);return c;}
+
+document.getElementById("rut-in").addEventListener("input",function(e){e.target.value=fRut(e.target.value);});
+document.getElementById("rut-in").addEventListener("keydown",function(e){if(e.key==="Enter")doLogin();});
+document.getElementById("nrut").addEventListener("input",function(e){e.target.value=fRut(e.target.value);});
+document.getElementById("admin-pass").addEventListener("keydown",function(e){if(e.key==="Enter")doAdminLogin();});
+
+function show(id){document.querySelectorAll(".page").forEach(function(p){p.classList.remove("active");});document.getElementById(id).classList.add("active");}
+function toast(msg,ok){var t=document.getElementById("toast");t.textContent=(ok===false?"❌ ":"✓ ")+msg;t.style.display="flex";setTimeout(function(){t.style.display="none";},3000);}
+
+function doLogin(){
+  var rut=document.getElementById("rut-in").value.trim().toUpperCase();
+  var err=document.getElementById("rut-err");
+  if(!rut){err.textContent="Ingresa tu RUT.";return;}
+  if(!vRut(rut)){err.textContent="RUT inválido. Verifica el formato (ej: 12345678-9)";return;}
+  var ml=gM(),conv=ml[rut];
+  if(!conv||!CV[conv]){err.textContent="RUT no registrado. Contacta a operaciones: repartidores@karri.cl";return;}
+  err.textContent="";S.rut=rut;S.conv=conv;S.prog=gP(rut);
+  document.getElementById("topbar-rut").textContent=rut;
+  renderMods();
+}
+function showAdminLogin(){show("p-admin-login");document.getElementById("admin-pass").value="";document.getElementById("admin-err").textContent="";}
+function doAdminLogin(){
+  if(document.getElementById("admin-pass").value!==AP){document.getElementById("admin-err").textContent="Contraseña incorrecta.";return;}
+  document.getElementById("topbar-rut").textContent="Admin";
+  document.getElementById("btn-admin-top").style.display="inline-block";
+  showAdmin();
+}
+function showAdmin(){popSel();aTab("dash");rARuts();rAConvs();rALogs();rATurnos();show("p-admin");}
+function popSel(){
+  var o=Object.entries(CV).map(function(e){return'<option value="'+e[0]+'">'+e[1].name+'</option>';}).join("");
+  document.getElementById("nconv").innerHTML=o;
+  document.getElementById("fconv").innerHTML='<option value="">Todos</option>'+o;
+}
+function aTab(t){["ruts","dash","content","seg","convs","logs","turnos"].forEach(function(x){var el=document.getElementById("admin-"+x);if(el)el.style.display=x===t?"block":"none";var btn=document.getElementById("tab-"+x);if(btn)btn.classList.toggle("active",x===t);});if(t==="content")initContentTab();if(t==="dash")renderDash();if(t==="turnos")rATurnos();}
+
+function renderDash(){
+  var ml=gM(),el=document.getElementById("dash-content");
+  el.innerHTML="";
+
+  var totalCond=Object.keys(ml).length;
+  var completados=0,enProgreso=0,sinIniciar=0,reprobados=0;
+  Object.entries(ml).forEach(function(e){
+    var rut=e[0],conv=e[1],c=CV[conv];
+    if(!c)return;
+    var p=gP(rut),ms=c.modules;
+    var done=ms.filter(function(m){return p[m.id]&&p[m.id].passed;}).length;
+    var started=ms.filter(function(m){return p[m.id]&&p[m.id].attempts;}).length;
+    var hasReprobado=ms.some(function(m){return p[m.id]&&!p[m.id].passed&&(p[m.id].attempts||0)>=MA;});
+    if(done===ms.length)completados++;
+    else if(started>0)enProgreso++;
+    else sinIniciar++;
+    if(hasReprobado)reprobados++;
+  });
+
+  var pctComp=totalCond>0?Math.round(completados/totalCond*100):0;
+
+  // KPIs
+  var kpis=document.createElement("div");
+  kpis.style.cssText="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:20px";
+  kpis.innerHTML=
+    kpi("Total conductores",totalCond,"#1f3444")+
+    kpi("Completados",completados+" ("+pctComp+"%)","#15803d")+
+    kpi("En progreso",enProgreso,"#92400e")+
+    kpi("Sin iniciar",sinIniciar,"#6b7280")+
+    kpi("Sin intentos restantes",reprobados,"#dc2626","2");
+  el.appendChild(kpis);
+
+  // Barra progreso general
+  var barSec=document.createElement("div");
+  barSec.style.cssText="margin-bottom:20px";
+  barSec.innerHTML=
+    '<p style="font-size:13px;font-weight:600;color:#1f2937;margin-bottom:8px">Progreso general</p>'+
+    '<div style="background:#e5e7eb;border-radius:99px;height:10px;margin-bottom:4px">'+
+      '<div style="background:#1c9996;width:'+pctComp+'%;height:10px;border-radius:99px;transition:width .4s"></div>'+
+    '</div>'+
+    '<p style="font-size:12px;color:#6b7280">'+completados+' de '+totalCond+' conductores completaron toda la capacitación</p>';
+  el.appendChild(barSec);
+
+  // Por convenio
+  var convSec=document.createElement("div");
+  convSec.innerHTML='<p style="font-size:13px;font-weight:600;color:#1f2937;margin-bottom:10px">Por convenio</p>';
+  Object.entries(CV).forEach(function(e){
+    var k=e[0],c=e[1];
+    var rutsDest=Object.entries(ml).filter(function(x){return x[1]===k;});
+    if(!rutsDest.length)return;
+    var convDone=0,convProg=0;
+    rutsDest.forEach(function(x){
+      var p=gP(x[0]),ms=c.modules;
+      var done=ms.filter(function(m){return p[m.id]&&p[m.id].passed;}).length;
+      var started=ms.filter(function(m){return p[m.id]&&p[m.id].attempts;}).length;
+      if(done===ms.length)convDone++;
+      else if(started>0)convProg++;
+    });
+    var pct=rutsDest.length>0?Math.round(convDone/rutsDest.length*100):0;
+    var div=document.createElement("div");
+    div.style.cssText="border:1px solid #e5e7eb;border-radius:10px;padding:12px 14px;margin-bottom:10px";
+    div.innerHTML=
+      '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">'+
+        '<span style="background:'+c.bg+';color:'+c.color+';font-size:12px;font-weight:600;padding:2px 10px;border-radius:99px">'+c.name+'</span>'+
+        '<span style="font-size:12px;color:#6b7280">'+rutsDest.length+' conductores</span>'+
+      '</div>'+
+      '<div style="background:#e5e7eb;border-radius:99px;height:7px;margin-bottom:6px">'+
+        '<div style="background:'+c.color+';width:'+pct+'%;height:7px;border-radius:99px"></div>'+
+      '</div>'+
+      '<div style="display:flex;gap:12px">'+
+        '<span style="font-size:12px;color:#15803d">✓ '+convDone+' completados</span>'+
+        '<span style="font-size:12px;color:#92400e">⏳ '+convProg+' en progreso</span>'+
+        '<span style="font-size:12px;color:#6b7280">○ '+(rutsDest.length-convDone-convProg)+' sin iniciar</span>'+
+      '</div>';
+    convSec.appendChild(div);
+  });
+  el.appendChild(convSec);
+
+  // Conductores pendientes
+  var pendSec=document.createElement("div");
+  pendSec.style.cssText="margin-top:4px";
+  pendSec.innerHTML='<p style="font-size:13px;font-weight:600;color:#1f2937;margin-bottom:10px">Conductores pendientes</p>';
+  var pendList=[];
+  Object.entries(ml).forEach(function(e){
+    var rut=e[0],conv=e[1],c=CV[conv];
+    if(!c)return;
+    var p=gP(rut),ms=c.modules;
+    var done=ms.filter(function(m){return p[m.id]&&p[m.id].passed;}).length;
+    if(done<ms.length)pendList.push({rut:rut,conv:conv,c:c,done:done,total:ms.length});
+  });
+  if(!pendList.length){
+    pendSec.innerHTML+='<div style="background:#f0fdf8;border:1px solid #6ee7b7;border-radius:8px;padding:12px;font-size:13px;color:#15803d;text-align:center">🎉 ¡Todos los conductores completaron su capacitación!</div>';
+  } else {
+    pendList.sort(function(a,b){return a.done/a.total-b.done/b.total;});
+    pendList.slice(0,10).forEach(function(x){
+      var pct=Math.round(x.done/x.total*100);
+      var row=document.createElement("div");
+      row.style.cssText="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #f3f4f6";
+      row.innerHTML=
+        '<span style="font-size:12px;color:#374151;flex:1;font-weight:500">'+x.rut+'</span>'+
+        '<span style="background:'+x.c.bg+';color:'+x.c.color+';font-size:11px;padding:1px 7px;border-radius:99px;font-weight:600">'+x.c.name+'</span>'+
+        '<span style="font-size:12px;color:#6b7280;white-space:nowrap">'+x.done+'/'+x.total+' módulos</span>'+
+        '<div style="background:#e5e7eb;border-radius:99px;height:5px;width:60px;flex-shrink:0">'+
+          '<div style="background:#1c9996;width:'+pct+'%;height:5px;border-radius:99px"></div>'+
+        '</div>';
+      pendSec.appendChild(row);
+    });
+    if(pendList.length>10){
+      var more=document.createElement("p");
+      more.style.cssText="font-size:12px;color:#9ca3af;text-align:center;margin-top:8px";
+      more.textContent="... y "+(pendList.length-10)+" más";
+      pendSec.appendChild(more);
+    }
+  }
+  el.appendChild(pendSec);
+}
+
+function kpi(label,val,color,cols){
+  return '<div style="background:#f9fafb;border-radius:8px;padding:12px;text-align:center'+(cols?';grid-column:span '+cols:'')+'">'+
+    '<div style="font-size:22px;font-weight:700;color:'+color+'">'+val+'</div>'+
+    '<div style="font-size:11px;color:#6b7280;margin-top:2px">'+label+'</div>'+
+  '</div>';
+}
+
+function cambiarPass(){
+  var actual=document.getElementById("pass-actual").value;
+  var nueva=document.getElementById("pass-nueva").value;
+  var confirm=document.getElementById("pass-confirm").value;
+  var err=document.getElementById("pass-err");
+  var saved=localStorage.getItem("karri_ap");
+  var currentPass=saved||AP;
+  if(actual!==currentPass){err.textContent="La contraseña actual es incorrecta.";return;}
+  if(nueva.length<6){err.textContent="La nueva contraseña debe tener al menos 6 caracteres.";return;}
+  if(nueva!==confirm){err.textContent="Las contraseñas no coinciden.";return;}
+  localStorage.setItem("karri_ap",nueva);
+  AP=nueva;
+  err.style.color="#15803d";err.textContent="✓ Contraseña actualizada correctamente.";
+  document.getElementById("pass-actual").value="";
+  document.getElementById("pass-nueva").value="";
+  document.getElementById("pass-confirm").value="";
+  setTimeout(function(){err.textContent="";err.style.color="#dc2626";},3000);
+}
+
+function initContentTab(){
+  var ct=document.getElementById("conv-tabs");ct.innerHTML="";
+  Object.entries(CV).forEach(function(e,i){
+    var btn=document.createElement("button");
+    btn.className="btn btn-"+(i===0?"primary":"ghost")+" btn-sm";
+    btn.style.borderColor=e[1].color;
+    btn.textContent=e[1].name;
+    btn.onclick=(function(k){return function(){
+      document.querySelectorAll("#conv-tabs button").forEach(function(b){b.className="btn btn-ghost btn-sm";});
+      this.className="btn btn-primary btn-sm";
+      renderModEditor(k);
+    };})(e[0]);
+    ct.appendChild(btn);
+  });
+  renderModEditor(Object.keys(CV)[0]);
+}
+
+function renderModEditor(convKey){
+  var c=CV[convKey],el=document.getElementById("mod-editor");
+  el.innerHTML="";
+  c.modules.forEach(function(mod,mi){
+    var saved=getSavedContent(convKey,mod.id);
+    var sec=document.createElement("div");
+    sec.id="sec-"+convKey+"-"+mi;
+    sec.style.cssText="border:1px solid #e5e7eb;border-radius:10px;padding:14px;margin-bottom:14px";
+    var ytVal=saved.ytId||mod.ytId||"";
+    var qs=saved.questions&&saved.questions.length?saved.questions:mod.questions;
+    sec.innerHTML=
+      '<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">'+
+        '<span style="background:'+c.bg+';color:'+c.color+';font-size:11px;font-weight:600;padding:2px 8px;border-radius:99px">Módulo '+(mi+1)+'</span>'+
+        '<span style="font-size:13px;font-weight:600;color:#1f2937;flex:1">'+mod.title+'</span>'+
+        '<label style="display:flex;align-items:center;gap:5px;font-size:12px;color:#6b7280;cursor:pointer;margin:0">'+
+          '<input type="checkbox" id="opt-'+convKey+'-'+mi+'" '+(mod.opcional?"checked":"")+' style="width:auto" onchange="toggleOpcional(\''+convKey+'\','+mi+',this.checked)"/>'+
+          'Opcional'+
+        '</label>'+
+      '</div>'+
+      '<label style="font-size:12px;color:#6b7280;margin-bottom:4px;display:block">🎬 Link de YouTube</label>'+
+      '<input type="text" id="yt-'+convKey+'-'+mi+'" placeholder="https://youtu.be/XXXXX" value="'+escH(ytVal)+'" style="font-size:13px;margin-bottom:14px"/>'+
+      '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">'+
+        '<span style="font-size:13px;font-weight:600;color:#1f2937">📝 Preguntas (<span id="qcount-'+convKey+'-'+mi+'">'+qs.length+'</span>)</span>'+
+        '<button class="btn btn-ghost btn-sm" onclick="addQuestion(\''+convKey+'\','+mi+')" style="font-size:12px;color:#1c9996;border-color:#1c9996">+ Agregar pregunta</button>'+
+      '</div>'+
+      '<div id="qlist-'+convKey+'-'+mi+'"></div>'+
+      '<div style="display:flex;align-items:center;gap:10px;margin-top:12px">'+
+        '<button class="btn btn-primary btn-sm" onclick="saveModContent(\''+convKey+'\','+mi+')">💾 Guardar módulo</button>'+
+        '<span id="save-ok-'+convKey+'-'+mi+'" style="font-size:12px;color:#15803d;display:none">✓ Guardado</span>'+
+      '</div>';
+    el.appendChild(sec);
+    qs.forEach(function(q,qi){renderQuestion(convKey,mi,qi,q);});
+  });
+}
+
+function renderQuestion(convKey,mi,qi,q){
+  var list=document.getElementById("qlist-"+convKey+"-"+mi);
+  var div=document.createElement("div");
+  div.id="q-block-"+convKey+"-"+mi+"-"+qi;
+  div.style.cssText="border:1px solid #f3f4f6;border-radius:8px;padding:10px 12px;margin-bottom:8px;background:#fafafa";
+  var optsHtml="";
+  var opts=q?q.opts:["Opción A","Opción B","Opción C","Opción D"];
+  var ans=q?q.ans:0;
+  opts.forEach(function(o,oi){
+    optsHtml+=
+      '<div style="display:flex;align-items:center;gap:6px;margin-bottom:5px">'+
+        '<input type="radio" name="ans-'+convKey+'-'+mi+'-'+qi+'" id="r-'+convKey+'-'+mi+'-'+qi+'-'+oi+'" value="'+oi+'"'+(ans===oi?" checked":"")+' style="width:auto;flex-shrink:0"/>'+
+        '<input type="text" id="o-'+convKey+'-'+mi+'-'+qi+'-'+oi+'" value="'+escH(o)+'" placeholder="Opción '+(oi+1)+'" style="font-size:12px;flex:1"/>'+
+      '</div>';
+  });
+  div.innerHTML=
+    '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">'+
+      '<span style="font-size:11px;color:#6b7280;font-weight:600">Pregunta '+(qi+1)+'</span>'+
+      '<button onclick="removeQuestion(\''+convKey+'\','+mi+','+qi+')" style="font-size:11px;padding:2px 8px;border-radius:6px;border:1px solid #fca5a5;background:#fff;cursor:pointer;color:#dc2626;font-family:inherit">✕ Eliminar</button>'+
+    '</div>'+
+    '<input type="text" id="q-'+convKey+'-'+mi+'-'+qi+'-txt" placeholder="Escribe la pregunta aquí..." value="'+escH(q?q.q:"")+'" style="font-size:13px;margin-bottom:8px"/>'+
+    '<p style="font-size:11px;color:#6b7280;margin-bottom:5px">Opciones — marca el botón de la respuesta correcta:</p>'+
+    optsHtml;
+  list.appendChild(div);
+  updateQCount(convKey,mi);
+}
+
+function addQuestion(convKey,mi){
+  var list=document.getElementById("qlist-"+convKey+"-"+mi);
+  var qi=list.children.length;
+  renderQuestion(convKey,mi,qi,null);
+}
+
+function removeQuestion(convKey,mi,qi){
+  if(!confirm("¿Eliminar pregunta "+(qi+1)+"?"))return;
+  var list=document.getElementById("qlist-"+convKey+"-"+mi);
+  var block=document.getElementById("q-block-"+convKey+"-"+mi+"-"+qi);
+  if(block)list.removeChild(block);
+  reindexQuestions(convKey,mi);
+}
+
+function reindexQuestions(convKey,mi){
+  var list=document.getElementById("qlist-"+convKey+"-"+mi);
+  Array.from(list.children).forEach(function(div,qi){
+    div.id="q-block-"+convKey+"-"+mi+"-"+qi;
+    var label=div.querySelector("span");
+    if(label)label.textContent="Pregunta "+(qi+1);
+    var delBtn=div.querySelector("button");
+    if(delBtn)delBtn.setAttribute("onclick","removeQuestion('"+convKey+"',"+mi+","+qi+")");
+    var qtxt=div.querySelector("input[type=text]");
+    if(qtxt)qtxt.id="q-"+convKey+"-"+mi+"-"+qi+"-txt";
+    var radios=div.querySelectorAll("input[type=radio]");
+    radios.forEach(function(r,oi){
+      r.name="ans-"+convKey+"-"+mi+"-"+qi;
+      r.id="r-"+convKey+"-"+mi+"-"+qi+"-"+oi;
+      r.value=oi;
+    });
+    var optInputs=div.querySelectorAll("input[type=text]");
+    optInputs.forEach(function(inp,idx){
+      if(idx>0)inp.id="o-"+convKey+"-"+mi+"-"+qi+"-"+(idx-1);
+    });
+  });
+  updateQCount(convKey,mi);
+}
+
+function updateQCount(convKey,mi){
+  var list=document.getElementById("qlist-"+convKey+"-"+mi);
+  var el=document.getElementById("qcount-"+convKey+"-"+mi);
+  if(el&&list)el.textContent=list.children.length;
+}
+
+function escH(s){return String(s||"").replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;");}
+
+function getSavedContent(convKey,modId){
+  var r=localStorage.getItem("kc_"+convKey+"_"+modId);
+  return r?JSON.parse(r):{};
+}
+
+function saveModContent(convKey,mi){
+  var mod=CV[convKey].modules[mi];
+  var ytRaw=document.getElementById("yt-"+convKey+"-"+mi).value.trim();
+  var ytId="";
+  if(ytRaw){
+    var m=ytRaw.match(/(?:youtu\.be\/|v=|embed\/)([A-Za-z0-9_\-]{11})/);
+    ytId=m?m[1]:ytRaw.length===11?ytRaw:"";
+  }
+  var qs=[];
+  var list=document.getElementById("qlist-"+convKey+"-"+mi);
+  Array.from(list.children).forEach(function(div,qi){
+    var qtxt=document.getElementById("q-"+convKey+"-"+mi+"-"+qi+"-txt");
+    var qText=qtxt?qtxt.value.trim():"";
+    if(!qText)return;
+    var opts=[];
+    for(var oi=0;oi<4;oi++){
+      var oel=document.getElementById("o-"+convKey+"-"+mi+"-"+qi+"-"+oi);
+      if(oel)opts.push(oel.value.trim()||"Opción "+(oi+1));
+    }
+    var ansEl=document.querySelector('input[name="ans-'+convKey+"-"+mi+"-"+qi+'"]:checked');
+    var ans=ansEl?parseInt(ansEl.value):0;
+    qs.push({q:qText,opts:opts,ans:ans});
+  });
+  if(!qs.length){alert("Agrega al menos una pregunta antes de guardar.");return;}
+  var data={ytId:ytId,questions:qs};
+  localStorage.setItem("kc_"+convKey+"_"+mod.id,JSON.stringify(data));
+  if(ytId)CV[convKey].modules[mi].ytId=ytId;
+  else delete CV[convKey].modules[mi].ytId;
+  CV[convKey].modules[mi].questions=qs;
+  var ok=document.getElementById("save-ok-"+convKey+"-"+mi);
+  ok.style.display="inline";setTimeout(function(){ok.style.display="none";},2500);
+  toast("Módulo guardado: "+mod.title+" ("+qs.length+" preguntas)");
+}
+
+function loadSavedContent(){
+  Object.entries(CV).forEach(function(e){
+    var k=e[0],c=e[1];
+    c.modules.forEach(function(mod){
+      var saved=getSavedContent(k,mod.id);
+      if(saved.ytId)mod.ytId=saved.ytId;
+      if(saved.questions&&saved.questions.length)mod.questions=saved.questions;
+    });
+  });
+}
+function rARuts(){
+  var ml=gM(),s=(document.getElementById("srut").value||"").toLowerCase(),fc=document.getElementById("fconv").value,tb=document.getElementById("rut-tb");
+  tb.innerHTML="";
+  Object.entries(ml).filter(function(e){return(!s||e[0].toLowerCase().includes(s))&&(!fc||e[1]===fc);}).forEach(function(e){
+    var rut=e[0],conv=e[1],c=CV[conv],p=gP(rut),ms=c?c.modules:[],done=ms.filter(function(m){return p[m.id]&&p[m.id].passed;}).length;
+    var nombre=getNombreConductor(rut);
+    var venc=localStorage.getItem("karri_venc_"+rut);
+    var vencStr="",vencAlert=false;
+    if(venc){
+      var hoy=new Date(),vDate=new Date(venc);
+      var dias=Math.round((vDate-hoy)/(1000*60*60*24));
+      vencStr=dias<0?"⚠ Vencido":dias<=30?"⚠ Vence en "+dias+"d":"✓ Vence "+vDate.toLocaleDateString("es-CL");
+      vencAlert=dias<=30;
+    }
+    var tr=document.createElement("tr");
+    tr.innerHTML=
+      '<td>'+
+        '<div style="font-size:12px;font-weight:600;color:#1f2937">'+rut+'</div>'+
+        (nombre?'<div style="font-size:11px;color:#1c9996;margin-top:1px">👤 '+nombre+'</div>':'')+
+        (vencStr?'<div style="font-size:11px;color:'+(vencAlert?"#dc2626":"#15803d")+';margin-top:1px">'+vencStr+'</div>':'')+
+        (getNota(rut)?'<div style="font-size:11px;color:#6b7280;margin-top:1px">📝 '+getNota(rut)+'</div>':'')+
+      '</td>'+
+      '<td><span style="background:'+(c?c.bg:"#f3f4f6")+';color:'+(c?c.color:"#374151")+';padding:2px 8px;border-radius:99px;font-size:11px;font-weight:600">'+(c?c.name:conv)+'</span></td>'+
+      '<td>'+
+        '<div style="font-size:12px;color:#6b7280">'+done+'/'+ms.length+'</div>'+
+        '<div style="background:#e5e7eb;border-radius:99px;height:4px;width:60px;margin-top:3px">'+
+          '<div style="background:#1c9996;width:'+(ms.length?Math.round(done/ms.length*100):0)+'%;height:4px;border-radius:99px"></div>'+
+        '</div>'+
+      '</td>'+
+      '<td style="white-space:nowrap">'+
+        '<button onclick="verDetalle(\''+rut+'\')" style="font-size:11px;padding:3px 7px;border-radius:6px;border:1px solid #d1d5db;background:#fff;cursor:pointer;color:#374151;font-family:inherit;margin-right:4px">👁</button>'+
+        '<button onclick="reiniciarProg(\''+rut+'\')" style="font-size:11px;padding:3px 7px;border-radius:6px;border:1px solid #fbbf24;background:#fff;cursor:pointer;color:#92400e;font-family:inherit;margin-right:4px">↺</button>'+
+        '<button onclick="rmRut(\''+rut+'\')" style="font-size:11px;padding:3px 8px;border-radius:6px;border:1px solid #fca5a5;background:#fff;cursor:pointer;color:#dc2626;font-family:inherit">✕</button>'+
+      '</td>';
+    tb.appendChild(tr);
+  });
+  if(!tb.innerHTML)tb.innerHTML='<tr><td colspan="4" style="color:#9ca3af;font-size:12px;padding:12px">Sin resultados.</td></tr>';
+}
+
+function getNota(rut){var r=localStorage.getItem("karri_nota_"+rut);return r||"";}
+function setNota(rut,txt){localStorage.setItem("karri_nota_"+rut,txt);}
+function getNombreConductor(rut){return localStorage.getItem("karri_nom_"+rut)||"";}
+
+function toggleOpcional(convKey,mi,val){
+  CV[convKey].modules[mi].opcional=val;
+  saveCustomCVs();
+  toast(val?"Módulo marcado como opcional":"Módulo obligatorio");
+}
+
+function checkVencimiento(rut){
+  var venc=localStorage.getItem("karri_venc_"+rut);
+  var alertEl=document.getElementById("venc-alert");
+  if(!alertEl){
+    alertEl=document.createElement("div");
+    alertEl.id="venc-alert";
+    var modList=document.getElementById("mod-list");
+    if(modList)modList.parentNode.insertBefore(alertEl,modList);
+  }
+  if(!venc){alertEl.innerHTML="";return;}
+  var hoy=new Date(),vDate=new Date(venc);
+  var dias=Math.round((vDate-hoy)/(1000*60*60*24));
+  if(dias<0){
+    alertEl.className="alert a-warn";
+    alertEl.style.marginBottom="12px";
+    alertEl.innerHTML="⚠️ Tu capacitación venció el "+vDate.toLocaleDateString("es-CL")+". Contacta a operaciones: repartidores@karri.cl";
+  } else if(dias<=30){
+    alertEl.className="alert a-info";
+    alertEl.style.marginBottom="12px";
+    alertEl.innerHTML="📅 Tu capacitación vence en "+dias+" día(s) ("+vDate.toLocaleDateString("es-CL")+"). Complétala a tiempo.";
+  } else {
+    alertEl.innerHTML="";alertEl.className="";
+  }
+}
+
+function reiniciarProg(rut){
+  if(!confirm("¿Reiniciar todo el progreso de "+rut+"? Deberá completar la capacitación desde cero."))return;
+  localStorage.removeItem("kp_"+rut);
+  rARuts();renderDash();
+  toast("Progreso reiniciado: "+rut);
+}
+
+function verDetalle(rut){
+  var ml=gM(),conv=ml[rut],c=CV[conv];
+  if(!c){alert("Convenio no encontrado.");return;}
+  var p=gP(rut),ms=c.modules;
+  var nota=getNota(rut);
+  var rows=ms.map(function(mod){
+    var mp=p[mod.id]||{};
+    var estado=mp.passed?"✓ Aprobado":mp.attempts?"✗ "+mp.attempts+" intento(s)":"Sin iniciar";
+    var color=mp.passed?"#15803d":mp.attempts?"#dc2626":"#9ca3af";
+    return '<tr>'+
+      '<td style="padding:7px 10px;font-size:12px;border-bottom:1px solid #f3f4f6">'+mod.title+'</td>'+
+      '<td style="padding:7px 10px;font-size:12px;border-bottom:1px solid #f3f4f6;color:'+color+';font-weight:600">'+estado+'</td>'+
+      '<td style="padding:7px 10px;font-size:12px;border-bottom:1px solid #f3f4f6;color:#6b7280">'+(mp.score!==undefined?mp.score+"%":"—")+'</td>'+
+    '</tr>';
+  }).join("");
+  var logs=gL().filter(function(l){return l.rut===rut;});
+  var logRows=logs.slice(0,5).map(function(l){
+    return '<tr>'+
+      '<td style="padding:5px 10px;font-size:11px;border-bottom:1px solid #f9fafb;color:#374151">'+l.mod+'</td>'+
+      '<td style="padding:5px 10px;font-size:11px;border-bottom:1px solid #f9fafb;color:'+(l.passed?"#15803d":"#dc2626")+';font-weight:600">'+l.score+'%</td>'+
+      '<td style="padding:5px 10px;font-size:11px;border-bottom:1px solid #f9fafb;color:#9ca3af">'+l.fecha+'</td>'+
+    '</tr>';
+  }).join("");
+
+  var html='<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"/><title>Detalle '+rut+'</title>'+
+    '<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;padding:20px;background:#f9fafb}'+
+    '.card{background:#fff;border-radius:10px;padding:16px;margin-bottom:14px;border:1px solid #e5e7eb}'+
+    'h3{font-size:14px;font-weight:600;color:#1f2937;margin-bottom:12px}'+
+    'table{width:100%;border-collapse:collapse}th{text-align:left;padding:7px 10px;border-bottom:1px solid #e5e7eb;color:#6b7280;font-size:11px;font-weight:600}'+
+    'textarea{width:100%;padding:8px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;font-family:inherit;resize:vertical}'+
+    'button{padding:8px 16px;border-radius:6px;font-size:13px;cursor:pointer;font-family:inherit}'+
+    '</style></head><body>'+
+    '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">'+
+      '<div>'+
+        '<p style="font-size:16px;font-weight:700;color:#1f3444">'+rut+'</p>'+
+        '<span style="background:'+c.bg+';color:'+c.color+';font-size:12px;font-weight:600;padding:2px 10px;border-radius:99px">'+c.name+'</span>'+
+      '</div>'+
+      '<button onclick="window.close()" style="background:#fff;border:1px solid #d1d5db;color:#374151">✕ Cerrar</button>'+
+    '</div>'+
+    '<div class="card"><h3>Progreso por módulo</h3>'+
+      '<table><thead><tr><th>Módulo</th><th>Estado</th><th>Puntaje</th></tr></thead><tbody>'+rows+'</tbody></table>'+
+    '</div>'+
+    '<div class="card"><h3>Últimos intentos</h3>'+
+      (logRows?'<table><thead><tr><th>Módulo</th><th>Puntaje</th><th>Fecha</th></tr></thead><tbody>'+logRows+'</tbody></table>':'<p style="font-size:12px;color:#9ca3af">Sin intentos registrados.</p>')+
+    '</div>'+
+    '<div class="card"><h3>Notas del conductor</h3>'+
+      '<textarea id="nota-txt" rows="3" placeholder="Observaciones internas...">'+nota+'</textarea>'+
+      '<button onclick="guardarNota()" style="background:#1c9996;color:#fff;border:none;margin-top:8px">💾 Guardar nota</button>'+
+      '<span id="nota-ok" style="font-size:12px;color:#15803d;margin-left:10px;display:none">✓ Guardada</span>'+
+    '</div>'+
+    '<scr'+'ipt>'+
+      'function guardarNota(){'+
+        'var txt=document.getElementById("nota-txt").value;'+
+        'window.opener.setNota("'+rut+'",txt);'+
+        'window.opener.rARuts();'+
+        'var ok=document.getElementById("nota-ok");ok.style.display="inline";'+
+        'setTimeout(function(){ok.style.display="none";},2000);'+
+      '}'+
+    '<'+'/scr'+'ipt>'+
+    '</body></html>';
+  var win=window.open("","_blank","width=560,height:620");
+  win.document.write(html);
+  win.document.close();
+}
+function addRut(){
+  var rut=document.getElementById("nrut").value.trim().toUpperCase();
+  var nombre=document.getElementById("nnombre").value.trim();
+  var conv=document.getElementById("nconv").value;
+  var venc=document.getElementById("nvenc").value;
+  var err=document.getElementById("add-err");
+  if(!vRut(rut)){err.textContent="RUT inválido.";return;}
+  var ml=gM();if(ml[rut]){err.textContent="RUT ya existe.";return;}
+  ml[rut]=conv;sM(ml);
+  if(nombre)localStorage.setItem("karri_nom_"+rut,nombre);
+  if(venc)localStorage.setItem("karri_venc_"+rut,venc);
+  err.textContent="";
+  document.getElementById("nrut").value="";
+  document.getElementById("nnombre").value="";
+  document.getElementById("nvenc").value="";
+  rARuts();toast("RUT agregado"+(nombre?" · "+nombre:""));
+}
+function rmRut(rut){if(!confirm("¿Eliminar RUT "+rut+"?"))return;var ml=gM();delete ml[rut];sM(ml);rARuts();}
+function bulkImp(){
+  var txt=document.getElementById("bulk").value.trim(),err=document.getElementById("bulk-err");
+  if(!txt){err.textContent="Ingresa datos.";return;}
+  var ml=gM(),ok=0,bad=[];
+  txt.split("\n").forEach(function(l){
+    var p=l.trim().split(",");
+    if(p.length<2)return;
+    var r=p[0].trim().toUpperCase(),c=p[1].trim().toLowerCase(),nom=p[2]?p[2].trim():"";
+    if(!vRut(r)||!CV[c]){bad.push(r);return;}
+    ml[r]=c;
+    if(nom)localStorage.setItem("karri_nom_"+r,nom);
+    ok++;
+  });
+  sM(ml);err.style.color=ok>0?"#15803d":"#dc2626";err.textContent=ok+" importados"+(bad.length?". Inválidos: "+bad.join(", "):"");
+  rARuts();document.getElementById("bulk").value="";
+}
+function rAConvs(){
+  var ml=gM(),el=document.getElementById("convs-list");
+  if(!el)return;
+  el.innerHTML="";
+  Object.entries(CV).forEach(function(e){
+    var k=e[0],c=e[1],n=Object.values(ml).filter(function(v){return v===k;}).length;
+    var div=document.createElement("div");
+    div.style.cssText="border:1px solid #e5e7eb;border-radius:10px;padding:14px;margin-bottom:12px";
+    var modRows=c.modules.map(function(mod,mi){
+      return '<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f9fafb">'+
+        '<span style="font-size:12px;color:#374151">'+mod.title+'</span>'+
+        '<button onclick="rmMod(\''+k+'\','+mi+')" style="font-size:11px;padding:2px 8px;border-radius:6px;border:1px solid #fca5a5;background:#fff;cursor:pointer;color:#dc2626;font-family:inherit">✕</button>'+
+      '</div>';
+    }).join("");
+    div.innerHTML=
+      '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">'+
+        '<div style="display:flex;align-items:center;gap:8px">'+
+          '<span style="background:'+c.bg+';color:'+c.color+';font-size:12px;font-weight:600;padding:3px 10px;border-radius:99px">'+c.name+'</span>'+
+          '<span style="font-size:12px;color:#6b7280">'+n+' conductores</span>'+
+        '</div>'+
+        '<button onclick="rmConv(\''+k+'\')" style="font-size:11px;padding:3px 9px;border-radius:6px;border:1px solid #fca5a5;background:#fff;cursor:pointer;color:#dc2626;font-family:inherit">✕ Eliminar</button>'+
+      '</div>'+
+      '<div style="margin-bottom:10px">'+
+        '<p style="font-size:12px;font-weight:600;color:#6b7280;margin-bottom:6px">Módulos ('+c.modules.length+')</p>'+
+        (modRows||'<p style="font-size:12px;color:#9ca3af">Sin módulos aún.</p>')+
+      '</div>'+
+      '<div style="display:flex;gap:8px;flex-wrap:wrap">'+
+        '<input type="text" id="nm-'+k+'" placeholder="Título del módulo" style="flex:1;min-width:140px;font-size:13px"/>'+
+        '<button class="btn btn-ghost btn-sm" onclick="addMod(\''+k+'\')" style="color:#1c9996;border-color:#1c9996">+ Módulo</button>'+
+      '</div>'+
+      '<div class="err" id="nm-err-'+k+'"></div>';
+    el.appendChild(div);
+  });
+}
+
+function showNewConv(){document.getElementById("new-conv-form").style.display="block";}
+function hideNewConv(){document.getElementById("new-conv-form").style.display="none";document.getElementById("nc-err").textContent="";}
+
+function createConv(){
+  var name=document.getElementById("nc-name").value.trim();
+  var color=document.getElementById("nc-color").value.trim()||"#1c9996";
+  var err=document.getElementById("nc-err");
+  if(!name){err.textContent="Ingresa un nombre.";return;}
+  var key=name.toLowerCase().replace(/[^a-z0-9]/g,"");
+  if(CV[key]){err.textContent="Ya existe un convenio con ese nombre.";return;}
+  var bg=hexToLight(color);
+  CV[key]={name:name,color:color,bg:bg,modules:[]};
+  saveCustomCVs();
+  hideNewConv();
+  document.getElementById("nc-name").value="";
+  rAConvs();popSel();initContentTab();
+  toast("Convenio creado: "+name);
+}
+
+function rmConv(key){
+  var ml=gM();
+  var inUse=Object.values(ml).filter(function(v){return v===key;}).length;
+  if(inUse>0){alert("No puedes eliminar este convenio: tiene "+inUse+" conductor(es) asignados. Primero reasígnalos.");return;}
+  if(!confirm("¿Eliminar convenio "+CV[key].name+"? Se borrarán sus módulos."))return;
+  delete CV[key];
+  saveCustomCVs();
+  rAConvs();popSel();initContentTab();
+  toast("Convenio eliminado");
+}
+
+function addMod(convKey){
+  var inp=document.getElementById("nm-"+convKey);
+  var title=inp?inp.value.trim():"";
+  var err=document.getElementById("nm-err-"+convKey);
+  if(!title){err.textContent="Ingresa el título del módulo.";return;}
+  var id=convKey+"_m"+Date.now();
+  CV[convKey].modules.push({id:id,title:title,desc:"",driveId:"",questions:[]});
+  saveCustomCVs();
+  inp.value="";err.textContent="";
+  rAConvs();initContentTab();
+  toast("Módulo agregado: "+title);
+}
+
+function rmMod(convKey,mi){
+  var mod=CV[convKey].modules[mi];
+  if(!confirm("¿Eliminar módulo \""+mod.title+"\"?"))return;
+  CV[convKey].modules.splice(mi,1);
+  saveCustomCVs();
+  rAConvs();initContentTab();
+  toast("Módulo eliminado");
+}
+
+function hexToLight(hex){
+  try{
+    var r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
+    return "rgb("+(r+Math.round((255-r)*0.85))+","+(g+Math.round((255-g)*0.85))+","+(b+Math.round((255-b)*0.85))+")";
+  }catch(e){return "#f3f4f6";}
+}
+
+function saveCustomCVs(){
+  var data={};
+  Object.entries(CV).forEach(function(e){
+    data[e[0]]={name:e[1].name,color:e[1].color,bg:e[1].bg,modules:e[1].modules.map(function(m){return {id:m.id,title:m.title,desc:m.desc,driveId:m.driveId||"",ytId:m.ytId||""};})};
+  });
+  localStorage.setItem("karri_cvs",JSON.stringify(data));
+}
+function rALogs(){
+  var logs=gL(),tb=document.getElementById("log-tb");tb.innerHTML="";
+  if(!logs.length){tb.innerHTML='<tr><td colspan="7" style="color:#9ca3af;font-size:12px;padding:12px">Sin registros aún.</td></tr>';return;}
+  logs.forEach(function(l){var c=CV[l.conv];var tr=document.createElement("tr");tr.innerHTML='<td style="font-size:12px">'+l.rut+'</td><td><span style="background:'+(c?c.bg:"#f3f4f6")+';color:'+(c?c.color:"#374151")+';padding:2px 7px;border-radius:99px;font-size:11px;font-weight:600">'+(c?c.name:l.conv)+'</span></td><td style="font-size:12px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+l.mod+'</td><td style="font-size:13px;font-weight:700;color:'+(l.passed?"#15803d":"#dc2626")+'">'+l.score+'%</td><td><span style="font-size:11px;padding:2px 8px;border-radius:99px;background:'+(l.passed?"#dcfce7":"#fee2e2")+';color:'+(l.passed?"#15803d":"#dc2626")+';font-weight:600">'+(l.passed?"Aprobado":"Reprobado")+'</span></td><td style="font-size:12px;color:#6b7280;text-align:center">'+l.attempt+'</td><td style="font-size:11px;color:#9ca3af">'+l.fecha+'</td>';tb.appendChild(tr);});
+}
+function expCSV(){var logs=gL(),h="RUT,Convenio,Modulo,Puntaje,Estado,Intento,Fecha\n",r=logs.map(function(l){return l.rut+","+(CV[l.conv]?CV[l.conv].name:l.conv)+',"'+l.mod+'",'+l.score+"%,"+(l.passed?"Aprobado":"Reprobado")+","+l.attempt+","+l.fecha;}).join("\n");var b=new Blob([h+r],{type:"text/csv;charset=utf-8;"});var a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="registros_karri.csv";a.click();}
+
+function renderMods(){
+  var c=CV[S.conv],ms=c.modules,done=ms.filter(function(m){return S.prog[m.id]&&S.prog[m.id].passed;}).length,pct=Math.round(done/ms.length*100);
+  document.getElementById("s-done").textContent=done;document.getElementById("s-total").textContent=ms.length;document.getElementById("s-pct").textContent=pct+"%";
+  document.getElementById("prog-bar").style.width=pct+"%";
+  document.getElementById("mod-greeting").textContent="Hola, "+(getNombreConductor(S.rut)||"RUT "+S.rut)+"!";
+  var b=document.getElementById("conv-badge");b.textContent=c.name;b.style.background=c.bg;b.style.color=c.color;
+  var list=document.getElementById("mod-list");list.innerHTML="";
+  var obligs=ms.filter(function(m){return !m.opcional;});
+  var obligDone=obligs.filter(function(m){return S.prog[m.id]&&S.prog[m.id].passed;}).length;
+  ms.forEach(function(mod,i){
+    var p=S.prog[mod.id]||{},isDone=!!p.passed,al=MA-(p.attempts||0),ex=!isDone&&al<=0;
+    var prevOblig=ms.slice(0,i).filter(function(m){return !m.opcional;});
+    var lk=!mod.opcional&&prevOblig.length>0&&!(S.prog[prevOblig[prevOblig.length-1].id]&&S.prog[prevOblig[prevOblig.length-1].id].passed);
+    var cc=!lk&&!ex;
+    var card=document.createElement("div");card.className="mod-card"+(isDone?" done":"")+(lk||ex?" locked":"")+(cc?" clickable":"");
+    var ic=isDone?"ico-done":lk?"ico-lock":"ico-actv",em=isDone?"✅":lk?"🔒":"▶";
+    var bc=isDone?"b-done":ex?"b-fail":"b-pend";
+    var bt=isDone?"✓ Aprobado":ex?"Sin intentos":lk?"Bloqueado":(p.attempts||0)>0?"Intento "+(p.attempts+1)+"/"+MA:"Pendiente";
+    var optTag=mod.opcional?'<span style="font-size:10px;background:#f3f4f6;color:#6b7280;padding:1px 6px;border-radius:99px;margin-left:4px">Opcional</span>':"";
+    card.innerHTML='<div class="mod-ico '+ic+'">'+em+'</div><div class="mod-info"><div class="mod-title">'+mod.title+optTag+'</div><div class="mod-sub">'+mod.desc+(p.score!==undefined?" · Último: "+p.score+"%":"")+'</div></div><span class="badge '+bc+'">'+bt+'</span>';
+    if(cc)card.onclick=(function(id){return function(){openVid(id);};})(mod.id);
+    list.appendChild(card);
+  });
+  if(obligDone===obligs.length&&obligs.length>0){show("p-done");document.getElementById("done-info").textContent="RUT: "+S.rut+" · "+c.name+" · "+obligs.length+"/"+obligs.length+" módulos obligatorios aprobados";return;}
+  checkVencimiento(S.rut);
+  renderHistorial();
+  show("p-modules");
+}
+
+function openVid(id){
+  var ms=CV[S.conv].modules,mod=null;
+  for(var i=0;i<ms.length;i++){if(ms[i].id===id){mod=ms[i];break;}}
+  S.mod=id;document.getElementById("vid-title").textContent=mod.title;
+  var btn=document.getElementById("btn-quiz");btn.disabled=true;
+  var vhtml;
+  if(mod.ytId){vhtml='<iframe src="https://www.youtube.com/embed/'+mod.ytId+'?rel=0&modestbranding=1" allowfullscreen allow="autoplay; encrypted-media"></iframe>';}
+  else if(mod.driveId){vhtml='<iframe src="https://drive.google.com/file/d/'+mod.driveId+'/preview" allowfullscreen></iframe>';}
+  else{vhtml='<div class="vid-ph">▶<br><strong>'+mod.title+'</strong><br><span style="font-size:11px;opacity:0.6">Video se agregará pronto</span></div>';}
+  document.getElementById("vid-frame").innerHTML=vhtml;
+  S.sl=60;if(S.vt)clearInterval(S.vt);
+  document.getElementById("vid-timer").textContent="Botón disponible en "+S.sl+"s…";
+  S.vt=setInterval(function(){S.sl--;if(S.sl<=0){clearInterval(S.vt);btn.disabled=false;document.getElementById("vid-timer").textContent="Ya puedes iniciar la evaluación.";}else{document.getElementById("vid-timer").textContent="Botón disponible en "+S.sl+"s…";}},1000);
+  show("p-video");
+}
+function startQuiz(){
+  if(S.vt)clearInterval(S.vt);
+  var ms=CV[S.conv].modules,mod=null;for(var i=0;i<ms.length;i++){if(ms[i].id===S.mod){mod=ms[i];break;}}
+  var p=S.prog[mod.id]||{};S.ans=new Array(mod.questions.length).fill(null);S.qi=0;
+  document.getElementById("quiz-name").textContent=mod.title;
+  document.getElementById("quiz-info").textContent="Intento "+((p.attempts||0)+1)+" de "+MA+". Necesitas "+PP+"% para aprobar ("+Math.ceil(mod.questions.length*PP/100)+" de "+mod.questions.length+" correctas).";
+  rQ();show("p-quiz");
+}
+function rQ(){
+  var ms=CV[S.conv].modules,mod=null;for(var i=0;i<ms.length;i++){if(ms[i].id===S.mod){mod=ms[i];break;}}
+  var q=mod.questions[S.qi];
+  document.getElementById("q-num").textContent="Pregunta "+(S.qi+1)+" de "+mod.questions.length;
+  document.getElementById("q-txt").textContent=q.q;
+  var el=document.getElementById("q-opts");el.innerHTML="";
+  q.opts.forEach(function(o,i){var btn=document.createElement("button");btn.className="opt-btn"+(S.ans[S.qi]===i?" selected":"");btn.textContent=o;btn.onclick=(function(x){return function(){S.ans[S.qi]=x;rQ();};})(i);el.appendChild(btn);});
+  document.getElementById("btn-prev").style.visibility=S.qi===0?"hidden":"visible";
+  var il=S.qi===mod.questions.length-1,nb=document.getElementById("btn-next");
+  nb.textContent=il?"Finalizar ✓":"Siguiente →";nb.className="btn "+(il?"btn-dark":"btn-primary");
+}
+function qNav(d){
+  var ms=CV[S.conv].modules,mod=null;for(var i=0;i<ms.length;i++){if(ms[i].id===S.mod){mod=ms[i];break;}}
+  if(d===1&&S.ans[S.qi]===null){alert("Selecciona una respuesta antes de continuar.");return;}
+  if(d===1&&S.qi===mod.questions.length-1){submitQ();return;}
+  S.qi=Math.max(0,S.qi+d);rQ();
+}
+function submitQ(){
+  var ms=CV[S.conv].modules,mod=null;for(var i=0;i<ms.length;i++){if(ms[i].id===S.mod){mod=ms[i];break;}}
+  var cor=0;mod.questions.forEach(function(q,i){if(S.ans[i]===q.ans)cor++;});
+  var pct=Math.round(cor/mod.questions.length*100),passed=pct>=PP,p=S.prog[mod.id]||{attempts:0};
+  p.attempts=(p.attempts||0)+1;p.score=pct;if(passed)p.passed=true;
+  S.prog[mod.id]=p;sP(S.rut,S.prog);
+  var now=new Date(),entry={rut:S.rut,conv:CV[S.conv].name,mod:mod.title,score:pct,passed:passed,attempt:p.attempts,fecha:now.toLocaleDateString("es-CL")+" "+now.toLocaleTimeString("es-CL")};
+  aL(entry);
+  try{fetch(WH,{method:"POST",mode:"no-cors",headers:{"Content-Type":"application/json"},body:JSON.stringify(entry)});toast("Registro enviado a Sheets");}catch(e){}
+  showRes(mod,pct,passed,cor,p.attempts);
+}
+function showRes(mod,pct,passed,cor,au){
+  document.getElementById("res-name").textContent=mod.title;
+  var box=document.getElementById("res-box");box.className="result-box "+(passed?"r-pass":"r-fail");
+  document.getElementById("res-score").textContent=pct+"%";
+  document.getElementById("res-msg").textContent=passed?"¡Aprobado! "+cor+" de "+mod.questions.length+" correctas.":"Reprobado. "+cor+" de "+mod.questions.length+" correctas. Mínimo: "+PP+"%";
+  var de=document.getElementById("res-dots");de.innerHTML="";
+  for(var i=0;i<MA;i++){var d=document.createElement("div");d.className="dot "+(i<au?(passed&&i===au-1?"dot-pass":"dot-fail"):"dot-empty");de.appendChild(d);}
+  var rv=document.getElementById("res-review");rv.innerHTML='<p style="font-size:13px;font-weight:600;margin-bottom:8px;color:#6b7280">Revisión de respuestas</p>';
+  mod.questions.forEach(function(q,i){var ok=S.ans[i]===q.ans;var div=document.createElement("div");div.className="review-item";div.innerHTML='<div style="display:flex;gap:6px;align-items:flex-start;margin-bottom:5px"><span style="color:'+(ok?"#15803d":"#dc2626")+';flex-shrink:0">'+(ok?"✓":"✗")+'</span><span>'+q.q+'</span></div><div style="color:'+(ok?"#15803d":"#dc2626")+';padding-left:18px;font-size:12px">Tu respuesta: '+q.opts[S.ans[i]]+'</div>'+(ok?'':'<div style="color:#15803d;padding-left:18px;font-size:12px">Correcta: '+q.opts[q.ans]+'</div>');rv.appendChild(div);});
+  var al=MA-au,rb=document.getElementById("btn-retry");
+  if(passed){rb.style.display="none";}
+  else if(al>0){rb.style.display="flex";rb.textContent="↺ Reintentar ("+al+" restantes)";rb.className="btn btn-primary";rb.disabled=false;}
+  else{rb.style.display="flex";rb.textContent="Sin intentos disponibles";rb.className="btn btn-ghost";rb.disabled=true;}
+  show("p-result");
+}
+function renderHistorial(){
+  var el=document.getElementById("historial-conductor");
+  if(!el)return;
+  var logs=gL().filter(function(l){return l.rut===S.rut;});
+  if(!logs.length){el.innerHTML="";return;}
+  var rows=logs.slice(0,5).map(function(l){
+    return '<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid #f3f4f6">'+
+      '<span style="font-size:18px">'+(l.passed?"✅":"❌")+'</span>'+
+      '<div style="flex:1;min-width:0">'+
+        '<div style="font-size:12px;font-weight:500;color:#1f2937;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+l.mod+'</div>'+
+        '<div style="font-size:11px;color:#9ca3af">'+l.fecha+'</div>'+
+      '</div>'+
+      '<span style="font-size:13px;font-weight:700;color:'+(l.passed?"#15803d":"#dc2626")+'">'+l.score+'%</span>'+
+    '</div>';
+  }).join("");
+  el.innerHTML=
+    '<details style="margin-bottom:4px">'+
+      '<summary style="font-size:13px;font-weight:600;color:#374151;cursor:pointer;padding:6px 0;list-style:none;display:flex;align-items:center;gap:6px">'+
+        '📋 Mis últimos intentos'+
+        '<span style="font-size:11px;color:#9ca3af;font-weight:400">('+Math.min(logs.length,5)+' de '+logs.length+')</span>'+
+      '</summary>'+
+      '<div style="margin-top:6px">'+rows+'</div>'+
+    '</details>';
+}
+
+function descargarCert(){
+  var c=CV[S.conv];
+  var now=new Date();
+  var fecha=now.toLocaleDateString("es-CL",{day:"numeric",month:"long",year:"numeric"});
+  var modList=c.modules.map(function(m,i){
+    var p=S.prog[m.id]||{};
+    return '<tr>'+
+      '<td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;font-size:13px;color:#374151">'+(i+1)+'. '+m.title+'</td>'+
+      '<td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;font-size:13px;text-align:center;color:#15803d;font-weight:600">'+
+        (p.passed?'✓ Aprobado ('+p.score+'%)':'—')+
+      '</td>'+
+    '</tr>';
+  }).join("");
+
+  var html='<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"/>'+
+    '<title>Certificado Karri - '+S.rut+'</title>'+
+    '<style>'+
+      '*{box-sizing:border-box;margin:0;padding:0}'+
+      'body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#f4f5f7;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px}'+
+      '.cert{background:#fff;width:720px;padding:0;border-radius:12px;box-shadow:0 4px 24px rgba(0,0,0,0.12);overflow:hidden}'+
+      '.cert-header{background:#1f3444;padding:32px 40px;text-align:center}'+
+      '.cert-logo{background:#1c9996;color:#fff;font-size:13px;font-weight:700;padding:4px 12px;border-radius:6px;display:inline-block;margin-bottom:16px}'+
+      '.cert-header h1{color:#fff;font-size:22px;font-weight:600;margin-bottom:4px}'+
+      '.cert-header p{color:rgba(255,255,255,0.65);font-size:13px}'+
+      '.cert-body{padding:36px 40px}'+
+      '.cert-title{font-size:13px;color:#6b7280;text-align:center;margin-bottom:6px;text-transform:uppercase;letter-spacing:1px}'+
+      '.cert-name{font-size:28px;font-weight:700;color:#1f3444;text-align:center;margin-bottom:6px}'+
+      '.cert-sub{font-size:14px;color:#6b7280;text-align:center;margin-bottom:28px}'+
+      '.cert-conv{display:inline-block;padding:6px 18px;border-radius:99px;font-size:13px;font-weight:700;margin:0 auto 28px;display:block;text-align:center;width:fit-content;margin:0 auto 28px}'+
+      '.cert-table{width:100%;border-collapse:collapse;margin-bottom:28px;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden}'+
+      '.cert-table th{background:#f9fafb;padding:10px 12px;text-align:left;font-size:12px;color:#6b7280;font-weight:600;border-bottom:1px solid #e5e7eb}'+
+      '.cert-footer{border-top:1px solid #e5e7eb;padding:20px 40px;display:flex;justify-content:space-between;align-items:center;background:#f9fafb}'+
+      '.cert-footer-item{text-align:center}'+
+      '.cert-footer-label{font-size:11px;color:#9ca3af;margin-bottom:4px}'+
+      '.cert-footer-val{font-size:13px;font-weight:600;color:#374151}'+
+      '.seal{width:70px;height:70px;border-radius:50%;background:#1c9996;display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto 28px}'+
+      '@media print{body{background:#fff;padding:0}'+
+        '.cert{box-shadow:none;border-radius:0;width:100%}'+
+        '.no-print{display:none}}'+
+    '</style></head><body>'+
+    '<div class="cert">'+
+      '<div class="cert-header">'+
+        '<span class="cert-logo">Karri</span>'+
+        '<h1>Certificado de Capacitación</h1>'+
+        '<p>Capacitación de Conductores · '+fecha+'</p>'+
+      '</div>'+
+      '<div class="cert-body">'+
+        '<div class="seal">🏆</div>'+
+        '<p class="cert-title">Este certificado acredita que</p>'+
+        '<p class="cert-name">RUT '+S.rut+'</p>'+
+        '<p class="cert-sub">completó satisfactoriamente la capacitación del convenio</p>'+
+        '<div class="cert-conv" style="background:'+c.bg+';color:'+c.color+'">'+c.name+'</div>'+
+        '<table class="cert-table">'+
+          '<thead><tr><th>Módulo</th><th style="text-align:center">Resultado</th></tr></thead>'+
+          '<tbody>'+modList+'</tbody>'+
+        '</table>'+
+      '</div>'+
+      '<div class="cert-footer">'+
+        '<div class="cert-footer-item">'+
+          '<div class="cert-footer-label">Fecha de emisión</div>'+
+          '<div class="cert-footer-val">'+fecha+'</div>'+
+        '</div>'+
+        '<div class="cert-footer-item">'+
+          '<div class="cert-footer-label">Convenio</div>'+
+          '<div class="cert-footer-val">'+c.name+'</div>'+
+        '</div>'+
+        '<div class="cert-footer-item">'+
+          '<div class="cert-footer-label">Plataforma</div>'+
+          '<div class="cert-footer-val">Karri LMS</div>'+
+        '</div>'+
+      '</div>'+
+    '</div>'+
+    '<div class="no-print" style="text-align:center;margin-top:20px">'+
+      '<button onclick="window.print()" style="background:#1c9996;color:#fff;border:none;padding:10px 24px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer">🖨 Imprimir / Guardar PDF</button>'+
+      '<button onclick="window.close()" style="background:#fff;color:#374151;border:1px solid #d1d5db;padding:10px 24px;border-radius:8px;font-size:14px;cursor:pointer;margin-left:10px">Cerrar</button>'+
+    '</div>'+
+    '</body></html>';
+
+  var win=window.open("","_blank","width=800,height:700");
+  win.document.write(html);
+  win.document.close();
+}
+
+// ─── CONTROL DE ASISTENCIA Y TURNOS ──────────────────────────────────────
+function gTurnos(){var t=localStorage.getItem("karri_turnos");return t?JSON.parse(t):[];}
+function sTurnos(t){localStorage.setItem("karri_turnos",JSON.stringify(t.slice(0,2000)));}
+
+function mostrarModuloTurnos(){
+  document.getElementById("t-conductor-rut").textContent=S.rut;
+  var nombre=getNombreConductor(S.rut);
+  document.getElementById("t-conductor-nombre").textContent=nombre?"👤 "+nombre:"";
+  actualizarVistaTurnosConductor();
+  show("p-registro-turnos");
+}
+
+function volverAModulos(){renderMods();}
+
+function registrarEventoTurno(tipo){
+  var ahora=new Date();
+  var fechaStr=ahora.toLocaleDateString("es-CL");
+  var horaStr=ahora.toLocaleTimeString("es-CL");
+  var nuevoTurno={rut:S.rut,convenio:CV[S.conv]?CV[S.conv].name:S.conv,evento:tipo,fecha:fechaStr,hora:horaStr,timestamp:ahora.getTime()};
+  var lista=gTurnos();lista.unshift(nuevoTurno);sTurnos(lista);
+  try{
+    fetch(WH,{method:"POST",mode:"no-cors",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({rut:nuevoTurno.rut,conv:nuevoTurno.convenio,mod:"REGISTRO TURNO: "+tipo,score:100,passed:true,attempt:1,fecha:fechaStr+" "+horaStr})});
+  }catch(e){console.log("Error enviando turno",e);}
+  toast("Registro de "+tipo+" exitoso");
+  actualizarVistaTurnosConductor();
+  rATurnos();
+}
+
+function actualizarVistaTurnosConductor(){
+  var todos=gTurnos();
+  var misTurnos=todos.filter(function(t){return t.rut===S.rut;}).slice(0,5);
+  var contenedor=document.getElementById("lista-mis-turnos");
+  if(!misTurnos.length){
+    contenedor.innerHTML='<p style="font-size:12px;color:#9ca3af;text-align:center;">No tienes turnos registrados.</p>';
+    return;
+  }
+  contenedor.innerHTML=misTurnos.map(function(t){
+    var color=t.evento==="ENTRADA"?"#15803d":"#dc2626";
+    return '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f3f4f6;font-size:13px;">'+
+      '<span style="font-weight:600;color:'+color+';">▶ '+t.evento+'</span>'+
+      '<span style="color:#374151;">'+t.fecha+'</span>'+
+      '<span style="font-weight:500;color:#1f2937;">'+t.hora+'</span>'+
+    '</div>';
+  }).join("");
+}
+
+function rATurnos(){
+  var turnos=gTurnos();
+  var tb=document.getElementById("turno-tb");
+  if(!tb)return;
+  tb.innerHTML="";
+  if(!turnos.length){
+    tb.innerHTML='<tr><td colspan="5" style="color:#9ca3af;font-size:12px;padding:12px;text-align:center;">Sin registros de turnos.</td></tr>';
+    return;
+  }
+  turnos.forEach(function(t){
+    var tr=document.createElement("tr");
+    var color=t.evento==="ENTRADA"?"background:#dcfce7;color:#15803d":"background:#fee2e2;color:#dc2626";
+    var nombre=getNombreConductor(t.rut);
+    tr.innerHTML=
+      '<td style="font-size:12px;font-weight:600;">'+t.rut+(nombre?'<br><span style="font-size:10px;color:#6b7280;font-weight:400;">'+nombre+'</span>':'')+'</td>'+
+      '<td style="font-size:11px;color:#6b7280;">'+(t.convenio||"—")+'</td>'+
+      '<td><span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:99px;'+color+'">'+t.evento+'</span></td>'+
+      '<td style="font-size:12px;color:#374151;">'+t.fecha+'</td>'+
+      '<td style="font-size:12px;font-weight:500;color:#1f2937;">'+t.hora+'</td>';
+    tb.appendChild(tr);
+  });
+}
+
+function expTurnosCSV(){
+  var turnos=gTurnos(),h="RUT,Nombre,Convenio,Evento,Fecha,Hora\n",
+  r=turnos.map(function(t){return t.rut+","+getNombreConductor(t.rut)+","+t.convenio+","+t.evento+","+t.fecha+","+t.hora;}).join("\n");
+  var b=new Blob([h+r],{type:"text/csv;charset=utf-8;"});
+  var a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="asistencia_turnos_karri.csv";a.click();
+}
+
+function limpiarTurnosAntiguos(){
+  if(confirm("¿Vaciar el historial local de turnos? (No afectará Google Sheets)"))
+    {localStorage.removeItem("karri_turnos");rATurnos();toast("Historial limpiado");}
+}
+
+function goMods(){if(S.vt)clearInterval(S.vt);renderMods();}
+function doLogout(){if(S.vt)clearInterval(S.vt);S={rut:"",conv:null,prog:{},mod:null,qi:0,ans:[],vt:null,sl:0};document.getElementById("rut-in").value="";document.getElementById("topbar-rut").textContent="";document.getElementById("btn-admin-top").style.display="none";show("p-login");}
+</script>
+</body>
+</html>

@@ -89,7 +89,7 @@ function writeUsers(users) {
   fs.writeFileSync(USERS_PATH, JSON.stringify({ users }, null, 2), 'utf8');
 }
 
-const ALL_SECTIONS = ['finanzas', 'onboarding', 'operaciones', 'perfiles'];
+const ALL_SECTIONS = ['finanzas', 'onboarding', 'operaciones', 'capacitacion', 'perfiles'];
 
 function loginUser(username, password) {
   const users = readUsers();
@@ -144,6 +144,7 @@ const SECTION_HOME = {
   finanzas:    '/',
   onboarding:  '/onboarding/resumen.html',
   operaciones: '/operaciones/tarifario.html',
+  capacitacion: '/capacitacion/index.html',
   perfiles:    '/perfiles.html',
 };
 
@@ -157,6 +158,8 @@ const PAGE_SECTION = {
   '/onboarding/altas.html':            'onboarding',
   '/onboarding/kpi.html':              'onboarding',
   '/operaciones/tarifario.html':       'operaciones',
+  '/capacitacion/index.html':          'capacitacion',
+  '/capacitacion/lms.html':            'capacitacion',
   '/perfiles.html':                    'perfiles',
 };
 

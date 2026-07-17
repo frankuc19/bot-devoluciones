@@ -26,6 +26,13 @@
       ],
     },
     {
+      label: 'Capacitación',
+      perm:  'capacitacion',
+      items: [
+        { label: 'LMS Conductores', href: '/capacitacion/index.html', icon: 'graduation-cap', key: 'cap-lms' },
+      ],
+    },
+    {
       label: 'Perfiles',
       perm:  'perfiles',
       items: [

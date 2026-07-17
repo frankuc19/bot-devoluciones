@@ -131,6 +131,13 @@
               <p style="font-size:11px;color:rgba(231,236,235,.4);">Tarifario de conductores</p>
             </div>
           </label>
+          <label class="sec-option" id="sec-capacitacion">
+            <input type="checkbox" value="capacitacion" onchange="onSecChange(this)">
+            <div>
+              <p style="font-size:13px;font-weight:500;color:#e7eceb;">Capacitación</p>
+              <p style="font-size:11px;color:rgba(231,236,235,.4);">LMS de conductores y asistencia</p>
+            </div>
+          </label>
           <label class="sec-option" id="sec-perfiles">
             <input type="checkbox" value="perfiles" onchange="onSecChange(this)">
             <div>
@@ -155,7 +162,7 @@
 
 <script src="/sidebar.js"></script>
 <script>
-const SECTION_LABELS = { finanzas:'Finanzas', onboarding:'Onboarding', operaciones:'Operaciones', perfiles:'Perfiles' };
+const SECTION_LABELS = { finanzas:'Finanzas', onboarding:'Onboarding', operaciones:'Operaciones', capacitacion:'Capacitación', perfiles:'Perfiles' };
 let editingId = null;
 
 function onRoleChange() {
