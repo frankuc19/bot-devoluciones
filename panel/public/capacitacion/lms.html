@@ -140,7 +140,6 @@ tr:hover td{background:#f9fafb}
  <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;margin-top:4px">
  <span class="conv-badge" id="conv-badge"></span>
  <span style="font-size:13px;color:#6b7280" id="mod-greeting"></span>
- <button class="btn btn-dark btn-sm" onclick="mostrarModuloTurnos()" style="margin-left:auto;background:#1c9996;margin-top:0;padding:5px 12px;">Turno</button>
  </div>
  <div class="stats">
  <div class="stat"><div class="stat-n" id="s-done">0</div><div class="stat-l">Aprobados</div></div>
@@ -156,28 +155,6 @@ tr:hover td{background:#f9fafb}
  </div>
 </div>
 
-<!-- REGISTRO DE TURNOS (CONDUCTOR) -->
-<div class="page" id="p-registro-turnos">
- <div style="display:flex; align-items:center; gap:8px; margin-bottom:14px; margin-top:4px">
- <button class="btn btn-ghost btn-sm" onclick="volverAModulos()">← Volver a Cursos</button>
- <h2 style="margin:0; font-size:15px;">Control de Asistencia</h2>
- </div>
- <div style="background:#fff; border:1px solid #e5e7eb; border-radius:12px; padding:20px; text-align:center; margin-bottom:16px; box-shadow:0 2px 6px rgba(0,0,0,0.02)">
- <p style="font-size:14px; color:#6b7280; margin-bottom:4px;">Conductor autenticado:</p>
- <p style="font-size:18px; font-weight:700; color:#1f3444; margin-bottom:2px;" id="t-conductor-rut"></p>
- <p style="font-size:13px; color:#1c9996; font-weight:500;" id="t-conductor-nombre"></p>
- <hr style="margin:16px 0;">
- <p style="font-size:13px; color:#374151; margin-bottom:12px; font-weight:500;">Selecciona la acción a realizar:</p>
- <div style="display:flex; gap:12px;">
- <button class="btn btn-primary" onclick="registrarEventoTurno('ENTRADA')" style="margin-top:0; background:#15803d; flex:1; height:50px; font-size:15px;"> Marcar Entrada</button>
- <button class="btn btn-primary" onclick="registrarEventoTurno('SALIDA')" style="margin-top:0; background:#dc2626; flex:1; height:50px; font-size:15px;"> Marcar Salida</button>
- </div>
- </div>
- <div style="background:#f9fafb; border-radius:12px; padding:14px; border:1px solid #e5e7eb;">
- <p style="font-size:12px; font-weight:600; color:#6b7280; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.5px;">Mis últimos registros</p>
- <div id="lista-mis-turnos"></div>
- </div>
-</div>
 
 <!-- VIDEO -->
 <div class="page" id="p-video">
@@ -247,7 +224,6 @@ tr:hover td{background:#f9fafb}
  <button class="tab-btn" onclick="aTab('seg')" id="tab-seg">Seguridad</button>
  <button class="tab-btn" onclick="aTab('convs')" id="tab-convs">Convenios</button>
  <button class="tab-btn" onclick="aTab('logs')" id="tab-logs">Registros</button>
- <button class="tab-btn" onclick="aTab('turnos')" id="tab-turnos">Turnos</button>
  </div>
  <!-- DASHBOARD -->
  <div id="admin-dash" style="display:none">
@@ -327,22 +303,6 @@ tr:hover td{background:#f9fafb}
  <div style="display:flex;gap:8px;margin-top:12px;align-items:center;flex-wrap:wrap">
  <button class="btn btn-ghost btn-sm" onclick="expCSV()">↓ Exportar CSV</button>
  <a href="https://docs.google.com/spreadsheets/d/17K-DNwmzYENF2-9B0fCVKheiKOuUCPmX6MEnRFPs9pI/edit" target="_blank" style="font-size:12px;color:#1c9996;text-decoration:none"> Ver en Google Sheets</a>
- </div>
- </div>
- <!-- TABLA GLOBAL DE TURNOS (ADMIN) -->
- <div id="admin-turnos" style="display:none">
- <p style="font-size:13px; color:#6b7280; margin-bottom:12px;">Listado histórico de entradas y salidas de conductores.</p>
- <div style="overflow-x:auto">
- <table>
- <thead><tr>
- <th>Conductor (RUT)</th><th>Convenio</th><th>Acción</th><th>Fecha</th><th>Hora</th>
- </tr></thead>
- <tbody id="turno-tb"></tbody>
- </table>
- </div>
- <div style="display:flex; gap:8px; margin-top:12px; align-items:center; flex-wrap:wrap">
- <button class="btn btn-ghost btn-sm" onclick="expTurnosCSV()">↓ Exportar Turnos CSV</button>
- <button class="btn btn-ghost btn-sm" onclick="limpiarTurnosAntiguos()" style="color:#dc2626; border-color:#fca5a5;"> Vaciar Historial Local</button>
  </div>
  </div>
 </div>
@@ -456,13 +416,13 @@ function doAdminLogin(){
  document.getElementById("btn-admin-top").style.display="inline-block";
  showAdmin();
 }
-function showAdmin(){popSel();aTab("dash");rARuts();rAConvs();rALogs();rATurnos();show("p-admin");document.querySelector(".wrap").classList.add("admin-mode");}
+function showAdmin(){popSel();aTab("dash");rARuts();rAConvs();rALogs();show("p-admin");document.querySelector(".wrap").classList.add("admin-mode");}
 function popSel(){
  var o=Object.entries(CV).map(function(e){return'<option value="'+e[0]+'">'+e[1].name+'</option>';}).join("");
  document.getElementById("nconv").innerHTML=o;
  document.getElementById("fconv").innerHTML='<option value="">Todos</option>'+o;
 }
-function aTab(t){["ruts","dash","content","seg","convs","logs","turnos"].forEach(function(x){var el=document.getElementById("admin-"+x);if(el)el.style.display=x===t?"block":"none";var btn=document.getElementById("tab-"+x);if(btn)btn.classList.toggle("active",x===t);});if(t==="content")initContentTab();if(t==="dash")renderDash();if(t==="turnos")rATurnos();}
+function aTab(t){["ruts","dash","content","seg","convs","logs"].forEach(function(x){var el=document.getElementById("admin-"+x);if(el)el.style.display=x===t?"block":"none";var btn=document.getElementById("tab-"+x);if(btn)btn.classList.toggle("active",x===t);});if(t==="content")initContentTab();if(t==="dash")renderDash();}
 
 function renderDash(){
  var ml=gM(),el=document.getElementById("dash-content");
@@ -1271,90 +1231,18 @@ function descargarCert(){
  win.document.close();
 }
 
-// CONTROL DE ASISTENCIA Y TURNOS 
-function gTurnos(){var t=localStorage.getItem("karri_turnos");return t?JSON.parse(t):[];}
-function sTurnos(t){localStorage.setItem("karri_turnos",JSON.stringify(t.slice(0,2000)));}
-
-function mostrarModuloTurnos(){
- document.getElementById("t-conductor-rut").textContent=S.rut;
- var nombre=getNombreConductor(S.rut);
- document.getElementById("t-conductor-nombre").textContent=nombre?" "+nombre:"";
- actualizarVistaTurnosConductor();
- show("p-registro-turnos");
-}
-
-function volverAModulos(){renderMods();}
-
-function registrarEventoTurno(tipo){
- var ahora=new Date();
- var fechaStr=ahora.toLocaleDateString("es-CL");
- var horaStr=ahora.toLocaleTimeString("es-CL");
- var nuevoTurno={rut:S.rut,convenio:CV[S.conv]?CV[S.conv].name:S.conv,evento:tipo,fecha:fechaStr,hora:horaStr,timestamp:ahora.getTime()};
- var lista=gTurnos();lista.unshift(nuevoTurno);sTurnos(lista);
- try{
- fetch(WH,{method:"POST",mode:"no-cors",headers:{"Content-Type":"application/json"},
- body:JSON.stringify({rut:nuevoTurno.rut,conv:nuevoTurno.convenio,mod:"REGISTRO TURNO: "+tipo,score:100,passed:true,attempt:1,fecha:fechaStr+" "+horaStr})});
- }catch(e){console.log("Error enviando turno",e);}
- toast("Registro de "+tipo+" exitoso");
- actualizarVistaTurnosConductor();
- rATurnos();
-}
-
-function actualizarVistaTurnosConductor(){
- var todos=gTurnos();
- var misTurnos=todos.filter(function(t){return t.rut===S.rut;}).slice(0,5);
- var contenedor=document.getElementById("lista-mis-turnos");
- if(!misTurnos.length){
- contenedor.innerHTML='<p style="font-size:12px;color:#9ca3af;text-align:center;">No tienes turnos registrados.</p>';
- return;
- }
- contenedor.innerHTML=misTurnos.map(function(t){
- var color=t.evento==="ENTRADA"?"#15803d":"#dc2626";
- return '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f3f4f6;font-size:13px;">'+
- '<span style="font-weight:600;color:'+color+';"> '+t.evento+'</span>'+
- '<span style="color:#374151;">'+t.fecha+'</span>'+
- '<span style="font-weight:500;color:#1f2937;">'+t.hora+'</span>'+
- '</div>';
- }).join("");
-}
-
-function rATurnos(){
- var turnos=gTurnos();
- var tb=document.getElementById("turno-tb");
- if(!tb)return;
- tb.innerHTML="";
- if(!turnos.length){
- tb.innerHTML='<tr><td colspan="5" style="color:#9ca3af;font-size:12px;padding:12px;text-align:center;">Sin registros de turnos.</td></tr>';
- return;
- }
- turnos.forEach(function(t){
- var tr=document.createElement("tr");
- var color=t.evento==="ENTRADA"?"background:#dcfce7;color:#15803d":"background:#fee2e2;color:#dc2626";
- var nombre=getNombreConductor(t.rut);
- tr.innerHTML=
- '<td style="font-size:12px;font-weight:600;">'+t.rut+(nombre?'<br><span style="font-size:10px;color:#6b7280;font-weight:400;">'+nombre+'</span>':'')+'</td>'+
- '<td style="font-size:11px;color:#6b7280;">'+(t.convenio||"—")+'</td>'+
- '<td><span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:99px;'+color+'">'+t.evento+'</span></td>'+
- '<td style="font-size:12px;color:#374151;">'+t.fecha+'</td>'+
- '<td style="font-size:12px;font-weight:500;color:#1f2937;">'+t.hora+'</td>';
- tb.appendChild(tr);
- });
-}
-
-function expTurnosCSV(){
- var turnos=gTurnos(),h="RUT,Nombre,Convenio,Evento,Fecha,Hora\n",
- r=turnos.map(function(t){return t.rut+","+getNombreConductor(t.rut)+","+t.convenio+","+t.evento+","+t.fecha+","+t.hora;}).join("\n");
- var b=new Blob([h+r],{type:"text/csv;charset=utf-8;"});
- var a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="asistencia_turnos_karri.csv";a.click();
-}
-
-function limpiarTurnosAntiguos(){
- if(confirm("¿Vaciar el historial local de turnos? (No afectará Google Sheets)"))
- {localStorage.removeItem("karri_turnos");rATurnos();toast("Historial limpiado");}
-}
 
 function goMods(){if(S.vt)clearInterval(S.vt);renderMods();}
 function doLogout(){if(S.vt)clearInterval(S.vt);S={rut:"",conv:null,prog:{},mod:null,qi:0,ans:[],vt:null,sl:0};document.getElementById("rut-in").value="";document.getElementById("topbar-rut").textContent="";document.getElementById("btn-admin-top").style.display="none";document.querySelector(".wrap").classList.remove("admin-mode");show("p-login");}
+
+// Auto-login cuando el LMS carga dentro del panel (modo=panel)
+(function(){
+  if(new URLSearchParams(window.location.search).get("mode")==="panel"){
+    document.getElementById("topbar-rut").textContent="Admin";
+    document.getElementById("btn-admin-top").style.display="none";
+    showAdmin();
+  }
+})();
 </script>
 </body>
 </html>
