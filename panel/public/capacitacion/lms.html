@@ -94,7 +94,7 @@ td{padding:8px 10px;border-bottom:1px solid #f3f4f6;color:#1f2937}
 tr:hover td{background:#f9fafb}
 .tab-row{display:flex;border-bottom:1px solid #e5e7eb;margin-bottom:16px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
 .tab-row::-webkit-scrollbar{display:none}
-.tab-btn{padding:8px 12px;font-size:12px;border:none;background:transparent;cursor:pointer;color:#6b7280;border-bottom:2px solid transparent;margin-bottom:-1px;font-family:inherit;white-space:nowrap;flex-shrink:0}
+.tab-btn{padding:8px 12px;font-size:12px;border:none;background:transparent;cursor:pointer;color:#6b7280;border-bottom:2px solid transparent;margin-bottom:-1px;font-family:inherit;white-space:nowrap;flex:1;text-align:center}
 .tab-btn.active{color:#1c9996;border-bottom-color:#1c9996;font-weight:600}
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1f3444;color:#fff;padding:9px 18px;border-radius:8px;font-size:13px;display:none;align-items:center;gap:8px;z-index:9999;box-shadow:0 4px 12px rgba(0,0,0,0.2)}
 @media(max-width:480px){.stats{grid-template-columns:repeat(3,1fr)}}
@@ -242,9 +242,9 @@ tr:hover td{background:#f9fafb}
  </div>
  <div class="tab-row">
  <button class="tab-btn active" onclick="aTab('ruts')" id="tab-ruts">RUTs</button>
- <button class="tab-btn" onclick="aTab('dash')" id="tab-dash"> Dashboard</button>
- <button class="tab-btn" onclick="aTab('content')" id="tab-content"> Contenido</button>
- <button class="tab-btn" onclick="aTab('seg')" id="tab-seg"> Seguridad</button>
+ <button class="tab-btn" onclick="aTab('dash')" id="tab-dash">Dashboard</button>
+ <button class="tab-btn" onclick="aTab('content')" id="tab-content">Contenido</button>
+ <button class="tab-btn" onclick="aTab('seg')" id="tab-seg">Seguridad</button>
  <button class="tab-btn" onclick="aTab('convs')" id="tab-convs">Convenios</button>
  <button class="tab-btn" onclick="aTab('logs')" id="tab-logs">Registros</button>
  <button class="tab-btn" onclick="aTab('turnos')" id="tab-turnos">Turnos</button>
