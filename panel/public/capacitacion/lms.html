@@ -424,12 +424,8 @@ function gL(){var x=localStorage.getItem("kl");return x?JSON.parse(x):[];}
 function aL(e){var l=gL();l.unshift(e);localStorage.setItem("kl",JSON.stringify(l.slice(0,500)));}
 
 function vRut(r){
-  var c=r.replace(/[^0-9kK]/g,"");
-  if(c.length<7||c.length>9)return false;
-  var dv=c.slice(-1).toUpperCase(),b=c.slice(0,-1),s=0,m=2;
-  for(var i=b.length-1;i>=0;i--){s+=parseInt(b[i])*m;m=m===7?2:m+1;}
-  var e=11-(s%11);
-  return dv===(e===11?"0":e===10?"K":String(e));
+  var c=r.replace(/\./g,"").toUpperCase();
+  return /^\d{7,8}-[\dK]$/.test(c);
 }
 function fRut(v){var c=v.replace(/[^0-9kK]/g,"").toUpperCase();if(c.length>1)return c.slice(0,-1)+"-"+c.slice(-1);return c;}
 
