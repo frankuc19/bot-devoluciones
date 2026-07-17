@@ -140,6 +140,11 @@ app.get('/login', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'login.html'));
 });
 
+// ─── LMS público (conductores acceden sin login del panel) ───────────────────
+app.get('/lms', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'capacitacion', 'lms.html'));
+});
+
 const SECTION_HOME = {
   finanzas:    '/',
   onboarding:  '/onboarding/resumen.html',
