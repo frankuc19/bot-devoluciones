@@ -169,6 +169,18 @@ app.post('/api/lms/conductores', requireAuthApi, (req, res) => {
   res.json({ ok: true });
 });
 
+// Contenido LMS: estructura de módulos + videos + preguntas
+const LMS_CONTENT_FILE = path.join(DATA_DIR, 'lms_contenido.json');
+app.get('/api/lms/contenido', (req, res) => {
+  try { res.json(JSON.parse(fs.readFileSync(LMS_CONTENT_FILE, 'utf8'))); }
+  catch { res.json({}); }
+});
+app.post('/api/lms/contenido', requireAuthApi, (req, res) => {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+  fs.writeFileSync(LMS_CONTENT_FILE, JSON.stringify(req.body));
+  res.json({ ok: true });
+});
+
 const SECTION_HOME = {
   finanzas:    '/',
   onboarding:  '/onboarding/resumen.html',
