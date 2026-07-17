@@ -377,8 +377,15 @@ if(savedPass)AP=savedPass;
  }
 })();
 loadSavedContent();
-function gM(){var r=localStorage.getItem("km");return r?JSON.parse(r):{"12345678-9":"falabella","98765432-1":"mercadolibre","11111111-1":"tottus","22222222-2":"jumbo"};}
-function sM(m){localStorage.setItem("km",JSON.stringify(m));}
+var _condCache=null;
+function gM(){return _condCache||{};}
+function sM(m){
+  _condCache=m;
+  fetch("/api/lms/conductores",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(m)}).catch(function(){});
+}
+function loadCond(cb){
+  fetch("/api/lms/conductores").then(function(r){return r.json();}).then(function(d){_condCache=d;if(cb)cb();}).catch(function(){_condCache={};if(cb)cb();});
+}
 function gP(r){var x=localStorage.getItem("kp_"+r);return x?JSON.parse(x):{};}
 function sP(r,p){localStorage.setItem("kp_"+r,JSON.stringify(p));}
 function gL(){var x=localStorage.getItem("kl");return x?JSON.parse(x):[];}
@@ -403,11 +410,14 @@ function doLogin(){
  var err=document.getElementById("rut-err");
  if(!rut){err.textContent="Ingresa tu RUT.";return;}
  if(!vRut(rut)){err.textContent="RUT inválido. Verifica el formato (ej: 12345678-9)";return;}
- var ml=gM(),conv=ml[rut];
- if(!conv||!CV[conv]){err.textContent="RUT no registrado. Contacta a operaciones: repartidores@karri.cl";return;}
- err.textContent="";S.rut=rut;S.conv=conv;S.prog=gP(rut);
- document.getElementById("topbar-rut").textContent=rut;
- renderMods();
+ err.textContent="Verificando...";
+ loadCond(function(){
+   var ml=gM(),conv=ml[rut];
+   if(!conv||!CV[conv]){err.textContent="RUT no registrado. Contacta a operaciones: repartidores@karri.cl";return;}
+   err.textContent="";S.rut=rut;S.conv=conv;S.prog=gP(rut);
+   document.getElementById("topbar-rut").textContent=rut;
+   renderMods();
+ });
 }
 function showAdminLogin(){show("p-admin-login");document.getElementById("admin-pass").value="";document.getElementById("admin-err").textContent="";}
 function doAdminLogin(){
@@ -416,7 +426,7 @@ function doAdminLogin(){
  document.getElementById("btn-admin-top").style.display="inline-block";
  showAdmin();
 }
-function showAdmin(){popSel();aTab("dash");rARuts();rAConvs();rALogs();show("p-admin");document.querySelector(".wrap").classList.add("admin-mode");}
+function showAdmin(){loadCond(function(){popSel();aTab("dash");rARuts();rAConvs();rALogs();show("p-admin");document.querySelector(".wrap").classList.add("admin-mode");});}
 function popSel(){
  var o=Object.entries(CV).map(function(e){return'<option value="'+e[0]+'">'+e[1].name+'</option>';}).join("");
  document.getElementById("nconv").innerHTML=o;

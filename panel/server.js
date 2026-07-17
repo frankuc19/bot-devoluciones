@@ -145,6 +145,30 @@ app.get('/lms', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'capacitacion', 'lms.html'));
 });
 
+const LMS_FILE = path.join(DATA_DIR, 'lms_conductores.json');
+const LMS_DEFAULT = { "12345678-9":"falabella","98765432-1":"mercadolibre","11111111-1":"tottus","22222222-2":"jumbo" };
+
+function readLmsCond() {
+  try { return JSON.parse(fs.readFileSync(LMS_FILE, 'utf8')); } catch { return LMS_DEFAULT; }
+}
+function writeLmsCond(data) {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+  fs.writeFileSync(LMS_FILE, JSON.stringify(data));
+}
+
+// Público: el celular del conductor lo consume para saber a qué convenio pertenece su RUT
+app.get('/api/lms/conductores', (req, res) => {
+  res.json(readLmsCond());
+});
+
+// Protegido: el admin actualiza la lista desde el panel
+app.post('/api/lms/conductores', requireAuthApi, (req, res) => {
+  if (typeof req.body !== 'object' || Array.isArray(req.body))
+    return res.json({ ok: false, error: 'Formato inválido' });
+  writeLmsCond(req.body);
+  res.json({ ok: true });
+});
+
 const SECTION_HOME = {
   finanzas:    '/',
   onboarding:  '/onboarding/resumen.html',
