@@ -44,7 +44,7 @@ input[type=text]:focus,input[type=password]:focus,textarea:focus{border-color:#1
 .mod-card.clickable:hover{border-color:#1c9996;box-shadow:0 2px 8px rgba(28,153,150,0.1)}
 .mod-card.done{border-color:#1c9996;background:#f0fdf8}
 .mod-card.locked{opacity:.4}
-.mod-ico{width:40px;height:40px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+.mod-ico{width:40px;height:40px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;flex-shrink:0}
 .ico-done{background:#dcfce7;color:#15803d}
 .ico-lock{background:#f3f4f6;color:#9ca3af}
 .ico-actv{background:#ccfbf1;color:#1c9996}
@@ -1043,7 +1043,7 @@ function renderMods(){
  var lk=!mod.opcional&&prevOblig.length>0&&!(S.prog[prevOblig[prevOblig.length-1].id]&&S.prog[prevOblig[prevOblig.length-1].id].passed);
  var cc=!lk&&!ex;
  var card=document.createElement("div");card.className="mod-card"+(isDone?" done":"")+(lk||ex?" locked":"")+(cc?" clickable":"");
- var ic=isDone?"ico-done":lk?"ico-lock":"ico-actv",em=isDone?"":lk?"":"";
+ var ic=isDone?"ico-done":lk?"ico-lock":"ico-actv",em=isDone?"✓":lk?"":String(i+1);
  var bc=isDone?"b-done":ex?"b-fail":"b-pend";
  var bt=isDone?" Aprobado":ex?"Sin intentos":lk?"Bloqueado":(p.attempts||0)>0?"Intento "+(p.attempts+1)+"/"+MA:"Pendiente";
  var optTag=mod.opcional?'<span style="font-size:10px;background:#f3f4f6;color:#6b7280;padding:1px 6px;border-radius:99px;margin-left:4px">Opcional</span>':"";
