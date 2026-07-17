@@ -9,7 +9,8 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f4f5f7;min-height:100vh}
-.wrap{max-width:560px;margin:0 auto;background:#fff;min-height:100vh;box-shadow:0 0 20px rgba(0,0,0,0.08)}
+.wrap{max-width:560px;margin:0 auto;background:#fff;min-height:100vh;box-shadow:0 0 20px rgba(0,0,0,0.08);transition:max-width .25s ease}
+.wrap.admin-mode{max-width:960px}
 .topbar{background:#1f3444;padding:12px 18px;display:flex;align-items:center;gap:10px}
 .topbar-logo{background:#1c9996;color:#fff;font-size:12px;font-weight:600;padding:3px 10px;border-radius:6px}
 .topbar-title{color:#fff;font-size:14px;font-weight:500;flex:1}
@@ -455,7 +456,7 @@ function doAdminLogin(){
  document.getElementById("btn-admin-top").style.display="inline-block";
  showAdmin();
 }
-function showAdmin(){popSel();aTab("dash");rARuts();rAConvs();rALogs();rATurnos();show("p-admin");}
+function showAdmin(){popSel();aTab("dash");rARuts();rAConvs();rALogs();rATurnos();show("p-admin");document.querySelector(".wrap").classList.add("admin-mode");}
 function popSel(){
  var o=Object.entries(CV).map(function(e){return'<option value="'+e[0]+'">'+e[1].name+'</option>';}).join("");
  document.getElementById("nconv").innerHTML=o;
@@ -1353,7 +1354,7 @@ function limpiarTurnosAntiguos(){
 }
 
 function goMods(){if(S.vt)clearInterval(S.vt);renderMods();}
-function doLogout(){if(S.vt)clearInterval(S.vt);S={rut:"",conv:null,prog:{},mod:null,qi:0,ans:[],vt:null,sl:0};document.getElementById("rut-in").value="";document.getElementById("topbar-rut").textContent="";document.getElementById("btn-admin-top").style.display="none";show("p-login");}
+function doLogout(){if(S.vt)clearInterval(S.vt);S={rut:"",conv:null,prog:{},mod:null,qi:0,ans:[],vt:null,sl:0};document.getElementById("rut-in").value="";document.getElementById("topbar-rut").textContent="";document.getElementById("btn-admin-top").style.display="none";document.querySelector(".wrap").classList.remove("admin-mode");show("p-login");}
 </script>
 </body>
 </html>
