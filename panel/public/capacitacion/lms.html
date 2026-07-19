@@ -384,10 +384,39 @@ function sM(m){
 function loadCond(cb){
   fetch("/api/lms/conductores").then(function(r){return r.json();}).then(function(d){_condCache=d;if(cb)cb();}).catch(function(){_condCache={};if(cb)cb();});
 }
-function gP(r){var x=localStorage.getItem("kp_"+r);return x?JSON.parse(x):{};}
-function sP(r,p){localStorage.setItem("kp_"+r,JSON.stringify(p));}
-function gL(){var x=localStorage.getItem("kl");return x?JSON.parse(x):[];}
-function aL(e){var l=gL();l.unshift(e);localStorage.setItem("kl",JSON.stringify(l.slice(0,500)));}
+// ── Progreso de conductores (servidor + localStorage como caché) ──
+var _progCache={};
+function gP(r){return _progCache[r]||{};}
+function sP(r,p){
+ _progCache[r]=p;
+ localStorage.setItem("kp_"+r,JSON.stringify(p));
+ fetch("/api/lms/progreso/"+encodeURIComponent(r),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(p)}).catch(function(){});
+}
+function fetchProg(rut,cb){
+ fetch("/api/lms/progreso/"+encodeURIComponent(rut)).then(function(r){return r.json();}).then(function(p){
+  _progCache[rut]=p;cb(p);
+ }).catch(function(){
+  var x=localStorage.getItem("kp_"+rut);
+  var p=x?JSON.parse(x):{};_progCache[rut]=p;cb(p);
+ });
+}
+function loadAllProg(cb){
+ fetch("/api/lms/progreso").then(function(r){return r.json();}).then(function(d){_progCache=d;cb();}).catch(function(){cb();});
+}
+// ── Logs de quizzes (servidor + localStorage como caché) ──
+var _logsCache=null;
+function gL(){return _logsCache||[];}
+function aL(e){
+ if(_logsCache)_logsCache.unshift(e);
+ var local=localStorage.getItem("kl");var arr=local?JSON.parse(local):[];
+ arr.unshift(e);localStorage.setItem("kl",JSON.stringify(arr.slice(0,500)));
+ fetch("/api/lms/logs",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(e)}).catch(function(){});
+}
+function loadLogs(cb){
+ fetch("/api/lms/logs").then(function(r){return r.json();}).then(function(d){_logsCache=d;cb();}).catch(function(){
+  var x=localStorage.getItem("kl");_logsCache=x?JSON.parse(x):[];cb();
+ });
+}
 
 function vRut(r){
  var c=r.replace(/\./g,"").toUpperCase();
@@ -412,9 +441,12 @@ function doLogin(){
  loadCond(function(){
    var ml=gM(),conv=ml[rut];
    if(!conv||!CV[conv]){err.textContent="RUT no registrado. Contacta a operaciones: repartidores@karri.cl";return;}
-   err.textContent="";S.rut=rut;S.conv=conv;S.prog=gP(rut);
-   document.getElementById("topbar-rut").textContent=rut;
-   renderMods();
+   err.textContent="Cargando progreso...";
+   fetchProg(rut,function(prog){
+     err.textContent="";S.rut=rut;S.conv=conv;S.prog=prog;
+     document.getElementById("topbar-rut").textContent=rut;
+     renderMods();
+   });
  });
 }
 function showAdminLogin(){show("p-admin-login");document.getElementById("admin-pass").value="";document.getElementById("admin-err").textContent="";}
@@ -425,8 +457,8 @@ function doAdminLogin(){
  showAdmin();
 }
 function showAdmin(){
- var done=0;function ready(){if(++done===2){popSel();aTab("dash");rARuts();rAConvs();rALogs();show("p-admin");document.querySelector(".wrap").classList.add("admin-mode");}}
- loadCond(ready);loadContenido(ready);
+ var done=0;function ready(){if(++done===4){popSel();aTab("dash");rARuts();rAConvs();rALogs();show("p-admin");document.querySelector(".wrap").classList.add("admin-mode");}}
+ loadCond(ready);loadContenido(ready);loadAllProg(ready);loadLogs(ready);
 }
 function popSel(){
  var o=Object.entries(CV).map(function(e){return'<option value="'+e[0]+'">'+e[1].name+'</option>';}).join("");

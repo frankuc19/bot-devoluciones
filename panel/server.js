@@ -181,6 +181,39 @@ app.post('/api/lms/contenido', requireAuthApi, (req, res) => {
   res.json({ ok: true });
 });
 
+// Progreso por conductor — público (el celular lee y escribe)
+const LMS_PROG_FILE = path.join(DATA_DIR, 'lms_progreso.json');
+function readLmsProg() {
+  try { return JSON.parse(fs.readFileSync(LMS_PROG_FILE, 'utf8')); } catch { return {}; }
+}
+app.get('/api/lms/progreso', (req, res) => res.json(readLmsProg()));
+app.get('/api/lms/progreso/:rut', (req, res) => {
+  res.json(readLmsProg()[req.params.rut] || {});
+});
+app.post('/api/lms/progreso/:rut', (req, res) => {
+  const prog = readLmsProg();
+  prog[req.params.rut] = req.body;
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+  fs.writeFileSync(LMS_PROG_FILE, JSON.stringify(prog));
+  res.json({ ok: true });
+});
+
+// Logs de quizzes — público (conductor escribe desde su celular, admin lee)
+const LMS_LOGS_FILE = path.join(DATA_DIR, 'lms_logs.json');
+function readLmsLogs() {
+  try { return JSON.parse(fs.readFileSync(LMS_LOGS_FILE, 'utf8')); } catch { return []; }
+}
+app.get('/api/lms/logs', (req, res) => {
+  res.json(readLmsLogs());
+});
+app.post('/api/lms/logs', (req, res) => {
+  const logs = readLmsLogs();
+  logs.unshift(req.body);
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+  fs.writeFileSync(LMS_LOGS_FILE, JSON.stringify(logs.slice(0, 2000)));
+  res.json({ ok: true });
+});
+
 const SECTION_HOME = {
   finanzas:    '/',
   onboarding:  '/onboarding/resumen.html',
