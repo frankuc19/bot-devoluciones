@@ -145,6 +145,21 @@ app.get('/lms', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'capacitacion', 'lms.html'));
 });
 
+// Auth del admin del LMS (password karri2026) — genera cookie de sesión propia
+let lmsAdminToken = null;
+const LMS_AP = process.env.LMS_AP || 'karri2026';
+app.post('/api/lms/admin-login', (req, res) => {
+  if (req.body?.password !== LMS_AP) return res.json({ ok: false, error: 'Contraseña incorrecta' });
+  lmsAdminToken = crypto.randomBytes(32).toString('hex');
+  res.cookie('lms_admin', lmsAdminToken, { httpOnly: true, sameSite: 'lax', maxAge: 8 * 60 * 60 * 1000 });
+  res.json({ ok: true });
+});
+function requireLmsAdmin(req, res, next) {
+  if (getSession(req)) return next();
+  if (lmsAdminToken && req.cookies?.lms_admin === lmsAdminToken) return next();
+  res.status(401).json({ ok: false, error: 'No autorizado' });
+}
+
 const LMS_FILE = path.join(DATA_DIR, 'lms_conductores.json');
 const LMS_DEFAULT = { "12345678-9":"falabella","98765432-1":"mercadolibre","11111111-1":"tottus","22222222-2":"jumbo" };
 
@@ -161,8 +176,8 @@ app.get('/api/lms/conductores', (req, res) => {
   res.json(readLmsCond());
 });
 
-// Protegido: el admin actualiza la lista desde el panel
-app.post('/api/lms/conductores', requireAuthApi, (req, res) => {
+// Protegido: requiere sesión del panel O cookie lms_admin
+app.post('/api/lms/conductores', requireLmsAdmin, (req, res) => {
   if (typeof req.body !== 'object' || Array.isArray(req.body))
     return res.json({ ok: false, error: 'Formato inválido' });
   writeLmsCond(req.body);
@@ -175,7 +190,7 @@ app.get('/api/lms/contenido', (req, res) => {
   try { res.json(JSON.parse(fs.readFileSync(LMS_CONTENT_FILE, 'utf8'))); }
   catch { res.json({}); }
 });
-app.post('/api/lms/contenido', requireAuthApi, (req, res) => {
+app.post('/api/lms/contenido', requireLmsAdmin, (req, res) => {
   fs.mkdirSync(DATA_DIR, { recursive: true });
   fs.writeFileSync(LMS_CONTENT_FILE, JSON.stringify(req.body));
   res.json({ ok: true });
@@ -186,7 +201,7 @@ const LMS_PROG_FILE = path.join(DATA_DIR, 'lms_progreso.json');
 function readLmsProg() {
   try { return JSON.parse(fs.readFileSync(LMS_PROG_FILE, 'utf8')); } catch { return {}; }
 }
-app.get('/api/lms/progreso', (req, res) => res.json(readLmsProg()));
+app.get('/api/lms/progreso', requireLmsAdmin, (req, res) => res.json(readLmsProg()));
 app.get('/api/lms/progreso/:rut', (req, res) => {
   res.json(readLmsProg()[req.params.rut] || {});
 });
@@ -203,7 +218,7 @@ const LMS_LOGS_FILE = path.join(DATA_DIR, 'lms_logs.json');
 function readLmsLogs() {
   try { return JSON.parse(fs.readFileSync(LMS_LOGS_FILE, 'utf8')); } catch { return []; }
 }
-app.get('/api/lms/logs', (req, res) => {
+app.get('/api/lms/logs', requireLmsAdmin, (req, res) => {
   res.json(readLmsLogs());
 });
 app.post('/api/lms/logs', (req, res) => {

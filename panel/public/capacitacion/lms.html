@@ -358,14 +358,18 @@ function applyCV(data){
   if(!CV[k]){CV[k]={name:d.name,color:d.color,bg:d.bg,modules:[]};}
   CV[k].name=d.name;CV[k].color=d.color;CV[k].bg=d.bg;
   CV[k].modules=(d.modules||[]).map(function(m){
-   return {id:m.id,title:m.title,desc:m.desc||"",driveId:m.driveId||"",ytId:m.ytId||"",questions:m.questions||[]};
+   return {id:m.id,title:m.title,desc:m.desc||"",driveId:m.driveId||"",ytId:m.ytId||"",questions:m.questions||[],opcional:!!m.opcional};
   });
  });
 }
 function loadContenido(cb){
  fetch("/api/lms/contenido").then(function(r){return r.json();}).then(function(data){
-  if(data&&Object.keys(data).length)applyCV(data);
-  else loadSavedContent();
+  if(data&&Object.keys(data).length){applyCV(data);}
+  else{
+   var s=localStorage.getItem("karri_cvs");
+   if(s)try{applyCV(JSON.parse(s));}catch(e){}
+   loadSavedContent();
+  }
   if(cb)cb();
  }).catch(function(){
   var s=localStorage.getItem("karri_cvs");
@@ -379,7 +383,8 @@ var _condCache=null;
 function gM(){return _condCache||{};}
 function sM(m){
   _condCache=m;
-  fetch("/api/lms/conductores",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(m)}).catch(function(){});
+  fetch("/api/lms/conductores",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(m)})
+   .then(function(r){if(!r.ok)toast("Error al guardar conductores",false);}).catch(function(){toast("Sin conexión",false);});
 }
 function loadCond(cb){
   fetch("/api/lms/conductores").then(function(r){return r.json();}).then(function(d){_condCache=d;if(cb)cb();}).catch(function(){_condCache={};if(cb)cb();});
@@ -404,16 +409,16 @@ function loadAllProg(cb){
  fetch("/api/lms/progreso").then(function(r){return r.json();}).then(function(d){_progCache=d;cb();}).catch(function(){cb();});
 }
 // ── Logs de quizzes (servidor + localStorage como caché) ──
-var _logsCache=null;
-function gL(){return _logsCache||[];}
+var _logsCache=[];
+function gL(){return _logsCache;}
 function aL(e){
- if(_logsCache)_logsCache.unshift(e);
+ _logsCache.unshift(e);
  var local=localStorage.getItem("kl");var arr=local?JSON.parse(local):[];
  arr.unshift(e);localStorage.setItem("kl",JSON.stringify(arr.slice(0,500)));
  fetch("/api/lms/logs",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(e)}).catch(function(){});
 }
 function loadLogs(cb){
- fetch("/api/lms/logs").then(function(r){return r.json();}).then(function(d){_logsCache=d;cb();}).catch(function(){
+ fetch("/api/lms/logs").then(function(r){return r.json();}).then(function(d){_logsCache=Array.isArray(d)?d:[];cb();}).catch(function(){
   var x=localStorage.getItem("kl");_logsCache=x?JSON.parse(x):[];cb();
  });
 }
@@ -451,10 +456,16 @@ function doLogin(){
 }
 function showAdminLogin(){show("p-admin-login");document.getElementById("admin-pass").value="";document.getElementById("admin-err").textContent="";}
 function doAdminLogin(){
- if(document.getElementById("admin-pass").value!==AP){document.getElementById("admin-err").textContent="Contraseña incorrecta.";return;}
- document.getElementById("topbar-rut").textContent="Admin";
- document.getElementById("btn-admin-top").style.display="inline-block";
- showAdmin();
+ var pass=document.getElementById("admin-pass").value;
+ var err=document.getElementById("admin-err");
+ err.textContent="Verificando...";
+ fetch("/api/lms/admin-login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({password:pass})})
+  .then(function(r){return r.json();}).then(function(r){
+   if(!r.ok){err.textContent="Contraseña incorrecta.";return;}
+   document.getElementById("topbar-rut").textContent="Admin";
+   document.getElementById("btn-admin-top").style.display="inline-block";
+   showAdmin();
+  }).catch(function(){err.textContent="Error de conexión. Intenta de nuevo.";});
 }
 function showAdmin(){
  var done=0;function ready(){if(++done===4){popSel();aTab("dash");rARuts();rAConvs();rALogs();show("p-admin");document.querySelector(".wrap").classList.add("admin-mode");}}
@@ -631,12 +642,11 @@ function renderModEditor(convKey){
  var c=CV[convKey],el=document.getElementById("mod-editor");
  el.innerHTML="";
  c.modules.forEach(function(mod,mi){
- var saved=getSavedContent(convKey,mod.id);
  var sec=document.createElement("div");
  sec.id="sec-"+convKey+"-"+mi;
  sec.style.cssText="border:1px solid #e5e7eb;border-radius:10px;padding:14px;margin-bottom:14px";
- var ytVal=saved.ytId||mod.ytId||"";
- var qs=saved.questions&&saved.questions.length?saved.questions:mod.questions;
+ var ytVal=mod.ytId||"";
+ var qs=mod.questions&&mod.questions.length?mod.questions:[];
  sec.innerHTML=
  '<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">'+
  '<span style="background:'+c.bg+';color:'+c.color+';font-size:11px;font-weight:600;padding:2px 8px;border-radius:99px">Módulo '+(mi+1)+'</span>'+
@@ -764,8 +774,6 @@ function saveModContent(convKey,mi){
  qs.push({q:qText,opts:opts,ans:ans});
  });
  if(!qs.length){alert("Agrega al menos una pregunta antes de guardar.");return;}
- var data={ytId:ytId,questions:qs};
- localStorage.setItem("kc_"+convKey+"_"+mod.id,JSON.stringify(data));
  if(ytId)CV[convKey].modules[mi].ytId=ytId;
  else delete CV[convKey].modules[mi].ytId;
  CV[convKey].modules[mi].questions=qs;
@@ -861,7 +869,9 @@ function checkVencimiento(rut){
 
 function reiniciarProg(rut){
  if(!confirm("¿Reiniciar todo el progreso de "+rut+"? Deberá completar la capacitación desde cero."))return;
+ _progCache[rut]={};
  localStorage.removeItem("kp_"+rut);
+ fetch("/api/lms/progreso/"+encodeURIComponent(rut),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({})}).catch(function(){});
  rARuts();renderDash();
  toast("Progreso reiniciado: "+rut);
 }
@@ -1062,11 +1072,12 @@ function saveCustomCVs(){
  var data={};
  Object.entries(CV).forEach(function(e){
   data[e[0]]={name:e[1].name,color:e[1].color,bg:e[1].bg,modules:e[1].modules.map(function(m){
-   return {id:m.id,title:m.title,desc:m.desc||"",driveId:m.driveId||"",ytId:m.ytId||"",questions:m.questions||[]};
+   return {id:m.id,title:m.title,desc:m.desc||"",driveId:m.driveId||"",ytId:m.ytId||"",questions:m.questions||[],opcional:!!m.opcional};
   })};
  });
  localStorage.setItem("karri_cvs",JSON.stringify(data));
- fetch("/api/lms/contenido",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(data)}).catch(function(){});
+ fetch("/api/lms/contenido",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(data)})
+  .then(function(r){if(!r.ok)toast("Error al guardar contenido",false);}).catch(function(){toast("Sin conexión al guardar",false);});
 }
 function rALogs(){
  var logs=gL(),tb=document.getElementById("log-tb");tb.innerHTML="";
@@ -1283,15 +1294,15 @@ function goMods(){if(S.vt)clearInterval(S.vt);renderMods();}
 function doLogout(){if(S.vt)clearInterval(S.vt);S={rut:"",conv:null,prog:{},mod:null,qi:0,ans:[],vt:null,sl:0};document.getElementById("rut-in").value="";document.getElementById("topbar-rut").textContent="";document.getElementById("btn-admin-top").style.display="none";document.querySelector(".wrap").classList.remove("admin-mode");show("p-login");}
 
 // Auto-login cuando el LMS carga dentro del panel (modo=panel)
+// La sesión del panel ya autenticó al usuario — ocultamos el login y vamos directo al admin
 (function(){
   if(new URLSearchParams(window.location.search).get("mode")==="panel"){
-    // Ocultar login inmediatamente (sin flash)
     document.querySelectorAll(".page").forEach(function(p){p.classList.remove("active");});
     document.querySelector(".wrap").classList.add("admin-mode");
     document.getElementById("topbar-rut").textContent="Admin";
     document.getElementById("btn-admin-top").style.display="none";
     document.getElementById("btn-salir-admin").style.display="none";
-    showAdmin();
+    showAdmin(); // requireLmsAdmin pasa porque la cookie de sesión del panel está presente
   }
 })();
 </script>
