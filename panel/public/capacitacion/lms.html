@@ -349,17 +349,18 @@ function applyCV(data){
 }
 function loadContenido(cb){
  fetch("/api/lms/contenido").then(function(r){return r.json();}).then(function(data){
-  if(data&&Object.keys(data).length){applyCV(data);}
-  else{
-   var s=localStorage.getItem("karri_cvs");
-   if(s)try{applyCV(JSON.parse(s));}catch(e){}
-   loadSavedContent();
+  if(data&&Object.keys(data).length){
+   applyCV(data);
+   localStorage.setItem("karri_cvs",JSON.stringify(data));
+  } else {
+   // Server retorna {} → estado vacío autoritativo, limpiar caché local
+   localStorage.removeItem("karri_cvs");
   }
   if(cb)cb();
  }).catch(function(){
+  // Solo usar localStorage si hay error de red
   var s=localStorage.getItem("karri_cvs");
   if(s)try{applyCV(JSON.parse(s));}catch(e){}
-  loadSavedContent();
   if(cb)cb();
  });
 }
@@ -614,12 +615,13 @@ function initContentTab(){
  };})(e[0]);
  ct.appendChild(btn);
  });
- renderModEditor(Object.keys(CV)[0]);
+ var fk=Object.keys(CV)[0];if(fk)renderModEditor(fk);
 }
 
 function renderModEditor(convKey){
  var c=CV[convKey],el=document.getElementById("mod-editor");
  el.innerHTML="";
+ if(!c)return;
  c.modules.forEach(function(mod,mi){
  var sec=document.createElement("div");
  sec.id="sec-"+convKey+"-"+mi;
