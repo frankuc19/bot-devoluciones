@@ -482,6 +482,18 @@ function renderDash(){
  var ml=gM(),el=document.getElementById("dash-content");
  el.innerHTML="";
 
+ // Acceso directo del conductor
+ var condUrl=window.location.origin+"/lms";
+ var linkCard=document.createElement("div");
+ linkCard.style.cssText="background:#f0fdf8;border:1px solid #6ee7b7;border-radius:10px;padding:14px 16px;margin-bottom:20px;display:flex;align-items:center;gap:12px;flex-wrap:wrap";
+ linkCard.innerHTML=
+  '<div style="flex:1;min-width:0">'+
+  '<p style="font-size:11px;font-weight:600;color:#15803d;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px">Link para conductores</p>'+
+  '<p id="cond-link-txt" style="font-size:13px;font-family:monospace;color:#1f2937;word-break:break-all">'+condUrl+'</p>'+
+  '</div>'+
+  '<button onclick="copiarLinkConductor()" style="flex-shrink:0;background:#1c9996;color:#fff;border:none;border-radius:7px;padding:8px 14px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit" id="btn-copiar-link">Copiar</button>';
+ el.appendChild(linkCard);
+
  var totalCond=Object.keys(ml).length;
  var completados=0,enProgreso=0,sinIniciar=0,reprobados=0;
  Object.entries(ml).forEach(function(e){
@@ -1290,6 +1302,13 @@ function descargarCert(){
 }
 
 
+function copiarLinkConductor(){
+ var url=window.location.origin+"/lms";
+ navigator.clipboard.writeText(url).then(function(){
+  var btn=document.getElementById("btn-copiar-link");
+  if(btn){btn.textContent="Copiado";setTimeout(function(){btn.textContent="Copiar";},2000);}
+ }).catch(function(){toast("No se pudo copiar: "+url,false);});
+}
 function goMods(){if(S.vt)clearInterval(S.vt);renderMods();}
 function doLogout(){if(S.vt)clearInterval(S.vt);S={rut:"",conv:null,prog:{},mod:null,qi:0,ans:[],vt:null,sl:0};document.getElementById("rut-in").value="";document.getElementById("topbar-rut").textContent="";document.getElementById("btn-admin-top").style.display="none";document.querySelector(".wrap").classList.remove("admin-mode");show("p-login");}
 
