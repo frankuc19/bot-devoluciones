@@ -221,7 +221,6 @@ tr:hover td{background:#f9fafb}
  <button class="tab-btn active" onclick="aTab('ruts')" id="tab-ruts">RUTs</button>
  <button class="tab-btn" onclick="aTab('dash')" id="tab-dash">Dashboard</button>
  <button class="tab-btn" onclick="aTab('content')" id="tab-content">Contenido</button>
- <button class="tab-btn" onclick="aTab('seg')" id="tab-seg">Seguridad</button>
  <button class="tab-btn" onclick="aTab('convs')" id="tab-convs">Convenios</button>
  <button class="tab-btn" onclick="aTab('logs')" id="tab-logs">Registros</button>
  </div>
@@ -260,18 +259,6 @@ tr:hover td{background:#f9fafb}
  <p style="font-size:13px;color:#6b7280;margin-bottom:14px">Selecciona un convenio para editar sus videos y preguntas.</p>
  <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap" id="conv-tabs"></div>
  <div id="mod-editor"></div>
- </div>
- <!-- SEGURIDAD -->
- <div id="admin-seg" style="display:none">
- <p style="font-size:13px;font-weight:600;margin-bottom:14px">Cambiar contraseña de administrador</p>
- <label>Contraseña actual</label>
- <input type="password" id="pass-actual" placeholder="Contraseña actual" style="margin-bottom:8px"/>
- <label>Nueva contraseña</label>
- <input type="password" id="pass-nueva" placeholder="Nueva contraseña" style="margin-bottom:8px"/>
- <label>Confirmar nueva contraseña</label>
- <input type="password" id="pass-confirm" placeholder="Repite la nueva contraseña" style="margin-bottom:4px"/>
- <div class="err" id="pass-err"></div>
- <button class="btn btn-primary" onclick="cambiarPass()" style="margin-top:8px"> Guardar nueva contraseña</button>
  </div>
  <!-- CONVENIOS -->
  <div id="admin-convs" style="display:none">
@@ -350,8 +337,6 @@ function gQ(c){return[
 ];}
 
 var S={rut:"",conv:null,prog:{},mod:null,qi:0,ans:[],vt:null,sl:0};
-var savedPass=localStorage.getItem("karri_ap");
-if(savedPass)AP=savedPass;
 function applyCV(data){
  Object.entries(data).forEach(function(e){
   var k=e[0],d=e[1];
@@ -476,7 +461,7 @@ function popSel(){
  document.getElementById("nconv").innerHTML=o;
  document.getElementById("fconv").innerHTML='<option value="">Todos</option>'+o;
 }
-function aTab(t){["ruts","dash","content","seg","convs","logs"].forEach(function(x){var el=document.getElementById("admin-"+x);if(el)el.style.display=x===t?"block":"none";var btn=document.getElementById("tab-"+x);if(btn)btn.classList.toggle("active",x===t);});if(t==="content")initContentTab();if(t==="dash")renderDash();}
+function aTab(t){["ruts","dash","content","convs","logs"].forEach(function(x){var el=document.getElementById("admin-"+x);if(el)el.style.display=x===t?"block":"none";var btn=document.getElementById("tab-"+x);if(btn)btn.classList.toggle("active",x===t);});if(t==="content")initContentTab();if(t==="dash")renderDash();}
 
 function renderDash(){
  var ml=gM(),el=document.getElementById("dash-content");
@@ -614,24 +599,6 @@ function kpi(label,val,color,cols){
  '</div>';
 }
 
-function cambiarPass(){
- var actual=document.getElementById("pass-actual").value;
- var nueva=document.getElementById("pass-nueva").value;
- var confirm=document.getElementById("pass-confirm").value;
- var err=document.getElementById("pass-err");
- var saved=localStorage.getItem("karri_ap");
- var currentPass=saved||AP;
- if(actual!==currentPass){err.textContent="La contraseña actual es incorrecta.";return;}
- if(nueva.length<6){err.textContent="La nueva contraseña debe tener al menos 6 caracteres.";return;}
- if(nueva!==confirm){err.textContent="Las contraseñas no coinciden.";return;}
- localStorage.setItem("karri_ap",nueva);
- AP=nueva;
- err.style.color="#15803d";err.textContent=" Contraseña actualizada correctamente.";
- document.getElementById("pass-actual").value="";
- document.getElementById("pass-nueva").value="";
- document.getElementById("pass-confirm").value="";
- setTimeout(function(){err.textContent="";err.style.color="#dc2626";},3000);
-}
 
 function initContentTab(){
  var ct=document.getElementById("conv-tabs");ct.innerHTML="";
