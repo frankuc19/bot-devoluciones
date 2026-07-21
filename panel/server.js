@@ -75,7 +75,21 @@ const PANEL_USER = process.env.PANEL_USER     || 'admin';
 const PANEL_PASS = process.env.PANEL_PASSWORD || 'changeme';
 const USERS_PATH = path.join(__dirname, '..', 'config', 'users.json');
 
-const sessions = new Map(); // token -> { id, username, name, role }
+// Sesiones del panel — persistidas en disco para sobrevivir reinicios
+const SESSIONS_FILE = path.join(DATA_DIR, 'sessions.json');
+function loadSessions() {
+  try { return new Map(Object.entries(JSON.parse(fs.readFileSync(SESSIONS_FILE, 'utf8')))); }
+  catch { return new Map(); }
+}
+function saveSessions(map) {
+  try {
+    const obj = {};
+    map.forEach((v, k) => { obj[k] = v; });
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+    fs.writeFileSync(SESSIONS_FILE, JSON.stringify(obj));
+  } catch {}
+}
+const sessions = loadSessions();
 
 function readUsers() {
   try {
@@ -145,18 +159,19 @@ app.get('/lms', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'capacitacion', 'lms.html'));
 });
 
-// Auth del admin del LMS (password karri2026) — genera cookie de sesión propia
-let lmsAdminToken = null;
+// Auth del admin del LMS — token determinístico derivado del password (sobrevive reinicios)
 const LMS_AP = process.env.LMS_AP || 'karri2026';
+const lmsAdminToken = crypto.createHash('sha256').update('lms_admin:' + LMS_AP).digest('hex');
 app.post('/api/lms/admin-login', (req, res) => {
   if (req.body?.password !== LMS_AP) return res.json({ ok: false, error: 'Contraseña incorrecta' });
-  lmsAdminToken = crypto.randomBytes(32).toString('hex');
-  res.cookie('lms_admin', lmsAdminToken, { httpOnly: true, sameSite: 'lax', maxAge: 8 * 60 * 60 * 1000 });
+  // Cookie válida 8h; el token es siempre el mismo para este password
+  res.setHeader('Set-Cookie', `lms_admin=${lmsAdminToken}; HttpOnly; Path=/; SameSite=Lax; Max-Age=${8*3600}`);
   res.json({ ok: true });
 });
 function requireLmsAdmin(req, res, next) {
   if (getSession(req)) return next();
-  if (lmsAdminToken && req.cookies?.lms_admin === lmsAdminToken) return next();
+  // Usar parseCookies (no req.cookies — no hay cookie-parser instalado)
+  if (parseCookies(req).lms_admin === lmsAdminToken) return next();
   res.status(401).json({ ok: false, error: 'No autorizado' });
 }
 
@@ -258,6 +273,7 @@ app.post('/login', (req, res) => {
   if (session) {
     const token = crypto.randomBytes(32).toString('hex');
     sessions.set(token, session);
+    saveSessions(sessions);
     res.setHeader('Set-Cookie', `token=${token}; HttpOnly; Path=/; SameSite=Strict`);
     const sections = session.role === 'admin' ? ALL_SECTIONS : (session.sections || []);
     return res.redirect(SECTION_HOME[sections[0]] || '/');
@@ -267,7 +283,7 @@ app.post('/login', (req, res) => {
 
 app.post('/logout', (req, res) => {
   const token = parseCookies(req).token;
-  if (token) sessions.delete(token);
+  if (token) { sessions.delete(token); saveSessions(sessions); }
   res.setHeader('Set-Cookie', 'token=; HttpOnly; Path=/; Max-Age=0');
   res.redirect('/login');
 });

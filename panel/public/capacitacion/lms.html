@@ -338,13 +338,13 @@ function gQ(c){return[
 
 var S={rut:"",conv:null,prog:{},mod:null,qi:0,ans:[],vt:null,sl:0};
 function applyCV(data){
+ // Reemplazar CV completamente para que las eliminaciones se respeten
+ Object.keys(CV).forEach(function(k){delete CV[k];});
  Object.entries(data).forEach(function(e){
   var k=e[0],d=e[1];
-  if(!CV[k]){CV[k]={name:d.name,color:d.color,bg:d.bg,modules:[]};}
-  CV[k].name=d.name;CV[k].color=d.color;CV[k].bg=d.bg;
-  CV[k].modules=(d.modules||[]).map(function(m){
+  CV[k]={name:d.name,color:d.color,bg:d.bg,modules:(d.modules||[]).map(function(m){
    return {id:m.id,title:m.title,desc:m.desc||"",driveId:m.driveId||"",ytId:m.ytId||"",questions:m.questions||[],opcional:!!m.opcional};
-  });
+  })};
  });
 }
 function loadContenido(cb){
@@ -364,7 +364,6 @@ function loadContenido(cb){
   if(cb)cb();
  });
 }
-loadContenido();
 var _condCache=null;
 function gM(){return _condCache||{};}
 function sM(m){
@@ -431,12 +430,18 @@ function doLogin(){
  err.textContent="Verificando...";
  loadCond(function(){
    var ml=gM(),conv=ml[rut];
-   if(!conv||!CV[conv]){err.textContent="RUT no registrado. Contacta a operaciones: repartidores@karri.cl";return;}
-   err.textContent="Cargando progreso...";
-   fetchProg(rut,function(prog){
-     err.textContent="";S.rut=rut;S.conv=conv;S.prog=prog;
-     document.getElementById("topbar-rut").textContent=rut;
-     renderMods();
+   if(!conv){err.textContent="RUT no registrado. Contacta a operaciones: repartidores@karri.cl";return;}
+   err.textContent="Cargando módulos...";
+   // Forzar recarga del contenido desde servidor para que el conductor
+   // siempre vea los módulos más recientes, no el CV cacheado en memoria
+   loadContenido(function(){
+     if(!CV[conv]){err.textContent="Convenio no configurado. Contacta a operaciones.";return;}
+     err.textContent="Cargando progreso...";
+     fetchProg(rut,function(prog){
+       err.textContent="";S.rut=rut;S.conv=conv;S.prog=prog;
+       document.getElementById("topbar-rut").textContent=rut;
+       renderMods();
+     });
    });
  });
 }
