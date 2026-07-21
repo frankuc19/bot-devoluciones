@@ -763,10 +763,11 @@ function saveModContent(convKey,mi){
  if(ytId)CV[convKey].modules[mi].ytId=ytId;
  else delete CV[convKey].modules[mi].ytId;
  CV[convKey].modules[mi].questions=qs;
- saveCustomCVs();
- var ok=document.getElementById("save-ok-"+convKey+"-"+mi);
- ok.style.display="inline";setTimeout(function(){ok.style.display="none";},2500);
- toast("Módulo guardado: "+mod.title+" ("+qs.length+" preguntas)");
+ saveCustomCVs(function(){
+  var okEl=document.getElementById("save-ok-"+convKey+"-"+mi);
+  if(okEl){okEl.style.display="inline";setTimeout(function(){okEl.style.display="none";},2500);}
+  toast("Módulo guardado: "+mod.title+" ("+qs.length+" preguntas)");
+ });
 }
 
 function loadSavedContent(){
@@ -1054,7 +1055,7 @@ function hexToLight(hex){
  }catch(e){return "#f3f4f6";}
 }
 
-function saveCustomCVs(){
+function saveCustomCVs(onOk,onErr){
  var data={};
  Object.entries(CV).forEach(function(e){
   data[e[0]]={name:e[1].name,color:e[1].color,bg:e[1].bg,modules:e[1].modules.map(function(m){
@@ -1063,7 +1064,13 @@ function saveCustomCVs(){
  });
  localStorage.setItem("karri_cvs",JSON.stringify(data));
  fetch("/api/lms/contenido",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(data)})
-  .then(function(r){if(!r.ok)toast("Error al guardar contenido",false);}).catch(function(){toast("Sin conexión al guardar",false);});
+  .then(function(r){
+   if(r.ok){if(onOk)onOk();}
+   else{
+    var msg=r.status===401?"Sin sesión — recarga la página y vuelve a ingresar":"Error al guardar contenido";
+    toast(msg,false);if(onErr)onErr();
+   }
+  }).catch(function(){toast("Sin conexión al guardar",false);if(onErr)onErr();});
 }
 function rALogs(){
  var logs=gL(),tb=document.getElementById("log-tb");tb.innerHTML="";
