@@ -148,6 +148,12 @@ app.set('io', io);
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+// Manejador de JSON malformado — evita que Express devuelva HTML en errores de parseo
+app.use((err, req, res, next) => {
+  if (err.type === 'entity.parse.failed')
+    return res.status(400).json({ ok: false, error: 'JSON inválido' });
+  next(err);
+});
 
 // ─── Login (rutas publicas) ───────────────────────────────────────────────────
 app.get('/login', (req, res) => {
