@@ -6,4 +6,10 @@ config/google-credentials.json
 data/devoluciones.csv
 data/devoluciones.xlsx
 data/log_envios_*.txt
+# Archivos de datos LMS — se crean en runtime, no deben estar en la imagen Docker
+data/lms_conductores.json
+data/lms_contenido.json
+data/lms_progreso.json
+data/lms_logs.json
+data/sessions.json
 

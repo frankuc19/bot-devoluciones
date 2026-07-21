@@ -160,6 +160,31 @@ app.get('/login', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'login.html'));
 });
 
+// Diagnóstico de datos — verifica que DATA_DIR y los archivos LMS existan
+app.get('/api/lms/health', (req, res) => {
+  const files = ['lms_conductores.json','lms_contenido.json','lms_progreso.json','lms_logs.json','sessions.json'];
+  const info = {
+    DATA_DIR,
+    disk_mounted: fs.existsSync(DATA_DIR),
+    files: {},
+    uptime_minutes: Math.floor(process.uptime() / 60),
+    node_env: process.env.NODE_ENV || 'development',
+  };
+  files.forEach(f => {
+    const p = path.join(DATA_DIR, f);
+    try {
+      const stat = fs.statSync(p);
+      const raw = fs.readFileSync(p, 'utf8');
+      const parsed = JSON.parse(raw);
+      const count = Array.isArray(parsed) ? parsed.length : Object.keys(parsed).length;
+      info.files[f] = { exists: true, bytes: stat.size, entries: count };
+    } catch {
+      info.files[f] = { exists: false };
+    }
+  });
+  res.json(info);
+});
+
 // ─── LMS público (conductores acceden sin login del panel) ───────────────────
 app.get('/lms', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'capacitacion', 'lms.html'));
@@ -782,5 +807,19 @@ io.on('connection', (socket) => socket.emit('wa_estado', { estado: waEstado }));
 server.listen(PORT, () => {
   console.log(`\nPanel de control: http://localhost:${PORT}`);
   console.log(`Fuente de datos: ${USA_SHEETS ? 'Google Sheets' : 'archivo local CSV'}`);
-  console.log(`Usuario del panel: ${PANEL_USER}\n`);
+  console.log(`Usuario del panel: ${PANEL_USER}`);
+  // Diagnóstico de disco — visible en los logs de Render al arrancar
+  console.log(`\n[LMS] DATA_DIR: ${DATA_DIR}`);
+  const diskOk = fs.existsSync(DATA_DIR);
+  console.log(`[LMS] Disco montado en ${DATA_DIR}: ${diskOk ? 'SÍ ✓' : 'NO ✗ — los datos son efímeros'}`);
+  if (diskOk) {
+    const lmsFiles = ['lms_conductores.json','lms_contenido.json','lms_progreso.json','lms_logs.json'];
+    lmsFiles.forEach(f => {
+      const p = path.join(DATA_DIR, f);
+      const exists = fs.existsSync(p);
+      const size = exists ? fs.statSync(p).size : 0;
+      console.log(`[LMS]   ${f}: ${exists ? `${size} bytes` : 'no existe (se creará al primer guardado)'}`);
+    });
+  }
+  console.log('');
 });
