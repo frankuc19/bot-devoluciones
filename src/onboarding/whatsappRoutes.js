@@ -35,7 +35,8 @@ router.post('/parse-contacts', upload.single('file'), (req, res) => {
 router.post('/send', (req, res) => {
   const io = req.app.get('io');
   const waClient = req.app.get('waClient');
-  const { contactsTempId, name, message, phoneColumn, delay = 2500 } = req.body;
+  const { contactsTempId, name, message, phoneColumn } = req.body;
+  const delay = Math.max(500, Math.min(30000, Number(req.body.delay) || 2500));
 
   const contactsPath = path.join(UPLOADS_DIR, contactsTempId);
   if (!fs.existsSync(contactsPath)) return res.status(400).json({ error: 'Archivo temporal no encontrado' });

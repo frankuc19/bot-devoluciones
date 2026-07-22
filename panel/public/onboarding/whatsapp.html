@@ -145,6 +145,7 @@
           <p id="wa-warning" class="hidden" style="color:#f59e0b;font-size:12px;padding:10px;border-radius:8px;background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.2);">
             ⚠️ WhatsApp no conectado. Conéctalo desde el botón "Conectar WA" en la barra superior.
           </p>
+          <p id="send-error" class="hidden" style="color:#ef4444;font-size:12px;padding:10px;border-radius:8px;background:rgba(239,68,68,.06);border:1px solid rgba(239,68,68,.2);"></p>
         </div>
         <div class="flex justify-between">
           <button onclick="goStep('config')" class="btn-secondary"><i data-lucide="chevron-left" class="w-4 h-4"></i> Atrás</button>
@@ -199,6 +200,7 @@ socket.on('campaign:complete', ({ stats }) => {
   document.getElementById('send-done').classList.remove('hidden');
   document.getElementById('send-result').textContent = `${stats.sent} enviados · ${stats.failed} errores`;
   sending = false;
+  document.getElementById('btn-send').disabled = false;
 });
 
 async function conectarWA() { await fetch('/api/whatsapp/conectar', { method:'POST' }); }
@@ -284,18 +286,28 @@ async function enviar() {
   document.getElementById('btn-send').disabled = true;
   document.getElementById('send-progress').classList.remove('hidden');
   document.getElementById('send-done').classList.add('hidden');
+  document.getElementById('send-error').classList.add('hidden');
   document.getElementById('send-bar').style.width = '0%';
 
-  await fetch('/api/ob/whatsapp/send', {
-    method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({
-      contactsTempId: contactsData.tempId,
-      name:     document.getElementById('cfg-name').value,
-      message:  document.getElementById('msg-text').value,
-      phoneColumn: document.getElementById('phone-col').value,
-      delay:    Number(document.getElementById('cfg-delay').value),
-    }),
-  });
+  try {
+    const r = await fetch('/api/ob/whatsapp/send', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        contactsTempId: contactsData.tempId,
+        name:        document.getElementById('cfg-name').value,
+        message:     document.getElementById('msg-text').value,
+        phoneColumn: document.getElementById('phone-col').value,
+        delay:       Number(document.getElementById('cfg-delay').value),
+      }),
+    }).then(x => x.json());
+    if (r.error) throw new Error(r.error);
+  } catch (e) {
+    document.getElementById('send-progress').classList.add('hidden');
+    document.getElementById('send-error').classList.remove('hidden');
+    document.getElementById('send-error').textContent = 'Error: ' + e.message;
+    document.getElementById('btn-send').disabled = false;
+    sending = false;
+  }
 }
 
 // ── Ejemplos de mensajes ─────────────────────────────────────────────
