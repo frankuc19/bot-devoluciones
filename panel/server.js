@@ -417,10 +417,11 @@ app.use('/api/ob/campaigns', requireAuthApi, campaignsRoutes);
 app.use('/api/ob/templates', requireAuthApi, templatesRoutes);
 
 // ─── Estado global ────────────────────────────────────────────────────────────
-let waClient        = null;
-let waEstado        = 'desconectado';
-let mensajes        = [];
-let _reconectarAuto = true;
+let waClient           = null;
+let waEstado           = 'desconectado';
+let mensajes           = [];
+let _reconectarAuto    = true;
+let _reconectarTimer   = null;
 
 // ─── Cargar datos (Google Sheets o CSV local) ─────────────────────────────────
 async function cargarDatos() {
@@ -513,12 +514,16 @@ app.post('/api/whatsapp/conectar', requireAuthApi, (req, res) => {
 
 app.post('/api/whatsapp/desconectar', requireAuthApi, async (req, res) => {
   _reconectarAuto = false;
+  if (_reconectarTimer) { clearTimeout(_reconectarTimer); _reconectarTimer = null; }
   if (waClient) {
     await waClient.logout().catch(() => {});
     waClient = null;
-    waEstado = 'desconectado';
-    io.emit('wa_estado', { estado: 'desconectado' });
   }
+  // Borrar archivos de sesión para que el próximo "Conectar WA" muestre QR fresco
+  fs.rmSync(WA_AUTH_DIR, { recursive: true, force: true });
+  fs.mkdirSync(WA_AUTH_DIR, { recursive: true });
+  waEstado = 'desconectado';
+  io.emit('wa_estado', { estado: 'desconectado' });
   res.json({ ok: true });
 });
 
@@ -718,9 +723,15 @@ async function iniciarWhatsApp() {
         app.set('waClient', null);
         waEstado  = 'desconectado';
         io.emit('wa_estado', { estado: 'desconectado' });
-        if (_reconectarAuto && !loggedOut) {
+        if (loggedOut) {
+          // Sesión revocada desde el teléfono — limpiar credenciales para que el próximo QR sea fresco
+          fs.rmSync(WA_AUTH_DIR, { recursive: true, force: true });
+          fs.mkdirSync(WA_AUTH_DIR, { recursive: true });
+          console.log('WhatsApp: sesión cerrada remotamente, credenciales eliminadas');
+        } else if (_reconectarAuto) {
           console.log('Reconectando WhatsApp...');
-          setTimeout(iniciarWhatsApp, 3000);
+          if (_reconectarTimer) clearTimeout(_reconectarTimer);
+          _reconectarTimer = setTimeout(() => { _reconectarTimer = null; iniciarWhatsApp(); }, 3000);
         }
       }
     });
