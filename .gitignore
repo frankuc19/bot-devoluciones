@@ -12,4 +12,6 @@ data/lms_contenido.json
 data/lms_progreso.json
 data/lms_logs.json
 data/sessions.json
+# Usuarios — almacenados en disco persistente en runtime
+config/users.json
 

@@ -73,7 +73,9 @@ async function obtenerContactos() {
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 const PANEL_USER = process.env.PANEL_USER     || 'admin';
 const PANEL_PASS = process.env.PANEL_PASSWORD || 'changeme';
-const USERS_PATH = path.join(__dirname, '..', 'config', 'users.json');
+const USERS_PATH = path.join(DATA_DIR, 'users.json');
+
+function hashPwd(p) { return crypto.createHash('sha256').update(p).digest('hex'); }
 
 // Sesiones del panel — persistidas en disco para sobrevivir reinicios
 const SESSIONS_FILE = path.join(DATA_DIR, 'sessions.json');
@@ -103,12 +105,25 @@ function writeUsers(users) {
   fs.writeFileSync(USERS_PATH, JSON.stringify({ users }, null, 2), 'utf8');
 }
 
+function migrateLegacyPwd(pwd) {
+  // Si no es un hash SHA-256 (64 hex), es plaintext legado — hashearlo
+  return /^[a-f0-9]{64}$/.test(pwd) ? pwd : hashPwd(pwd);
+}
+
 const ALL_SECTIONS = ['finanzas', 'onboarding', 'operaciones', 'capacitacion', 'perfiles'];
 
 function loginUser(username, password) {
   const users = readUsers();
-  const u = users.find(x => x.username === username && x.password === password);
-  if (u) return { id: u.id, username: u.username, name: u.name, role: u.role, sections: u.sections || [] };
+  const hashed = hashPwd(password);
+  const u = users.find(x => x.username === username && migrateLegacyPwd(x.password) === hashed);
+  if (u) {
+    // Migrar contraseña legacy a hash si es necesario
+    if (!/^[a-f0-9]{64}$/.test(u.password)) {
+      u.password = hashed;
+      writeUsers(users);
+    }
+    return { id: u.id, username: u.username, name: u.name, role: u.role, sections: u.sections || [] };
+  }
   if (username === PANEL_USER && password === PANEL_PASS)
     return { id: '0', username: PANEL_USER, name: 'Admin', role: 'admin', sections: [] };
   return null;
@@ -371,7 +386,7 @@ app.post('/api/perfiles/usuarios', requireAuthApi, requireAdmin, (req, res) => {
     return res.json({ ok: false, error: 'Advanced debe tener al menos 2 secciones' });
   const users = readUsers();
   if (users.find(u => u.username === username)) return res.json({ ok: false, error: 'El usuario ya existe' });
-  const newUser = { id: Date.now().toString(), name, username, password, role, sections: role === 'admin' ? [] : sections };
+  const newUser = { id: Date.now().toString(), name, username, password: hashPwd(password), role, sections: role === 'admin' ? [] : sections };
   users.push(newUser);
   writeUsers(users);
   const { password: _, ...safe } = newUser;
@@ -394,7 +409,7 @@ app.put('/api/perfiles/usuarios/:id', requireAuthApi, requireAdmin, (req, res) =
     return res.json({ ok: false, error: 'Advanced debe tener al menos 2 secciones' });
   if (name)     users[idx].name     = name;
   if (username) users[idx].username = username;
-  if (password) users[idx].password = password;
+  if (password) users[idx].password = hashPwd(password);
   if (role)     users[idx].role     = role;
   users[idx].sections = newRole === 'admin' ? [] : newSections;
   writeUsers(users);

@@ -164,6 +164,11 @@
 <script>
 const SECTION_LABELS = { finanzas:'Finanzas', onboarding:'Onboarding', operaciones:'Operaciones', capacitacion:'Capacitación', perfiles:'Perfiles' };
 let editingId = null;
+let _usersCache = [];
+
+function esc(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
 
 function onRoleChange() {
   const role = document.getElementById('modal-role').value;
@@ -211,27 +216,27 @@ function setSections(arr) {
 }
 
 async function cargarUsuarios() {
-  const users = await fetch('/api/perfiles/usuarios').then(r => r.json());
-  document.getElementById('totalUsers').textContent = `${users.length} usuario(s)`;
+  _usersCache = await fetch('/api/perfiles/usuarios').then(r => r.json());
+  document.getElementById('totalUsers').textContent = `${_usersCache.length} usuario(s)`;
   const tbody = document.getElementById('usersTable');
-  tbody.innerHTML = users.map(u => {
+  tbody.innerHTML = _usersCache.map(u => {
     const secLabels = u.role === 'admin'
       ? '<span style="color:rgba(231,236,235,.4);font-size:11px;">Todas</span>'
-      : (u.sections||[]).map(s => `<span style="font-size:10px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);padding:1px 8px;border-radius:99px;margin-right:4px;">${SECTION_LABELS[s]||s}</span>`).join('') || '<span style="color:rgba(231,236,235,.3);font-size:11px;">—</span>';
+      : (u.sections||[]).map(s => `<span style="font-size:10px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);padding:1px 8px;border-radius:99px;margin-right:4px;">${esc(SECTION_LABELS[s]||s)}</span>`).join('') || '<span style="color:rgba(231,236,235,.3);font-size:11px;">—</span>';
     return `
     <tr style="border-bottom:1px solid rgba(255,255,255,.05);">
-      <td style="padding:14px 20px;font-size:13px;color:#e7eceb;font-weight:500;">${u.name}</td>
-      <td style="padding:14px 20px;font-size:12px;font-family:'JetBrains Mono',monospace;color:rgba(231,236,235,.6);">${u.username}</td>
-      <td style="padding:14px 20px;"><span class="badge-${u.role}">${u.role}</span></td>
+      <td style="padding:14px 20px;font-size:13px;color:#e7eceb;font-weight:500;">${esc(u.name)}</td>
+      <td style="padding:14px 20px;font-size:12px;font-family:'JetBrains Mono',monospace;color:rgba(231,236,235,.6);">${esc(u.username)}</td>
+      <td style="padding:14px 20px;"><span class="badge-${esc(u.role)}">${esc(u.role)}</span></td>
       <td style="padding:14px 20px;">${secLabels}</td>
       <td style="padding:14px 20px;text-align:right;">
         <div style="display:flex;justify-content:flex-end;gap:6px;">
-          <button onclick="editarUsuario('${u.id}')" class="btn-secondary" style="padding:4px 10px;font-size:11px;">
+          <button onclick="editarUsuario('${esc(u.id)}')" class="btn-secondary" style="padding:4px 10px;font-size:11px;">
             <i data-lucide="edit-2" style="width:12px;height:12px;"></i> Editar
           </button>
-          ${u.id !== '1' ? `<button onclick="eliminarUsuario('${u.id}','${u.name}')" class="btn-danger" style="padding:4px 10px;font-size:11px;">
+          <button onclick="confirmarEliminar('${esc(u.id)}')" class="btn-danger" style="padding:4px 10px;font-size:11px;">
             <i data-lucide="trash-2" style="width:12px;height:12px;"></i>
-          </button>` : ''}
+          </button>
         </div>
       </td>
     </tr>`;
@@ -287,14 +292,15 @@ async function guardarUsuario() {
   } catch (e) { errEl.textContent = e.message; errEl.classList.remove('hidden'); }
 }
 
-async function editarUsuario(id) {
-  const users = await fetch('/api/perfiles/usuarios').then(r => r.json());
-  const user  = users.find(u => u.id === id);
+function editarUsuario(id) {
+  const user = _usersCache.find(u => u.id === id);
   if (user) abrirModal(user);
 }
 
-async function eliminarUsuario(id, name) {
-  if (!confirm(`¿Eliminar al usuario "${name}"?`)) return;
+async function confirmarEliminar(id) {
+  const user = _usersCache.find(u => u.id === id);
+  if (!user) return;
+  if (!confirm(`¿Eliminar al usuario "${user.name}"?`)) return;
   const r = await fetch(`/api/perfiles/usuarios/${id}`, { method:'DELETE' }).then(x => x.json());
   if (!r.ok) alert(r.error || 'Error al eliminar');
   cargarUsuarios();
