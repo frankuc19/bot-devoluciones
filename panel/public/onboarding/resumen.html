@@ -105,6 +105,10 @@ let noAbrData = null;
 let autoTimer = null;
 let autoSecs = 30;
 
+function esc(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
 function iniciarTimer() {
   clearInterval(autoTimer);
   autoSecs = 30;
@@ -127,12 +131,15 @@ async function cargarDatos() {
     document.getElementById('statClick').textContent = `${stats.clickRate ?? 0}%`;
     todasCampanas = Array.isArray(campanas) ? campanas : [];
     filtrarCampanas();
-  } catch (e) { console.error(e); }
+  } catch (e) {
+    console.error(e);
+    document.getElementById('campBody').innerHTML = '<p style="text-align:center;padding:40px;color:#ef4444;font-size:13px;">Error al cargar datos — intenta recargar</p>';
+  }
 }
 
 function filtrarCampanas() {
   const q = document.getElementById('busqueda').value.toLowerCase();
-  const filtradas = todasCampanas.filter(c => c.name.toLowerCase().includes(q));
+  const filtradas = todasCampanas.filter(c => (c.name || '').toLowerCase().includes(q));
   document.getElementById('totalCamp').textContent = `${filtradas.length} campañas`;
   renderCampanas(filtradas);
 }
@@ -165,10 +172,11 @@ function renderCampanas(list) {
       ${statusDot(c.status)}
       <div style="flex:1;min-width:0;">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:2px;">
-          <span style="font-size:13px;font-weight:500;color:#e7eceb;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${c.name}</span>
+          <span style="font-size:13px;font-weight:500;color:#e7eceb;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(c.name)}</span>
           ${typeBadge}
         </div>
         <span style="font-size:11px;color:rgba(231,236,235,.4);">${fmtDate(c.createdAt)} · ${(c.stats?.total||0).toLocaleString()} contactos</span>
+
       </div>
       <div style="display:flex;gap:20px;align-items:center;flex-shrink:0;">
         <div style="text-align:right;">
@@ -198,8 +206,8 @@ async function verNoAbr(id) {
     document.getElementById('noAbrBody').innerHTML = noAbrData.nonOpeners.length
       ? noAbrData.nonOpeners.map(c => `
           <div style="display:flex;justify-content:space-between;padding:8px 12px;background:#181c1b;border-radius:8px;margin-bottom:6px;border:1px solid rgba(255,255,255,.06);">
-            <span style="font-size:13px;color:#e7eceb;">${c.nombre||c.name||'—'}</span>
-            <span style="font-size:11px;color:rgba(231,236,235,.4);font-family:monospace;">${c.correo||c.email||''}</span>
+            <span style="font-size:13px;color:#e7eceb;">${esc(c.nombre||c.name||'—')}</span>
+            <span style="font-size:11px;color:rgba(231,236,235,.4);font-family:monospace;">${esc(c.correo||c.email||'')}</span>
           </div>`).join('')
       : '<p style="color:#78fcd6;text-align:center;padding:24px;font-size:13px;">¡Todos abrieron el correo!</p>';
     document.getElementById('btnDescargar').style.display = noAbrData.nonOpeners.length ? '' : 'none';
