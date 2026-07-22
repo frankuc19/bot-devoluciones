@@ -451,14 +451,19 @@ async function guardarNumero(pat) {
 }
 
 async function guardarNumeroTabla(pat) {
-  const tel = document.getElementById(`ie-inp-${pat}`)?.value.replace(/[+\s\-]/g,'');
-  if (!/^\d{10,15}$/.test(tel)) return;
+  const inp = document.getElementById(`ie-inp-${pat}`);
+  const tel = inp?.value.replace(/[+\s\-]/g,'');
+  if (!/^\d{10,15}$/.test(tel)) {
+    addLog('err', `Número inválido para ${pat} — usa formato 56912345678 (sin espacios ni +)`);
+    inp?.focus();
+    return;
+  }
   const res = await fetch('/api/contactos/manual', {
     method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({ patente: pat, telefono: tel }),
   }).then(r => r.json());
   if (res.ok) { addLog('ok', `Número guardado para ${pat}: ${tel}`); await recargarDatos(); }
-  else        addLog('err', res.error);
+  else        addLog('err', `Error guardando ${pat}: ${res.error}`);
 }
 
 function quitar(pat) {

@@ -31,8 +31,23 @@ const templatesRoutes = require('../src/onboarding/templatesRoutes');
 const DELAY_MS   = 5000;
 const PORT       = process.env.PORT || 3000;
 const USA_SHEETS = !!process.env.GOOGLE_SHEET_ID;
-const DATA_DIR   = process.env.DATA_DIR   || path.join(__dirname, '..', 'data');
+const DATA_DIR    = process.env.DATA_DIR   || path.join(__dirname, '..', 'data');
 const WA_AUTH_DIR = process.env.WA_AUTH_DIR || path.join(__dirname, '..', '.wwebjs_auth');
+const MANUAL_PATH = path.join(DATA_DIR, 'contactos_manual.json');
+
+// Cargar overrides manuales desde disco persistente al arrancar
+function loadManualContacts() {
+  try {
+    const data = JSON.parse(fs.readFileSync(MANUAL_PATH, 'utf8'));
+    let n = 0;
+    for (const [k, v] of Object.entries(data)) {
+      process.env[k] = v;
+      n++;
+    }
+    if (n) console.log(`[Manual] ${n} número(s) cargados desde ${MANUAL_PATH}`);
+  } catch {}
+}
+loadManualContacts();
 
 // Escribir google-credentials.json desde variable de entorno (para Render/cloud)
 if (process.env.GOOGLE_CREDENTIALS_B64) {
@@ -542,19 +557,26 @@ app.post('/api/whatsapp/desconectar', requireAuthApi, async (req, res) => {
   res.json({ ok: true });
 });
 
+function readManualContacts() {
+  try { return JSON.parse(fs.readFileSync(MANUAL_PATH, 'utf8')); } catch { return {}; }
+}
+function writeManualContacts(data) {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+  fs.writeFileSync(MANUAL_PATH, JSON.stringify(data, null, 2), 'utf8');
+}
+
 app.post('/api/contactos/manual', requireAuthApi, async (req, res) => {
   const { patente, telefono } = req.body || {};
   if (!patente) return res.json({ ok: false, error: 'Patente requerida' });
   const tel = String(telefono || '').replace(/[+\s\-]/g, '');
   if (!/^\d{10,15}$/.test(tel))
-    return res.json({ ok: false, error: 'Numero invalido — usa formato 56912345678' });
+    return res.json({ ok: false, error: 'Número inválido — usa formato 56912345678' });
   const clave = `PATENTE_${patente.toUpperCase()}`;
-  let contenido = fs.existsSync(ENV_PATH) ? fs.readFileSync(ENV_PATH, 'utf8') : '';
-  const regex = new RegExp(`^${clave}=.*$`, 'm');
-  contenido = regex.test(contenido)
-    ? contenido.replace(regex, `${clave}=${tel}`)
-    : contenido.trimEnd() + `\n${clave}=${tel}\n`;
-  fs.writeFileSync(ENV_PATH, contenido, 'utf8');
+  // Guardar en disco persistente
+  const data = readManualContacts();
+  data[clave] = tel;
+  writeManualContacts(data);
+  // Mantener en process.env para sesión actual
   process.env[clave] = tel;
   const datos = await cargarDatos();
   io.emit('datos_actualizados', { datos });
@@ -563,11 +585,9 @@ app.post('/api/contactos/manual', requireAuthApi, async (req, res) => {
 
 app.delete('/api/contactos/manual/:patente', requireAuthApi, async (req, res) => {
   const clave = `PATENTE_${req.params.patente.toUpperCase()}`;
-  if (fs.existsSync(ENV_PATH)) {
-    let contenido = fs.readFileSync(ENV_PATH, 'utf8');
-    contenido = contenido.replace(new RegExp(`^${clave}=.*\n?`, 'm'), '');
-    fs.writeFileSync(ENV_PATH, contenido, 'utf8');
-  }
+  const data = readManualContacts();
+  delete data[clave];
+  writeManualContacts(data);
   delete process.env[clave];
   const datos = await cargarDatos();
   io.emit('datos_actualizados', { datos });
