@@ -850,6 +850,100 @@ io.use((socket, next) => {
 io.on('connection', (socket) => socket.emit('wa_estado', { estado: waEstado }));
 
 // ─── Start ────────────────────────────────────────────────────────────────────
+// ─── Limpieza automática cada 6 meses ────────────────────────────────────────
+const CLEANUP_META   = path.join(DATA_DIR, 'cleanup_meta.json');
+const SIX_MONTHS_MS  = 6 * 30 * 24 * 60 * 60 * 1000;
+const UPLOAD_TTL_MS  = 7 * 24 * 60 * 60 * 1000; // uploads: 7 días
+
+function runCleanup() {
+  const now = Date.now();
+  const cutoff = new Date(now - SIX_MONTHS_MS);
+  const results = [];
+
+  // 1. Campañas completadas/fallidas con más de 6 meses
+  const campFile = path.join(DATA_DIR, 'campaigns.json');
+  try {
+    const db = JSON.parse(fs.readFileSync(campFile, 'utf8'));
+    const before = db.campaigns.length;
+    db.campaigns = db.campaigns.filter(c =>
+      !['completed','failed'].includes(c.status) || new Date(c.createdAt) >= cutoff
+    );
+    fs.writeFileSync(campFile, JSON.stringify(db, null, 2));
+    results.push(`campaigns: ${before - db.campaigns.length} eliminadas`);
+  } catch {}
+
+  // 2. Logs LMS con más de 6 meses
+  const logsFile = path.join(DATA_DIR, 'lms_logs.json');
+  try {
+    const logs = JSON.parse(fs.readFileSync(logsFile, 'utf8'));
+    const before = logs.length;
+    const filtered = logs.filter(l => new Date(l.ts || l.fecha || 0) >= cutoff);
+    fs.writeFileSync(logsFile, JSON.stringify(filtered, null, 2));
+    results.push(`lms_logs: ${before - filtered.length} eliminados`);
+  } catch {}
+
+  // 3. Sesiones expiradas del panel (más de 8 horas)
+  const SESSION_TTL = 8 * 60 * 60 * 1000;
+  try {
+    const sessObj = JSON.parse(fs.readFileSync(SESSIONS_FILE, 'utf8'));
+    const before = Object.keys(sessObj).length;
+    const filtered = {};
+    for (const [k, v] of Object.entries(sessObj)) {
+      if (now - (v.createdAt || 0) < SESSION_TTL) filtered[k] = v;
+    }
+    fs.writeFileSync(SESSIONS_FILE, JSON.stringify(filtered));
+    results.push(`sessions: ${before - Object.keys(filtered).length} expiradas eliminadas`);
+  } catch {}
+
+  // 4. Archivos temporales de uploads con más de 7 días
+  const uploadsDir = path.join(__dirname, '..', 'uploads');
+  try {
+    let uCount = 0;
+    for (const f of fs.readdirSync(uploadsDir)) {
+      const fp = path.join(uploadsDir, f);
+      if (fs.statSync(fp).mtimeMs < now - UPLOAD_TTL_MS) {
+        fs.unlinkSync(fp);
+        uCount++;
+      }
+    }
+    results.push(`uploads: ${uCount} archivos eliminados`);
+  } catch {}
+
+  // Guardar timestamp de última limpieza
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+  fs.writeFileSync(CLEANUP_META, JSON.stringify({ lastCleanup: new Date().toISOString(), results }));
+  console.log(`[Cleanup] Limpieza completada: ${results.join(' · ')}`);
+}
+
+function scheduleCleanup() {
+  try {
+    const meta = JSON.parse(fs.readFileSync(CLEANUP_META, 'utf8'));
+    const elapsed = Date.now() - new Date(meta.lastCleanup).getTime();
+    if (elapsed >= SIX_MONTHS_MS) {
+      console.log('[Cleanup] Han pasado 6 meses — ejecutando limpieza...');
+      runCleanup();
+    } else {
+      const days = Math.floor((SIX_MONTHS_MS - elapsed) / (24 * 60 * 60 * 1000));
+      console.log(`[Cleanup] Próxima limpieza en ~${days} día(s)`);
+    }
+  } catch {
+    // Primera vez — ejecutar limpieza inicial y guardar fecha
+    console.log('[Cleanup] Primera ejecución — guardando fecha de inicio para ciclo de 6 meses');
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+    fs.writeFileSync(CLEANUP_META, JSON.stringify({ lastCleanup: new Date().toISOString(), results: ['inicio'] }));
+  }
+  // Revisar cada 24h si ya tocó limpiar
+  setInterval(() => {
+    try {
+      const meta = JSON.parse(fs.readFileSync(CLEANUP_META, 'utf8'));
+      if (Date.now() - new Date(meta.lastCleanup).getTime() >= SIX_MONTHS_MS) {
+        console.log('[Cleanup] 6 meses cumplidos — ejecutando limpieza...');
+        runCleanup();
+      }
+    } catch { runCleanup(); }
+  }, 24 * 60 * 60 * 1000);
+}
+
 server.listen(PORT, () => {
   console.log(`\nPanel de control: http://localhost:${PORT}`);
   console.log(`Fuente de datos: ${USA_SHEETS ? 'Google Sheets' : 'archivo local CSV'}`);
@@ -868,4 +962,5 @@ server.listen(PORT, () => {
     });
   }
   console.log('');
+  scheduleCleanup();
 });
