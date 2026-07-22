@@ -180,6 +180,7 @@
   </div>
 </div>
 
+<script src="/socket.io/socket.io.js"></script>
 <script src="/sidebar.js"></script>
 <script>
 const STEPS = ['contacts','html','config','send'];
@@ -324,14 +325,12 @@ async function enviar() {
 
   try {
     const r = await fetch('/api/ob/email/send', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) }).then(x => x.json());
+    if (r.error) throw new Error(r.error);
     document.getElementById('send-status').textContent = `Enviando ${r.total} correos via webhook...`;
-    document.getElementById('send-bar').style.width = '100%';
-    setTimeout(() => {
-      document.getElementById('send-progress').classList.add('hidden');
-      document.getElementById('send-done').classList.remove('hidden');
-      document.getElementById('send-result').textContent = `${r.total} destinatarios procesados`;
-    }, 1500);
+    document.getElementById('send-bar').style.width = '80%';
+    // El resultado real llega por Socket.io (campaign:complete o campaign:error)
   } catch (e) {
+    document.getElementById('send-progress').classList.add('hidden');
     document.getElementById('send-error').classList.remove('hidden');
     document.getElementById('send-error').textContent = 'Error: ' + e.message;
     document.getElementById('btn-send').disabled = false;
@@ -366,12 +365,22 @@ function setViewTabEditor(tab) {
   lucide.createIcons();
 }
 
-function aplicarCambios() {
+async function aplicarCambios() {
   rawHtml = document.getElementById('html-editor').value;
-  const vars = [...new Set([...rawHtml.matchAll(/\{\{([^}]+)\}\}/g)].map(m => m[1].trim()))];
-  if (htmlData) htmlData.variables = vars;
-  else htmlData = { tempId: null, variables: vars };
-  document.getElementById('html-vars').textContent = `Variables: ${vars.join(', ') || 'ninguna'}`;
+  // Re-subir al servidor para actualizar tempId con el HTML editado
+  const fd = new FormData();
+  fd.append('file', new File([rawHtml], 'edited.html', { type: 'text/html' }));
+  try {
+    const r = await fetch('/api/ob/email/parse-html', { method: 'POST', body: fd }).then(x => x.json());
+    if (r.error) throw new Error(r.error);
+    htmlData = r;
+  } catch {
+    // Si falla el re-upload, mantener el tempId anterior y actualizar variables localmente
+    const vars = [...new Set([...rawHtml.matchAll(/\{\{([^}]+)\}\}/g)].map(m => m[1].trim()))];
+    if (htmlData) htmlData.variables = vars;
+    else htmlData = { tempId: null, variables: vars };
+  }
+  document.getElementById('html-vars').textContent = `Variables: ${htmlData?.variables?.join(', ') || 'ninguna'}`;
   document.getElementById('btn-html-next').disabled = false;
   document.getElementById('html-info').classList.remove('hidden');
   document.getElementById('html-iframe').srcdoc = rawHtml;
@@ -381,6 +390,22 @@ function aplicarCambios() {
 // Cerrar modal con Escape
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') cerrarEditor();
+});
+
+// Escuchar errores del webhook via Socket.io
+const socket = io();
+socket.on('campaign:error', ({ error }) => {
+  document.getElementById('send-progress').classList.add('hidden');
+  document.getElementById('send-done').classList.add('hidden');
+  document.getElementById('send-error').classList.remove('hidden');
+  document.getElementById('send-error').textContent = 'Error del servidor de correo: ' + error;
+  document.getElementById('btn-send').disabled = false;
+  sending = false;
+});
+socket.on('campaign:complete', ({ stats }) => {
+  document.getElementById('send-progress').classList.add('hidden');
+  document.getElementById('send-done').classList.remove('hidden');
+  document.getElementById('send-result').textContent = `${stats.sent} enviados · ${stats.failed} fallidos`;
 });
 
 initSidebar('ob-email').then(() => { lucide.createIcons(); renderSteps(); });
