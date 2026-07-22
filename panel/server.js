@@ -850,34 +850,36 @@ io.use((socket, next) => {
 io.on('connection', (socket) => socket.emit('wa_estado', { estado: waEstado }));
 
 // ─── Start ────────────────────────────────────────────────────────────────────
-// ─── Limpieza automática cada 6 meses ────────────────────────────────────────
-const CLEANUP_META   = path.join(DATA_DIR, 'cleanup_meta.json');
-const SIX_MONTHS_MS  = 6 * 30 * 24 * 60 * 60 * 1000;
-const UPLOAD_TTL_MS  = 7 * 24 * 60 * 60 * 1000; // uploads: 7 días
+// ─── Limpieza automática ──────────────────────────────────────────────────────
+const CLEANUP_META      = path.join(DATA_DIR, 'cleanup_meta.json');
+const TWELVE_MONTHS_MS  = 12 * 30 * 24 * 60 * 60 * 1000;
+const TWO_MONTHS_MS     = 2  * 30 * 24 * 60 * 60 * 1000;
+const CLEANUP_CYCLE_MS  = TWELVE_MONTHS_MS; // revisar cada 12 meses
 
 function runCleanup() {
   const now = Date.now();
-  const cutoff = new Date(now - SIX_MONTHS_MS);
+  const cutoff12 = new Date(now - TWELVE_MONTHS_MS);
+  const cutoff2  = new Date(now - TWO_MONTHS_MS);
   const results = [];
 
-  // 1. Campañas completadas/fallidas con más de 6 meses
+  // 1. Campañas completadas/fallidas con más de 12 meses
   const campFile = path.join(DATA_DIR, 'campaigns.json');
   try {
     const db = JSON.parse(fs.readFileSync(campFile, 'utf8'));
     const before = db.campaigns.length;
     db.campaigns = db.campaigns.filter(c =>
-      !['completed','failed'].includes(c.status) || new Date(c.createdAt) >= cutoff
+      !['completed','failed'].includes(c.status) || new Date(c.createdAt) >= cutoff12
     );
     fs.writeFileSync(campFile, JSON.stringify(db, null, 2));
     results.push(`campaigns: ${before - db.campaigns.length} eliminadas`);
   } catch {}
 
-  // 2. Logs LMS con más de 6 meses
+  // 2. Logs LMS con más de 12 meses
   const logsFile = path.join(DATA_DIR, 'lms_logs.json');
   try {
     const logs = JSON.parse(fs.readFileSync(logsFile, 'utf8'));
     const before = logs.length;
-    const filtered = logs.filter(l => new Date(l.ts || l.fecha || 0) >= cutoff);
+    const filtered = logs.filter(l => new Date(l.ts || l.fecha || 0) >= cutoff12);
     fs.writeFileSync(logsFile, JSON.stringify(filtered, null, 2));
     results.push(`lms_logs: ${before - filtered.length} eliminados`);
   } catch {}
@@ -895,13 +897,13 @@ function runCleanup() {
     results.push(`sessions: ${before - Object.keys(filtered).length} expiradas eliminadas`);
   } catch {}
 
-  // 4. Archivos temporales de uploads con más de 7 días
+  // 4. Archivos temporales de uploads con más de 2 meses
   const uploadsDir = path.join(__dirname, '..', 'uploads');
   try {
     let uCount = 0;
     for (const f of fs.readdirSync(uploadsDir)) {
       const fp = path.join(uploadsDir, f);
-      if (fs.statSync(fp).mtimeMs < now - UPLOAD_TTL_MS) {
+      if (fs.statSync(fp).mtimeMs < now - TWO_MONTHS_MS) {
         fs.unlinkSync(fp);
         uCount++;
       }
@@ -919,16 +921,15 @@ function scheduleCleanup() {
   try {
     const meta = JSON.parse(fs.readFileSync(CLEANUP_META, 'utf8'));
     const elapsed = Date.now() - new Date(meta.lastCleanup).getTime();
-    if (elapsed >= SIX_MONTHS_MS) {
-      console.log('[Cleanup] Han pasado 6 meses — ejecutando limpieza...');
+    if (elapsed >= CLEANUP_CYCLE_MS) {
+      console.log('[Cleanup] Han pasado 12 meses — ejecutando limpieza...');
       runCleanup();
     } else {
-      const days = Math.floor((SIX_MONTHS_MS - elapsed) / (24 * 60 * 60 * 1000));
+      const days = Math.floor((CLEANUP_CYCLE_MS - elapsed) / (24 * 60 * 60 * 1000));
       console.log(`[Cleanup] Próxima limpieza en ~${days} día(s)`);
     }
   } catch {
-    // Primera vez — ejecutar limpieza inicial y guardar fecha
-    console.log('[Cleanup] Primera ejecución — guardando fecha de inicio para ciclo de 6 meses');
+    console.log('[Cleanup] Primera ejecución — guardando fecha de inicio para ciclo de 12 meses');
     fs.mkdirSync(DATA_DIR, { recursive: true });
     fs.writeFileSync(CLEANUP_META, JSON.stringify({ lastCleanup: new Date().toISOString(), results: ['inicio'] }));
   }
@@ -936,8 +937,8 @@ function scheduleCleanup() {
   setInterval(() => {
     try {
       const meta = JSON.parse(fs.readFileSync(CLEANUP_META, 'utf8'));
-      if (Date.now() - new Date(meta.lastCleanup).getTime() >= SIX_MONTHS_MS) {
-        console.log('[Cleanup] 6 meses cumplidos — ejecutando limpieza...');
+      if (Date.now() - new Date(meta.lastCleanup).getTime() >= CLEANUP_CYCLE_MS) {
+        console.log('[Cleanup] 12 meses cumplidos — ejecutando limpieza...');
         runCleanup();
       }
     } catch { runCleanup(); }
