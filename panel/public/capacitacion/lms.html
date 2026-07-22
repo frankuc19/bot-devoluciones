@@ -152,6 +152,7 @@ tr:hover td{background:#f9fafb}
  <hr>
  <div class="row">
  <button class="btn btn-ghost btn-sm" onclick="doLogout()">Salir</button>
+ <button class="btn btn-primary btn-sm" id="btn-cert-modulos" onclick="descargarCert()" style="display:none"> Ver certificado</button>
  </div>
 </div>
 
@@ -1102,7 +1103,14 @@ function renderMods(){
  if(cc)card.onclick=(function(id){return function(){openVid(id);};})(mod.id);
  list.appendChild(card);
  });
- if(obligDone===obligs.length&&obligs.length>0){show("p-done");document.getElementById("done-info").textContent="RUT: "+S.rut+" · "+c.name+" · "+obligs.length+"/"+obligs.length+" módulos obligatorios aprobados";return;}
+ if(obligDone===obligs.length&&obligs.length>0){
+  // Guardar fecha de completado si es la primera vez
+  if(!S.prog._completadoEn){S.prog._completadoEn=new Date().toISOString();sP(S.rut,S.prog);}
+  show("p-done");document.getElementById("done-info").textContent="RUT: "+S.rut+" · "+c.name+" · "+obligs.length+"/"+obligs.length+" módulos obligatorios aprobados";return;
+ }
+ // Si hay módulos opcionales pendientes pero los obligatorios están completos, mostrar botón de certificado
+ var btnCert=document.getElementById("btn-cert-modulos");
+ if(btnCert){btnCert.style.display=obligDone===obligs.length&&obligs.length>0?"":"none";}
  checkVencimiento(S.rut);
  renderHistorial();
  show("p-modules");
@@ -1152,7 +1160,8 @@ function submitQ(){
  var ms=CV[S.conv].modules,mod=null;for(var i=0;i<ms.length;i++){if(ms[i].id===S.mod){mod=ms[i];break;}}
  var cor=0;mod.questions.forEach(function(q,i){if(S.ans[i]===q.ans)cor++;});
  var pct=Math.round(cor/mod.questions.length*100),passed=pct>=PP,p=S.prog[mod.id]||{attempts:0};
- p.attempts=(p.attempts||0)+1;p.score=pct;if(passed)p.passed=true;
+ p.attempts=(p.attempts||0)+1;p.score=pct;
+ if(passed){p.passed=true;if(!p.fechaAprobacion)p.fechaAprobacion=new Date().toISOString();}
  S.prog[mod.id]=p;sP(S.rut,S.prog);
  var now=new Date(),entry={rut:S.rut,conv:CV[S.conv].name,mod:mod.title,score:pct,passed:passed,attempt:p.attempts,fecha:now.toLocaleDateString("es-CL")+" "+now.toLocaleTimeString("es-CL")};
  aL(entry);
@@ -1201,8 +1210,9 @@ function renderHistorial(){
 
 function descargarCert(){
  var c=CV[S.conv];
- var now=new Date();
- var fecha=now.toLocaleDateString("es-CL",{day:"numeric",month:"long",year:"numeric"});
+ // Usar fecha real de completado guardada en progreso, no la fecha de hoy
+ var fechaISO=S.prog._completadoEn||new Date().toISOString();
+ var fecha=new Date(fechaISO).toLocaleDateString("es-CL",{day:"numeric",month:"long",year:"numeric"});
  var modList=c.modules.map(function(m,i){
  var p=S.prog[m.id]||{};
  return '<tr>'+
@@ -1277,9 +1287,13 @@ function descargarCert(){
  '</div>'+
  '</body></html>';
 
- var win=window.open("","_blank","width=800,height:700");
- win.document.write(html);
- win.document.close();
+ // Usar Blob URL para evitar bloqueo de popups en móviles y browsers modernos
+ var blob=new Blob([html],{type:"text/html;charset=utf-8"});
+ var url=URL.createObjectURL(blob);
+ var a=document.createElement("a");
+ a.href=url;a.target="_blank";a.rel="noopener";
+ document.body.appendChild(a);a.click();
+ setTimeout(function(){URL.revokeObjectURL(url);document.body.removeChild(a);},2000);
 }
 
 
