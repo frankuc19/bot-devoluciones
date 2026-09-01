@@ -89,6 +89,13 @@
         <select class="input" id="filtroCliente" style="width:200px;" onchange="filtrarYRender(true)">
           <option value="">Todos los clientes</option>
         </select>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <span class="label" style="white-space:nowrap;">Fecha de alta</span>
+          <input type="date" class="input" id="filtroFechaDesde" style="width:150px;" onchange="filtrarYRender(true)">
+          <span style="color:rgba(15,23,22,.3);font-size:12px;">–</span>
+          <input type="date" class="input" id="filtroFechaHasta" style="width:150px;" onchange="filtrarYRender(true)">
+          <button class="btn-ghost" onclick="limpiarFiltroFecha()" title="Quitar filtro de fecha"><i data-lucide="x" style="width:13px;height:13px;"></i></button>
+        </div>
         <div style="flex:1;position:relative;min-width:200px;">
           <i data-lucide="search" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);width:13px;height:13px;color:rgba(15,23,22,.3);"></i>
           <input id="busqueda" type="text" class="input" placeholder="Buscar por nombre o RUT..." style="padding-left:32px;" oninput="filtrarYRender(true)">
@@ -225,12 +232,59 @@ function poblarFiltroClientes() {
 const PAGE_SIZE = 100;
 let paginaActual = 1;
 
+// Convierte "fechaAlta" (texto libre tal como viene de la hoja) a Date.
+// Soporta ISO (2026-09-01), DD-MM-YYYY y DD/MM/YYYY; si no reconoce el
+// formato, deja que el navegador intente interpretarlo.
+function parsearFecha(str) {
+  if (!str) return null;
+  const s = String(str).trim();
+  let m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return new Date(+m[1], +m[2] - 1, +m[3]);
+  m = s.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})/);
+  if (m) return new Date(+m[3], +m[2] - 1, +m[1]);
+  const d = new Date(s);
+  return isNaN(d) ? null : d;
+}
+
+function fechaInputStr(d) {
+  return d.toISOString().slice(0, 10);
+}
+
+function primerDiaMesAnterior() {
+  const d = new Date();
+  return new Date(d.getFullYear(), d.getMonth() - 1, 1);
+}
+function ultimoDiaMesActual() {
+  const d = new Date();
+  return new Date(d.getFullYear(), d.getMonth() + 1, 0);
+}
+
+function limpiarFiltroFecha() {
+  document.getElementById('filtroFechaDesde').value = '';
+  document.getElementById('filtroFechaHasta').value = '';
+  filtrarYRender(true);
+}
+
 function filtrarYRender(resetPagina) {
   if (resetPagina) paginaActual = 1;
   const q = document.getElementById('busqueda').value.toLowerCase();
   const cliente = document.getElementById('filtroCliente').value;
+  const desdeStr = document.getElementById('filtroFechaDesde').value;
+  const hastaStr = document.getElementById('filtroFechaHasta').value;
+  const desde = desdeStr ? new Date(desdeStr + 'T00:00:00') : null;
+  const hasta = hastaStr ? new Date(hastaStr + 'T23:59:59') : null;
+
   let lista = todasAltas;
   if (cliente) lista = lista.filter(a => a.cliente === cliente);
+  if (desde || hasta) {
+    lista = lista.filter(a => {
+      const f = parsearFecha(a.fechaAlta);
+      if (!f) return false; // sin fecha reconocible, no calza con el rango
+      if (desde && f < desde) return false;
+      if (hasta && f > hasta) return false;
+      return true;
+    });
+  }
   if (q) lista = lista.filter(a =>
     (a.nombre || '').toLowerCase().includes(q) ||
     (a.rut || '').toLowerCase().includes(q)
@@ -393,6 +447,9 @@ function exportarCSV() {
   el.download = 'altas_onboarding.csv';
   el.click();
 }
+
+document.getElementById('filtroFechaDesde').value = fechaInputStr(primerDiaMesAnterior());
+document.getElementById('filtroFechaHasta').value = fechaInputStr(ultimoDiaMesActual());
 
 initSidebar('ob-altas').then(() => lucide.createIcons());
 cargarAltas();
