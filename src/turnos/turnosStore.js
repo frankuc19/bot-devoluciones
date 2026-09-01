@@ -9,6 +9,7 @@ const SLOTS_FILE     = path.join(DATA_DIR, 'turnos_slots.json');
 const ASIG_FILE       = path.join(DATA_DIR, 'turnos_asignaciones.json');
 const KARRIERS_FILE  = path.join(DATA_DIR, 'turnos_karriers.json');
 const SETTINGS_FILE  = path.join(DATA_DIR, 'turnos_settings.json');
+const SEED_MARKER_FILE = path.join(DATA_DIR, 'turnos_seed_v1.json');
 
 const SHIFT_TYPES = {
   AM:   { code: 'AM',   name: 'Mañana',   startTime: '08:00', endTime: '14:00' },
@@ -24,9 +25,12 @@ const DEFAULT_SETTINGS = {
   minimumCoverageTarget:   95,
 };
 
-// Tiendas reales (código, nombre, comuna) — se reconcilian automáticamente al
-// arrancar: si el código no existe todavía en turnos_tiendas.json se agrega,
-// sin tocar ni duplicar tiendas que el usuario ya haya creado o editado.
+// Tiendas reales (código, nombre, comuna) — se reconcilian UNA SOLA VEZ (la
+// primera vez que corre esta versión del código): si el código no existe
+// todavía en turnos_tiendas.json se agrega, sin tocar ni duplicar tiendas que
+// el usuario ya haya creado o editado. Después de esa primera vez queda
+// marcado como aplicado (turnos_seed_v1.json) y nunca se vuelve a repetir —
+// si el admin borra una de estas tiendas más adelante, se queda borrada.
 const SEED_TIENDAS = [
   { code: '35',  name: 'Walmart Rancagua',        commune: 'Rancagua' },
   { code: '54',  name: 'LIDER Vicuña Mackenna',   commune: 'La Florida' },
@@ -52,11 +56,13 @@ function tiendaDesdeSeed(seed) {
 }
 
 function ensureSeedTiendas(list) {
+  if (readJson(SEED_MARKER_FILE, null) !== null) return list; // ya se aplicó — no repetir
+
   const codigosExistentes = new Set(list.map(t => t.code));
   const faltantes = SEED_TIENDAS.filter(s => !codigosExistentes.has(s.code)).map(tiendaDesdeSeed);
-  if (faltantes.length === 0) return list;
-  const actualizada = [...list, ...faltantes];
-  writeJson(TIENDAS_FILE, actualizada);
+  const actualizada = faltantes.length ? [...list, ...faltantes] : list;
+  if (faltantes.length) writeJson(TIENDAS_FILE, actualizada);
+  writeJson(SEED_MARKER_FILE, { appliedAt: new Date().toISOString() });
   return actualizada;
 }
 
@@ -82,6 +88,7 @@ function getTiendas() {
   if (list === null) {
     const seeded = SEED_TIENDAS.map(tiendaDesdeSeed);
     writeJson(TIENDAS_FILE, seeded);
+    writeJson(SEED_MARKER_FILE, { appliedAt: new Date().toISOString() });
     return seeded;
   }
   return ensureSeedTiendas(list);
@@ -94,9 +101,18 @@ function saveTienda(tienda) {
   writeJson(TIENDAS_FILE, list);
   return tienda;
 }
+// Elimina la tienda y sus turnos planificados. Se niega si hay Karriers con
+// una asignación ACTIVA en esa tienda, para no borrarles el turno sin avisar
+// — hay que cancelarlos primero (o desactivar la tienda en vez de eliminarla).
 function deleteTienda(id) {
-  const list = getTiendas().filter(t => t.id !== id);
-  writeJson(TIENDAS_FILE, list);
+  const slotsTienda = getSlots().filter(s => s.storeId === id);
+  const slotIds = new Set(slotsTienda.map(s => s.id));
+  const tieneActivas = getAsignaciones().some(a => a.status === 'ACTIVE' && slotIds.has(a.slotId));
+  if (tieneActivas) throw err('STORE_HAS_ACTIVE_ASSIGNMENTS');
+
+  writeJson(TIENDAS_FILE, getTiendas().filter(t => t.id !== id));
+  writeJson(SLOTS_FILE, getSlots().filter(s => s.storeId !== id));
+  writeJson(ASIG_FILE, getAsignaciones().filter(a => !slotIds.has(a.slotId)));
 }
 
 // ─── Settings ─────────────────────────────────────────────────────────────────
@@ -226,6 +242,7 @@ const ERRORES = {
   ASSIGNMENT_NOT_FOUND:  'La asignación no existe.',
   NOT_YOUR_SHIFT:        'Este turno no te pertenece.',
   ALREADY_CANCELLED:     'Este turno ya estaba cancelado.',
+  STORE_HAS_ACTIVE_ASSIGNMENTS: 'Esta tienda tiene Karriers con turnos activos. Cancela esas asignaciones o desactiva la tienda en vez de eliminarla.',
 };
 
 function err(code) {

@@ -105,8 +105,12 @@ adminRouter.put('/tiendas/:id', (req, res) => {
   res.json({ ok: true, tienda });
 });
 adminRouter.delete('/tiendas/:id', (req, res) => {
-  store.deleteTienda(req.params.id);
-  res.json({ ok: true });
+  try {
+    store.deleteTienda(req.params.id);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(400).json({ ok: false, error: e.message, code: e.code || 'ERROR' });
+  }
 });
 
 adminRouter.get('/slots', (req, res) => {

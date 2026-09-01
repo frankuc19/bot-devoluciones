@@ -110,8 +110,9 @@ function render() {
       <td>${t.capacity?.AM ?? 0}</td>
       <td>${t.capacity?.PM ?? 0}</td>
       <td>${t.capacity?.FULL ?? 0}</td>
-      <td>
-        <button class="btn-ghost" onclick='editar(${JSON.stringify(t.id)})'><i data-lucide="pencil" style="width:13px;height:13px;"></i></button>
+      <td style="display:flex;gap:4px;">
+        <button class="btn-ghost" onclick='editar(${JSON.stringify(t.id)})' title="Editar"><i data-lucide="pencil" style="width:13px;height:13px;"></i></button>
+        <button class="btn-ghost" onclick='eliminar(${JSON.stringify(t.id)}, ${JSON.stringify(t.name)})' title="Eliminar"><i data-lucide="trash-2" style="width:13px;height:13px;"></i></button>
       </td>
     </tr>`).join('');
   if (window.lucide) lucide.createIcons({ el: tbody });
@@ -181,6 +182,13 @@ async function guardar() {
     return;
   }
   cerrarModal();
+  cargar();
+}
+
+async function eliminar(id, nombre) {
+  if (!confirm(`¿Eliminar "${nombre}"? Se borrará también su planificación de turnos.\n\nSi hay Karriers con un turno activo en esta tienda, no se podrá eliminar — cancela esas asignaciones primero.`)) return;
+  const r = await fetch(`/api/turnos/admin/tiendas/${id}`, { method: 'DELETE' }).then(x => x.json());
+  if (!r.ok) { alert(r.error || 'No se pudo eliminar la tienda'); return; }
   cargar();
 }
 

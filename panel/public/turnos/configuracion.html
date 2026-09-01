@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Karri — Configuración de Turnos</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .form-row { display:grid;grid-template-columns:1fr 1fr;gap:14px; }
+  .toggle-row { display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px 0;border-bottom:1px solid rgba(15,23,22,.06); }
+  .toggle-row:last-child { border-bottom:none; }
+  .toggle-row p.title { font-size:13px;font-weight:600;color:var(--text); }
+  .toggle-row p.desc { font-size:11.5px;color:var(--text-muted);margin-top:2px; }
+  .switch { position:relative;display:inline-block;width:38px;height:22px;flex-shrink:0; }
+  .switch input { opacity:0;width:0;height:0; }
+  .switch .slider { position:absolute;inset:0;background:#e3e6e5;border-radius:99px;cursor:pointer;transition:.15s; }
+  .switch .slider::before { content:'';position:absolute;width:16px;height:16px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.15s;box-shadow:0 1px 2px rgba(0,0,0,.2); }
+  .switch input:checked + .slider { background:#059669; }
+  .switch input:checked + .slider::before { transform:translateX(16px); }
+  .link-box { display:flex;align-items:center;gap:8px;background:#f4f5f6;border:1px solid rgba(15,23,22,.08);border-radius:8px;padding:9px 12px;font-family:'JetBrains Mono',monospace;font-size:12.5px;color:#12181a;overflow-x:auto;white-space:nowrap; }
+</style>
+</head>
+<body class="flex h-screen overflow-hidden">
+
+<aside id="sidebar" class="sidebar"></aside>
+
+<div class="flex-1 flex flex-col overflow-hidden">
+  <header style="background:var(--bg-800);border-bottom:1px solid var(--border);padding:14px 24px;flex-shrink:0;">
+    <h1 style="font-size:16px;font-weight:700;color:var(--text);">Configuración de Turnos</h1>
+    <p style="font-size:11px;color:var(--text-muted);margin-top:2px;">Link para Karriers y reglas de la toma de turnos</p>
+  </header>
+
+  <div class="flex-1 overflow-y-auto" style="padding:20px 24px;display:flex;flex-direction:column;gap:20px;max-width:720px;">
+
+    <div class="card">
+      <p style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px;">Toma de turnos (link para Karriers)</p>
+      <p style="font-size:11.5px;color:var(--text-muted);margin-bottom:12px;">
+        Compártelo por WhatsApp o donde prefieras. No requiere cuenta del panel: el Karrier se identifica con su RUT.
+      </p>
+      <div class="link-box" id="link-box"></div>
+      <div style="display:flex;gap:8px;margin-top:10px;">
+        <button class="btn-secondary" onclick="copiarLink()"><i data-lucide="copy" style="width:13px;height:13px;"></i> Copiar link</button>
+        <a id="link-abrir" href="/turnos" target="_blank" class="btn-secondary" style="text-decoration:none;"><i data-lucide="external-link" style="width:13px;height:13px;"></i> Abrir</a>
+      </div>
+      <p id="copiado-msg" class="hidden" style="font-size:11px;color:#059669;margin-top:8px;">Link copiado ✓</p>
+    </div>
+
+    <div class="card">
+      <p style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:2px;">Reglas de la toma de turnos</p>
+      <p style="font-size:11.5px;color:var(--text-muted);margin-bottom:4px;">Se aplican de inmediato a todos los Karriers y todas las tiendas.</p>
+
+      <div class="toggle-row">
+        <div>
+          <p class="title">Permitir AM + PM el mismo día</p>
+          <p class="desc">Si está apagado, un Karrier solo puede tomar uno de los dos turnos ese día (además de las reglas fijas: nunca AM+FULL ni PM+FULL).</p>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="f-am-pm">
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="toggle-row">
+        <div>
+          <p class="title">Permitir que el Karrier cancele su propio turno</p>
+          <p class="desc">Si está apagado, solo operaciones puede cancelar turnos desde "Asignaciones".</p>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="f-cancelacion">
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="form-row" style="margin-top:16px;">
+        <div class="form-group">
+          <p class="label mb-1">Cobertura mínima de alerta (%)</p>
+          <input class="input" type="number" min="0" max="100" id="f-warning">
+        </div>
+        <div class="form-group">
+          <p class="label mb-1">Cobertura mínima objetivo (%)</p>
+          <input class="input" type="number" min="0" max="100" id="f-target">
+        </div>
+      </div>
+
+      <p id="save-error" class="hidden" style="color:#dc2626;font-size:12px;margin-top:12px;"></p>
+      <button class="btn-primary" style="margin-top:16px;" onclick="guardar()"><i data-lucide="save" style="width:13px;height:13px;"></i> Guardar cambios</button>
+      <p id="save-ok" class="hidden" style="font-size:11px;color:#059669;margin-top:8px;">Cambios guardados ✓</p>
+    </div>
+
+  </div>
+</div>
+
+<script src="/sidebar.js"></script>
+<script>
+function actualizarLink() {
+  const url = `${location.origin}/turnos`;
+  document.getElementById('link-box').textContent = url;
+  document.getElementById('link-abrir').href = url;
+}
+
+async function copiarLink() {
+  const url = `${location.origin}/turnos`;
+  try {
+    await navigator.clipboard.writeText(url);
+  } catch {
+    const ta = document.createElement('textarea');
+    ta.value = url; document.body.appendChild(ta); ta.select();
+    document.execCommand('copy'); ta.remove();
+  }
+  const msg = document.getElementById('copiado-msg');
+  msg.classList.remove('hidden');
+  setTimeout(() => msg.classList.add('hidden'), 2500);
+}
+
+async function cargarSettings() {
+  const r = await fetch('/api/turnos/admin/settings').then(x => x.json());
+  const s = r.settings || {};
+  document.getElementById('f-am-pm').checked = !!s.allowAmPmSameDay;
+  document.getElementById('f-cancelacion').checked = !!s.allowCancellation;
+  document.getElementById('f-warning').value = s.minimumCoverageWarning ?? 80;
+  document.getElementById('f-target').value = s.minimumCoverageTarget ?? 95;
+}
+
+async function guardar() {
+  const body = {
+    allowAmPmSameDay: document.getElementById('f-am-pm').checked,
+    allowCancellation: document.getElementById('f-cancelacion').checked,
+    minimumCoverageWarning: Number(document.getElementById('f-warning').value) || 0,
+    minimumCoverageTarget: Number(document.getElementById('f-target').value) || 0,
+  };
+  const r = await fetch('/api/turnos/admin/settings', {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+  }).then(x => x.json());
+  const errEl = document.getElementById('save-error');
+  const okEl = document.getElementById('save-ok');
+  if (!r.ok) {
+    errEl.textContent = r.error || 'No se pudo guardar';
+    errEl.classList.remove('hidden');
+    okEl.classList.add('hidden');
+    return;
+  }
+  errEl.classList.add('hidden');
+  okEl.classList.remove('hidden');
+  setTimeout(() => okEl.classList.add('hidden'), 2500);
+}
+
+initSidebar('tu-config').then(async () => {
+  lucide.createIcons();
+  actualizarLink();
+  await cargarSettings();
+});
+</script>
+</body>
+</html>
