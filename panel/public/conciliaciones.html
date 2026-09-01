@@ -16,19 +16,19 @@
 <div class="flex h-screen overflow-hidden">
 
   <!-- ── Sidebar ─────────────────────────────────────────────── -->
-  <aside id="sidebar" style="background:#080b0a;border-right:1px solid rgba(255,255,255,0.08);width:220px;flex-shrink:0;display:flex;flex-direction:column;height:100%;"></aside>
+  <aside id="sidebar" class="sidebar"></aside>
 
   <!-- ── Main ─────────────────────────────────────────────────── -->
   <div class="flex-1 flex flex-col min-w-0 overflow-hidden">
 
     <!-- TopBar -->
-    <header style="background:#080b0a; border-bottom:1px solid rgba(255,255,255,0.08);"
+    <header style="background:#ffffff; border-bottom:1px solid rgba(15,23,22,0.08);"
             class="h-14 flex items-center justify-between px-5 flex-shrink-0 z-40">
       <div class="flex items-center gap-3">
-        <span style="color:#78fcd6;" class="flex items-center">
+        <span style="color:#059669;" class="flex items-center">
           <i data-lucide="truck" class="w-4 h-4"></i>
         </span>
-        <h1 class="text-[15px] font-semibold" style="color:#e7eceb;">Conciliaciones Falabella</h1>
+        <h1 class="text-[15px] font-semibold" style="color:#12181a;">Conciliaciones Falabella</h1>
       </div>
       <div class="flex items-center gap-2">
         <button onclick="abrirSheet()" class="btn-secondary">
@@ -54,41 +54,41 @@
           <div class="card">
             <p class="label mb-3">Conductores</p>
             <div class="flex items-end justify-between">
-              <span id="metPatentes" class="text-3xl font-black" style="color:#78fcd6;">—</span>
-              <i data-lucide="user" class="w-5 h-5 opacity-30" style="color:#78fcd6;"></i>
+              <span id="metPatentes" class="text-3xl font-black" style="color:#059669;">—</span>
+              <i data-lucide="user" class="w-5 h-5 opacity-30" style="color:#059669;"></i>
             </div>
           </div>
           <div class="card">
             <p class="label mb-3">Items totales</p>
             <div class="flex items-end justify-between">
-              <span id="metItems" class="text-3xl font-black" style="color:#e7eceb;">—</span>
-              <i data-lucide="package" class="w-5 h-5 opacity-30" style="color:rgba(231,236,235,0.4);"></i>
+              <span id="metItems" class="text-3xl font-black" style="color:#12181a;">—</span>
+              <i data-lucide="package" class="w-5 h-5 opacity-30" style="color:rgba(15,23,22,0.4);"></i>
             </div>
           </div>
           <div class="card">
             <p class="label mb-3">Con número</p>
             <div class="flex items-end justify-between">
-              <span id="metConNum" class="text-3xl font-black" style="color:#78fcd6;">—</span>
-              <i data-lucide="phone" class="w-5 h-5 opacity-30" style="color:#78fcd6;"></i>
+              <span id="metConNum" class="text-3xl font-black" style="color:#059669;">—</span>
+              <i data-lucide="phone" class="w-5 h-5 opacity-30" style="color:#059669;"></i>
             </div>
           </div>
           <div class="card">
             <p class="label mb-3">Sin número</p>
             <div class="flex items-end justify-between">
-              <span id="metSinNum" class="text-3xl font-black" style="color:#ef4444;">—</span>
-              <i data-lucide="phone-off" class="w-5 h-5 opacity-30" style="color:#ef4444;"></i>
+              <span id="metSinNum" class="text-3xl font-black" style="color:#dc2626;">—</span>
+              <i data-lucide="phone-off" class="w-5 h-5 opacity-30" style="color:#dc2626;"></i>
             </div>
           </div>
         </div>
 
         <!-- Action bar -->
         <div class="flex items-center justify-between px-3 py-2.5 rounded-t-xl"
-             style="background:#1e2221; border:1px solid rgba(255,255,255,0.08); border-bottom:none;">
+             style="background:#f1f3f2; border:1px solid rgba(15,23,22,0.08); border-bottom:none;">
           <div class="flex items-center gap-3">
             <label class="flex items-center gap-2 cursor-pointer">
               <input id="chkTodos" type="checkbox" onchange="toggleTodos(this.checked)"
                 class="rounded w-4 h-4 cursor-pointer accent-[#78fcd6]">
-              <span class="text-[12px] font-medium" style="color:rgba(231,236,235,0.7);">Seleccionar todos</span>
+              <span class="text-[12px] font-medium" style="color:rgba(15,23,22,0.7);">Seleccionar todos</span>
             </label>
           </div>
           <button onclick="enviarSeleccionados()" class="btn-primary">
@@ -99,14 +99,14 @@
 
         <!-- Table -->
         <div class="rounded-b-xl overflow-hidden"
-             style="background:#181c1b; border:1px solid rgba(255,255,255,0.08); border-top:none;">
-          <div id="progressBar" style="display:none; height:2px; background:#1e2221;">
+             style="background:#ffffff; border:1px solid rgba(15,23,22,0.08); border-top:none;">
+          <div id="progressBar" style="display:none; height:2px; background:#f1f3f2;">
             <div id="progressFill" style="height:100%; width:0%; background:#78fcd6; transition:width 0.3s;"></div>
           </div>
           <div class="overflow-x-auto">
             <table class="w-full text-left">
               <thead>
-                <tr style="background:#1e2221; border-bottom:1px solid rgba(255,255,255,0.07);">
+                <tr style="background:#f1f3f2; border-bottom:1px solid rgba(15,23,22,0.07);">
                   <th class="px-4 py-3 w-10"></th>
                   <th class="px-4 py-3 label">Patente</th>
                   <th class="px-4 py-3 label">Conductor</th>
@@ -116,7 +116,7 @@
                 </tr>
               </thead>
               <tbody id="tabla">
-                <tr><td colspan="6" class="py-12 text-center label" style="color:rgba(231,236,235,0.3);">
+                <tr><td colspan="6" class="py-12 text-center label" style="color:rgba(15,23,22,0.3);">
                   Cargando datos...
                 </td></tr>
               </tbody>
@@ -128,14 +128,14 @@
 
       <!-- ── Right sidebar ─────────────────────────────────────── -->
       <aside class="w-72 flex-shrink-0 flex flex-col"
-             style="background:#080b0a; border-left:1px solid rgba(255,255,255,0.08);">
+             style="background:#ffffff; border-left:1px solid rgba(15,23,22,0.08);">
 
         <!-- WhatsApp panel -->
-        <div class="p-4 flex flex-col gap-3" style="border-bottom:1px solid rgba(255,255,255,0.08);">
+        <div class="p-4 flex flex-col gap-3" style="border-bottom:1px solid rgba(15,23,22,0.08);">
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-2">
               <div id="waDot" class="w-2 h-2 rounded-full" style="background:#ef4444;"></div>
-              <span id="waLabel" class="label" style="color:#ef4444;">Desconectado</span>
+              <span id="waLabel" class="label" style="color:#dc2626;">Desconectado</span>
             </div>
             <div class="flex items-center gap-1.5">
               <button id="btnConectar" onclick="conectarWA()" class="btn-wa">Conectar</button>
@@ -148,7 +148,7 @@
             <img id="qrImg" src="" class="w-full h-full">
           </div>
 
-          <p id="waHint" class="text-[10px] text-center italic" style="color:rgba(231,236,235,0.35);">
+          <p id="waHint" class="text-[10px] text-center italic" style="color:rgba(15,23,22,0.35);">
             Conecta WhatsApp para enviar mensajes
           </p>
         </div>
@@ -156,13 +156,13 @@
         <!-- Log -->
         <div class="flex-1 flex flex-col p-4 overflow-hidden">
           <div class="flex items-center justify-between mb-3">
-            <span class="label" style="color:#78fcd6;">Log de envío</span>
-            <button onclick="limpiarLog()" class="label cursor-pointer hover:text-white transition-colors">Limpiar</button>
+            <span class="label" style="color:#059669;">Log de envío</span>
+            <button onclick="limpiarLog()" class="label cursor-pointer hover:text-black transition-colors">Limpiar</button>
           </div>
           <div id="log"
                class="flex-1 rounded-xl p-3 overflow-y-auto scrollbar-hide space-y-1"
-               style="background:#0f1211; border:1px solid rgba(255,255,255,0.06); font-family:'JetBrains Mono',monospace; font-size:10px;">
-            <p style="color:rgba(120,252,214,0.6); font-weight:600;">En espera...</p>
+               style="background:#ffffff; border:1px solid rgba(15,23,22,0.06); font-family:'JetBrains Mono',monospace; font-size:10px;">
+            <p style="color:rgba(5,150,105,0.6); font-weight:600;">En espera...</p>
           </div>
         </div>
 
@@ -177,17 +177,17 @@
   <div class="card w-full max-w-2xl max-h-[82vh] flex flex-col shadow-2xl p-0 overflow-hidden"
        style="border-radius:14px;">
     <div class="flex items-center justify-between px-5 py-4"
-         style="border-bottom:1px solid rgba(255,255,255,0.08);">
+         style="border-bottom:1px solid rgba(15,23,22,0.08);">
       <div>
-        <h3 id="modalTitle" class="text-[13px] font-bold" style="color:#78fcd6;">Vista previa</h3>
-        <p id="modalMeta" class="text-[11px] mt-0.5" style="color:rgba(231,236,235,0.45);"></p>
+        <h3 id="modalTitle" class="text-[13px] font-bold" style="color:#059669;">Vista previa</h3>
+        <p id="modalMeta" class="text-[11px] mt-0.5" style="color:rgba(15,23,22,0.45);"></p>
       </div>
-      <button onclick="cerrarModal()" class="label hover:text-white transition-colors cursor-pointer">✕</button>
+      <button onclick="cerrarModal()" class="label hover:text-black transition-colors cursor-pointer">✕</button>
     </div>
     <pre id="modalBody" class="flex-1 overflow-y-auto px-5 py-4 text-[12px] whitespace-pre-wrap"
-         style="font-family:'JetBrains Mono',monospace; color:#e7eceb; background:#0f1211;"></pre>
+         style="font-family:'JetBrains Mono',monospace; color:#12181a; background:#ffffff;"></pre>
     <div class="flex justify-between items-center px-5 py-4"
-         style="border-top:1px solid rgba(255,255,255,0.08);">
+         style="border-top:1px solid rgba(15,23,22,0.08);">
       <span id="modalPatente" class="label"></span>
       <div class="flex gap-2">
         <button onclick="cerrarModal()" class="btn-secondary">Cerrar</button>
@@ -227,7 +227,7 @@ function iniciarAutoTimer() {
 async function recargarDatos() {
   iniciarAutoTimer();
   document.getElementById('tabla').innerHTML =
-    '<tr><td colspan="6" class="py-12 text-center label" style="color:rgba(231,236,235,0.3);">Cargando...</td></tr>';
+    '<tr><td colspan="6" class="py-12 text-center label" style="color:rgba(15,23,22,0.3);">Cargando...</td></tr>';
   let raw, res;
   try {
     raw = await fetch('/api/conciliaciones/datos');
@@ -257,12 +257,12 @@ function renderTabla() {
   const vis = datosFiltrados();
   const tbody = document.getElementById('tabla');
   if (!vis.length) {
-    tbody.innerHTML = '<tr><td colspan="6" class="py-12 text-center label" style="color:rgba(231,236,235,0.3);">Sin datos</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" class="py-12 text-center label" style="color:rgba(15,23,22,0.3);">Sin datos</td></tr>';
     return;
   }
   tbody.innerHTML = vis.map(d => {
     const telFmt = d.numero
-      ? `<span class="font-mono text-[12px]" style="color:rgba(231,236,235,0.6);">+${d.numero.slice(0,2)} ${d.numero.slice(2,3)} ${d.numero.slice(3,7)} ${d.numero.slice(7)}</span>`
+      ? `<span class="font-mono text-[12px]" style="color:rgba(15,23,22,0.6);">+${d.numero.slice(0,2)} ${d.numero.slice(2,3)} ${d.numero.slice(3,7)} ${d.numero.slice(7)}</span>`
       : `<span class="badge badge-red" style="font-size:10px;">Sin número</span>`;
     const pat = encodeURIComponent(d.patente);
     return `
@@ -270,16 +270,16 @@ function renderTabla() {
       <td class="px-4 py-3 text-center">
         <input type="checkbox" data-pat="${d.patente}" class="chk-fila w-4 h-4 rounded cursor-pointer accent-[#78fcd6]">
       </td>
-      <td class="px-4 py-3 font-mono font-bold text-[13px]" style="color:#78fcd6;">${d.patente}</td>
-      <td class="px-4 py-3 text-[13px] font-medium" style="color:#e7eceb;">${d.nombre || '—'}</td>
+      <td class="px-4 py-3 font-mono font-bold text-[13px]" style="color:#059669;">${d.patente}</td>
+      <td class="px-4 py-3 text-[13px] font-medium" style="color:#12181a;">${d.nombre || '—'}</td>
       <td class="px-4 py-3" id="tel-cell-${d.patente}">
         <div style="display:flex;align-items:center;gap:6px;">
           ${telFmt}
           <button onclick="editarTelefono('${d.patente}')"
                   title="Editar teléfono"
-                  style="background:none;border:none;cursor:pointer;color:rgba(231,236,235,.25);padding:2px 3px;border-radius:4px;display:inline-flex;align-items:center;transition:color .15s;"
+                  style="background:none;border:none;cursor:pointer;color:rgba(15,23,22,.25);padding:2px 3px;border-radius:4px;display:inline-flex;align-items:center;transition:color .15s;"
                   onmouseenter="this.style.color='#78fcd6'"
-                  onmouseleave="this.style.color='rgba(231,236,235,.25)'">
+                  onmouseleave="this.style.color='rgba(15,23,22,.25)'">
             <i data-lucide="pencil" style="width:11px;height:11px;"></i>
           </button>
         </div>
@@ -485,7 +485,7 @@ function addLog(tipo, msg) {
   const hora = new Date().toLocaleTimeString('es-CL');
   const color = tipo === 'ok'  ? '#78fcd6'
               : tipo === 'err' ? '#ef4444'
-              : 'rgba(231,236,235,0.45)';
+              : 'rgba(15,23,22,0.45)';
   const p = document.createElement('p');
   p.style.color = color;
   if (tipo !== 'info') p.style.fontWeight = '600';
@@ -497,7 +497,7 @@ function addLog(tipo, msg) {
 
 function limpiarLog() {
   document.getElementById('log').innerHTML =
-    '<p style="color:rgba(120,252,214,0.5);font-weight:600;">En espera...</p>';
+    '<p style="color:rgba(5,150,105,0.5);font-weight:600;">En espera...</p>';
 }
 
 // ─── Init ─────────────────────────────────────────────────────

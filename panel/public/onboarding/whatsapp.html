@@ -12,20 +12,20 @@
 </head>
 <body>
 <div class="flex h-screen overflow-hidden">
-  <aside id="sidebar" style="background:#080b0a;border-right:1px solid rgba(255,255,255,0.08);width:220px;flex-shrink:0;display:flex;flex-direction:column;height:100%;"></aside>
+  <aside id="sidebar" class="sidebar"></aside>
 
   <div class="flex-1 flex flex-col min-w-0 overflow-hidden">
-    <header style="background:#080b0a;border-bottom:1px solid rgba(255,255,255,0.08);" class="h-14 flex items-center justify-between px-5 flex-shrink-0">
+    <header style="background:#ffffff;border-bottom:1px solid rgba(15,23,22,0.08);" class="h-14 flex items-center justify-between px-5 flex-shrink-0">
       <div class="flex items-center gap-3">
-        <span style="color:#78fcd6;"><i data-lucide="message-circle" class="w-4 h-4"></i></span>
-        <h1 style="font-size:15px;font-weight:600;color:#e7eceb;">WhatsApp masivo</h1>
+        <span style="color:#059669;"><i data-lucide="message-circle" class="w-4 h-4"></i></span>
+        <h1 style="font-size:15px;font-weight:600;color:#12181a;">WhatsApp masivo</h1>
       </div>
       <div class="flex items-center gap-3">
         <!-- WA Status bar -->
-        <div style="display:flex;align-items:center;gap:8px;padding:5px 12px;border-radius:8px;border:1px solid rgba(255,255,255,.08);background:#1e2221;">
+        <div style="display:flex;align-items:center;gap:8px;padding:5px 12px;border-radius:8px;border:1px solid rgba(15,23,22,.08);background:#f1f3f2;">
           <div id="waDot" style="width:7px;height:7px;border-radius:50%;background:#ef4444;"></div>
-          <span id="waLabel" style="font-size:11px;font-weight:600;color:#ef4444;">Desconectado</span>
-          <span id="waPhone" style="font-size:10px;color:rgba(231,236,235,.4);"></span>
+          <span id="waLabel" style="font-size:11px;font-weight:600;color:#dc2626;">Desconectado</span>
+          <span id="waPhone" style="font-size:10px;color:rgba(15,23,22,.4);"></span>
         </div>
         <button id="btnConectar" onclick="conectarWA()" class="btn-wa">Conectar WA</button>
         <button id="btnDesconectar" onclick="desconectarWA()" disabled class="btn-secondary" style="font-size:11px;padding:5px 10px;">Desconectar</button>
@@ -39,7 +39,7 @@
       <div class="card" style="padding:24px;text-align:center;max-width:280px;">
         <p style="font-size:13px;font-weight:600;margin-bottom:16px;">Escanea el QR con WhatsApp</p>
         <img id="qrImg" src="" style="width:220px;height:220px;border-radius:8px;background:white;padding:8px;">
-        <p style="font-size:11px;color:rgba(231,236,235,.4);margin-top:12px;">Dispositivos vinculados → Vincular dispositivo</p>
+        <p style="font-size:11px;color:rgba(15,23,22,.4);margin-top:12px;">Dispositivos vinculados → Vincular dispositivo</p>
         <button onclick="document.getElementById('qrModal').classList.add('hidden')" class="btn-secondary" style="margin-top:12px;width:100%;justify-content:center;">Cerrar</button>
       </div>
     </div>
@@ -51,15 +51,15 @@
           <p style="font-size:14px;font-weight:600;margin-bottom:4px;">Subir lista de contactos</p>
           <p class="label">Excel/CSV con columnas: nombre, teléfono (o whatsapp), y variables opcionales</p>
           <div id="drop-contacts" class="drop-zone mt-4" onclick="document.getElementById('inp-contacts').click()" ondragover="ev(event,'over')" ondragleave="ev(event,'leave')" ondrop="ev(event,'drop')">
-            <i data-lucide="upload" style="width:32px;height:32px;color:rgba(120,252,214,.4);margin:0 auto 12px;display:block;"></i>
-            <p style="color:#e7eceb;font-size:13px;margin-bottom:4px;">Arrastra tu archivo aquí</p>
-            <p style="color:rgba(231,236,235,.35);font-size:12px;">o haz clic para seleccionar</p>
+            <i data-lucide="upload" style="width:32px;height:32px;color:rgba(5,150,105,.4);margin:0 auto 12px;display:block;"></i>
+            <p style="color:#12181a;font-size:13px;margin-bottom:4px;">Arrastra tu archivo aquí</p>
+            <p style="color:rgba(15,23,22,.35);font-size:12px;">o haz clic para seleccionar</p>
           </div>
           <input id="inp-contacts" type="file" accept=".xlsx,.csv,.xls" class="hidden" onchange="handleContacts(this.files[0])">
           <div id="contacts-info" class="hidden mt-4">
-            <div style="padding:12px;background:#0f1211;border-radius:8px;border:1px solid rgba(120,252,214,.2);margin-bottom:12px;">
-              <p id="contacts-name" style="font-size:13px;font-weight:600;color:#78fcd6;"></p>
-              <p id="contacts-count" style="font-size:11px;color:rgba(231,236,235,.5);margin-top:2px;"></p>
+            <div style="padding:12px;background:#ffffff;border-radius:8px;border:1px solid rgba(5,150,105,.2);margin-bottom:12px;">
+              <p id="contacts-name" style="font-size:13px;font-weight:600;color:#059669;"></p>
+              <p id="contacts-count" style="font-size:11px;color:rgba(15,23,22,.5);margin-top:2px;"></p>
             </div>
             <p class="label mb-1">Columna de teléfono</p>
             <select id="phone-col" class="input">
@@ -82,7 +82,7 @@
 
           <!-- Ejemplos -->
           <div style="display:flex;flex-direction:column;gap:8px;">
-            <p style="font-size:10px;color:rgba(231,236,235,.4);font-weight:600;text-transform:uppercase;letter-spacing:.08em;">Ejemplos</p>
+            <p style="font-size:10px;color:rgba(15,23,22,.4);font-weight:600;text-transform:uppercase;letter-spacing:.08em;">Ejemplos</p>
             <div style="display:flex;flex-wrap:wrap;gap:6px;" id="ejemplos-chips"></div>
           </div>
 
@@ -90,9 +90,9 @@
             <textarea id="msg-text" rows="8" class="input" style="resize:vertical;font-family:'JetBrains Mono',monospace;font-size:12px;" placeholder="Hola {{nombre}}, te contactamos de Karri..."></textarea>
           </div>
           <!-- Preview -->
-          <div id="preview-wrap" class="hidden" style="background:#0f1211;border-radius:8px;padding:12px;border:1px solid rgba(255,255,255,.06);">
+          <div id="preview-wrap" class="hidden" style="background:#ffffff;border-radius:8px;padding:12px;border:1px solid rgba(15,23,22,.06);">
             <p class="label mb-2">Vista previa (primer contacto)</p>
-            <p id="preview-text" style="font-size:12px;color:#e7eceb;white-space:pre-wrap;font-family:'JetBrains Mono',monospace;"></p>
+            <p id="preview-text" style="font-size:12px;color:#12181a;white-space:pre-wrap;font-family:'JetBrains Mono',monospace;"></p>
           </div>
         </div>
         <div class="flex justify-between">
@@ -109,7 +109,7 @@
           <div>
             <p class="label mb-1">Delay entre mensajes (ms)</p>
             <input id="cfg-delay" type="number" class="input" value="2500" min="500" max="30000">
-            <p style="font-size:10px;color:rgba(231,236,235,.35);margin-top:4px;">Recomendado: 2500–5000ms para evitar bloqueos</p>
+            <p style="font-size:10px;color:rgba(15,23,22,.35);margin-top:4px;">Recomendado: 2500–5000ms para evitar bloqueos</p>
           </div>
         </div>
         <div class="flex justify-between">
@@ -122,30 +122,30 @@
       <div id="step-send" class="hidden max-w-2xl mx-auto space-y-4">
         <div class="card space-y-3">
           <p style="font-size:14px;font-weight:600;">Listo para enviar</p>
-          <div style="background:#0f1211;border-radius:10px;padding:16px;display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-            <div><p class="label">Campaña</p><p id="sum-name" style="font-size:13px;color:#e7eceb;margin-top:2px;"></p></div>
-            <div><p class="label">Contactos</p><p id="sum-count" style="font-size:13px;color:#78fcd6;font-weight:700;margin-top:2px;"></p></div>
-            <div><p class="label">Delay</p><p id="sum-delay" style="font-size:13px;color:#e7eceb;margin-top:2px;"></p></div>
-            <div><p class="label">Columna tel.</p><p id="sum-col" style="font-size:13px;color:#e7eceb;margin-top:2px;"></p></div>
+          <div style="background:#ffffff;border-radius:10px;padding:16px;display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+            <div><p class="label">Campaña</p><p id="sum-name" style="font-size:13px;color:#12181a;margin-top:2px;"></p></div>
+            <div><p class="label">Contactos</p><p id="sum-count" style="font-size:13px;color:#059669;font-weight:700;margin-top:2px;"></p></div>
+            <div><p class="label">Delay</p><p id="sum-delay" style="font-size:13px;color:#12181a;margin-top:2px;"></p></div>
+            <div><p class="label">Columna tel.</p><p id="sum-col" style="font-size:13px;color:#12181a;margin-top:2px;"></p></div>
           </div>
           <!-- Progress -->
           <div id="send-progress" class="hidden space-y-2">
             <div style="display:flex;justify-content:space-between;">
-              <span id="send-status" style="font-size:12px;color:rgba(231,236,235,.6);"></span>
-              <span id="send-pct" style="font-size:12px;color:#78fcd6;font-weight:700;"></span>
+              <span id="send-status" style="font-size:12px;color:rgba(15,23,22,.6);"></span>
+              <span id="send-pct" style="font-size:12px;color:#059669;font-weight:700;"></span>
             </div>
-            <div style="height:4px;background:#1e2221;border-radius:99px;overflow:hidden;">
-              <div id="send-bar" style="height:100%;background:#78fcd6;width:0%;transition:width .3s;box-shadow:0 0 8px rgba(120,252,214,.5);"></div>
+            <div style="height:4px;background:#f1f3f2;border-radius:99px;overflow:hidden;">
+              <div id="send-bar" style="height:100%;background:#78fcd6;width:0%;transition:width .3s;box-shadow:0 0 8px rgba(5,150,105,.5);"></div>
             </div>
           </div>
-          <div id="send-done" class="hidden p-4 rounded-xl" style="background:rgba(120,252,214,.05);border:1px solid rgba(120,252,214,.2);">
-            <p style="color:#78fcd6;font-weight:600;font-size:13px;">✓ Campaña completada</p>
-            <p id="send-result" style="font-size:11px;color:rgba(231,236,235,.5);margin-top:4px;"></p>
+          <div id="send-done" class="hidden p-4 rounded-xl" style="background:rgba(5,150,105,.05);border:1px solid rgba(5,150,105,.2);">
+            <p style="color:#059669;font-weight:600;font-size:13px;">✓ Campaña completada</p>
+            <p id="send-result" style="font-size:11px;color:rgba(15,23,22,.5);margin-top:4px;"></p>
           </div>
-          <p id="wa-warning" class="hidden" style="color:#f59e0b;font-size:12px;padding:10px;border-radius:8px;background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.2);">
+          <p id="wa-warning" class="hidden" style="color:#b45309;font-size:12px;padding:10px;border-radius:8px;background:rgba(180,83,9,.08);border:1px solid rgba(180,83,9,.2);">
             ⚠️ WhatsApp no conectado. Conéctalo desde el botón "Conectar WA" en la barra superior.
           </p>
-          <p id="send-error" class="hidden" style="color:#ef4444;font-size:12px;padding:10px;border-radius:8px;background:rgba(239,68,68,.06);border:1px solid rgba(239,68,68,.2);"></p>
+          <p id="send-error" class="hidden" style="color:#dc2626;font-size:12px;padding:10px;border-radius:8px;background:rgba(220,38,38,.06);border:1px solid rgba(220,38,38,.2);"></p>
         </div>
         <div class="flex justify-between">
           <button onclick="goStep('config')" class="btn-secondary"><i data-lucide="chevron-left" class="w-4 h-4"></i> Atrás</button>
@@ -218,7 +218,7 @@ function renderSteps() {
     const cls = s === currentStep ? 'step-active' : i < idx ? 'step-done' : 'step-pending';
     const action = i < idx ? `onclick="goStep('${s}')"` : '';
     return `<span class="step-pill ${cls}" ${action}>${i+1}. ${STEP_LABELS[s]}</span>`;
-  }).join('<i data-lucide="chevron-right" style="width:12px;height:12px;color:rgba(231,236,235,.2);"></i>');
+  }).join('<i data-lucide="chevron-right" style="width:12px;height:12px;color:rgba(15,23,22,.2);"></i>');
   lucide.createIcons();
 }
 
@@ -367,11 +367,11 @@ document.addEventListener('DOMContentLoaded', () => {
     btn.textContent = ej.label;
     btn.style.cssText = `
       padding:5px 12px;border-radius:99px;font-size:11px;font-weight:600;cursor:pointer;
-      background:rgba(120,252,214,.08);color:#78fcd6;
-      border:1px solid rgba(120,252,214,.2);transition:background .12s;
+      background:rgba(5,150,105,.08);color:#059669;
+      border:1px solid rgba(5,150,105,.2);transition:background .12s;
     `;
-    btn.onmouseenter = () => btn.style.background = 'rgba(120,252,214,.15)';
-    btn.onmouseleave = () => btn.style.background = 'rgba(120,252,214,.08)';
+    btn.onmouseenter = () => btn.style.background = 'rgba(5,150,105,.15)';
+    btn.onmouseleave = () => btn.style.background = 'rgba(5,150,105,.08)';
     btn.onclick = () => {
       document.getElementById('msg-text').value = ej.texto;
       updatePreview();

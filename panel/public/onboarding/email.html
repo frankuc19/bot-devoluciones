@@ -11,13 +11,13 @@
 </head>
 <body>
 <div class="flex h-screen overflow-hidden">
-  <aside id="sidebar" style="background:#080b0a;border-right:1px solid rgba(255,255,255,0.08);width:220px;flex-shrink:0;display:flex;flex-direction:column;height:100%;"></aside>
+  <aside id="sidebar" class="sidebar"></aside>
 
   <div class="flex-1 flex flex-col min-w-0 overflow-hidden">
-    <header style="background:#080b0a;border-bottom:1px solid rgba(255,255,255,0.08);" class="h-14 flex items-center justify-between px-5 flex-shrink-0">
+    <header style="background:#ffffff;border-bottom:1px solid rgba(15,23,22,0.08);" class="h-14 flex items-center justify-between px-5 flex-shrink-0">
       <div class="flex items-center gap-3">
-        <span style="color:#78fcd6;"><i data-lucide="mail" class="w-4 h-4"></i></span>
-        <h1 style="font-size:15px;font-weight:600;color:#e7eceb;">Email masivo</h1>
+        <span style="color:#059669;"><i data-lucide="mail" class="w-4 h-4"></i></span>
+        <h1 style="font-size:15px;font-weight:600;color:#12181a;">Email masivo</h1>
       </div>
       <!-- Steps -->
       <div class="flex items-center gap-2" id="stepsBar"></div>
@@ -30,14 +30,14 @@
           <p style="font-size:14px;font-weight:600;margin-bottom:4px;">Subir lista de contactos</p>
           <p class="label">Archivo Excel (.xlsx) o CSV con columnas: nombre, correo, y variables {{dobles_llaves}}</p>
           <div id="drop-contacts" class="drop-zone mt-4" onclick="document.getElementById('inp-contacts').click()" ondragover="ev(event,'contacts','over')" ondragleave="ev(event,'contacts','leave')" ondrop="ev(event,'contacts','drop')">
-            <i data-lucide="upload" style="width:32px;height:32px;color:rgba(120,252,214,.4);margin:0 auto 12px;display:block;"></i>
-            <p style="color:#e7eceb;font-size:13px;margin-bottom:4px;">Arrastra tu archivo aquí</p>
-            <p style="color:rgba(231,236,235,.35);font-size:12px;">o haz clic para seleccionar</p>
+            <i data-lucide="upload" style="width:32px;height:32px;color:rgba(5,150,105,.4);margin:0 auto 12px;display:block;"></i>
+            <p style="color:#12181a;font-size:13px;margin-bottom:4px;">Arrastra tu archivo aquí</p>
+            <p style="color:rgba(15,23,22,.35);font-size:12px;">o haz clic para seleccionar</p>
           </div>
           <input id="inp-contacts" type="file" accept=".xlsx,.csv,.xls" class="hidden" onchange="handleContacts(this.files[0])">
-          <div id="contacts-info" class="hidden mt-3 p-3 rounded-lg" style="background:#0f1211;border:1px solid rgba(120,252,214,.2);">
-            <p id="contacts-name" style="font-size:13px;font-weight:600;color:#78fcd6;"></p>
-            <p id="contacts-count" style="font-size:11px;color:rgba(231,236,235,.5);margin-top:2px;"></p>
+          <div id="contacts-info" class="hidden mt-3 p-3 rounded-lg" style="background:#ffffff;border:1px solid rgba(5,150,105,.2);">
+            <p id="contacts-name" style="font-size:13px;font-weight:600;color:#059669;"></p>
+            <p id="contacts-count" style="font-size:11px;color:rgba(15,23,22,.5);margin-top:2px;"></p>
           </div>
         </div>
         <div class="flex justify-end">
@@ -59,19 +59,19 @@
           </div>
           <div id="html-upload-panel">
             <div id="drop-html" class="drop-zone" onclick="document.getElementById('inp-html').click()" ondragover="ev(event,'html','over')" ondragleave="ev(event,'html','leave')" ondrop="ev(event,'html','drop')">
-              <i data-lucide="file-code" style="width:32px;height:32px;color:rgba(120,252,214,.4);margin:0 auto 12px;display:block;"></i>
-              <p style="color:#e7eceb;font-size:13px;margin-bottom:4px;">Arrastra tu HTML aquí</p>
-              <p style="color:rgba(231,236,235,.35);font-size:12px;">o haz clic para seleccionar</p>
+              <i data-lucide="file-code" style="width:32px;height:32px;color:rgba(5,150,105,.4);margin:0 auto 12px;display:block;"></i>
+              <p style="color:#12181a;font-size:13px;margin-bottom:4px;">Arrastra tu HTML aquí</p>
+              <p style="color:rgba(15,23,22,.35);font-size:12px;">o haz clic para seleccionar</p>
             </div>
             <input id="inp-html" type="file" accept=".html,.htm" class="hidden" onchange="handleHtml(this.files[0])">
-            <div id="html-info" class="hidden mt-3 p-3 rounded-lg" style="background:#0f1211;border:1px solid rgba(120,252,214,.2);">
+            <div id="html-info" class="hidden mt-3 p-3 rounded-lg" style="background:#ffffff;border:1px solid rgba(5,150,105,.2);">
               <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:2px;">
-                <p id="html-name" style="font-size:13px;font-weight:600;color:#78fcd6;"></p>
+                <p id="html-name" style="font-size:13px;font-weight:600;color:#059669;"></p>
                 <button onclick="abrirEditor()" class="btn-secondary" style="font-size:11px;padding:3px 10px;white-space:nowrap;flex-shrink:0;">
                   <i data-lucide="eye" style="width:12px;height:12px;"></i> Vista previa / Editar
                 </button>
               </div>
-              <p id="html-vars" style="font-size:11px;color:rgba(231,236,235,.5);margin-top:2px;"></p>
+              <p id="html-vars" style="font-size:11px;color:rgba(15,23,22,.5);margin-top:2px;"></p>
               <!-- Guardar como plantilla -->
               <div style="display:flex;gap:8px;align-items:center;margin-top:10px;">
                 <input id="tpl-name" type="text" placeholder="Nombre de plantilla..." class="input" style="font-size:11px;padding:5px 10px;">
@@ -79,7 +79,7 @@
                   <i data-lucide="save" class="w-3.5 h-3.5"></i> Guardar
                 </button>
               </div>
-              <p id="tpl-saved-msg" class="hidden" style="font-size:11px;color:#78fcd6;margin-top:6px;">✓ Plantilla guardada</p>
+              <p id="tpl-saved-msg" class="hidden" style="font-size:11px;color:#059669;margin-top:6px;">✓ Plantilla guardada</p>
             </div>
           </div>
           <div id="html-library-panel" class="hidden">
@@ -114,24 +114,24 @@
       <div id="step-send" class="hidden max-w-2xl mx-auto space-y-4">
         <div class="card space-y-3">
           <p style="font-size:14px;font-weight:600;">Resumen de campaña</p>
-          <div style="background:#0f1211;border-radius:10px;padding:16px;display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-            <div><p class="label">Campaña</p><p id="sum-name" style="font-size:13px;color:#e7eceb;margin-top:2px;"></p></div>
-            <div><p class="label">Contactos</p><p id="sum-count" style="font-size:13px;color:#78fcd6;font-weight:700;margin-top:2px;"></p></div>
-            <div><p class="label">Asunto</p><p id="sum-subject" style="font-size:13px;color:#e7eceb;margin-top:2px;"></p></div>
-            <div><p class="label">Variables</p><p id="sum-vars" style="font-size:13px;color:#e7eceb;margin-top:2px;"></p></div>
+          <div style="background:#ffffff;border-radius:10px;padding:16px;display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+            <div><p class="label">Campaña</p><p id="sum-name" style="font-size:13px;color:#12181a;margin-top:2px;"></p></div>
+            <div><p class="label">Contactos</p><p id="sum-count" style="font-size:13px;color:#059669;font-weight:700;margin-top:2px;"></p></div>
+            <div><p class="label">Asunto</p><p id="sum-subject" style="font-size:13px;color:#12181a;margin-top:2px;"></p></div>
+            <div><p class="label">Variables</p><p id="sum-vars" style="font-size:13px;color:#12181a;margin-top:2px;"></p></div>
           </div>
           <!-- Progress -->
           <div id="send-progress" class="hidden">
-            <p id="send-status" style="font-size:12px;color:rgba(231,236,235,.6);margin-bottom:8px;"></p>
-            <div style="height:4px;background:#1e2221;border-radius:99px;overflow:hidden;">
-              <div id="send-bar" style="height:100%;background:#78fcd6;width:0%;transition:width .3s;box-shadow:0 0 8px rgba(120,252,214,.5);"></div>
+            <p id="send-status" style="font-size:12px;color:rgba(15,23,22,.6);margin-bottom:8px;"></p>
+            <div style="height:4px;background:#f1f3f2;border-radius:99px;overflow:hidden;">
+              <div id="send-bar" style="height:100%;background:#78fcd6;width:0%;transition:width .3s;box-shadow:0 0 8px rgba(5,150,105,.5);"></div>
             </div>
           </div>
-          <div id="send-done" class="hidden p-4 rounded-xl" style="background:rgba(120,252,214,.05);border:1px solid rgba(120,252,214,.2);">
-            <p style="color:#78fcd6;font-weight:600;font-size:13px;">✓ Campaña enviada exitosamente</p>
-            <p id="send-result" style="font-size:11px;color:rgba(231,236,235,.5);margin-top:4px;"></p>
+          <div id="send-done" class="hidden p-4 rounded-xl" style="background:rgba(5,150,105,.05);border:1px solid rgba(5,150,105,.2);">
+            <p style="color:#059669;font-weight:600;font-size:13px;">✓ Campaña enviada exitosamente</p>
+            <p id="send-result" style="font-size:11px;color:rgba(15,23,22,.5);margin-top:4px;"></p>
           </div>
-          <p id="send-error" class="hidden" style="color:#ef4444;font-size:12px;"></p>
+          <p id="send-error" class="hidden" style="color:#dc2626;font-size:12px;"></p>
         </div>
         <div class="flex justify-between">
           <button onclick="goStep('config')" class="btn-secondary"><i data-lucide="chevron-left" class="w-4 h-4"></i> Atrás</button>
@@ -146,9 +146,9 @@
 
 <!-- Modal: Vista previa / Editar HTML -->
 <div id="modal-editor" class="hidden fixed inset-0 z-50 flex items-center justify-center" style="background:rgba(0,0,0,.85);">
-  <div style="background:#0f1211;border:1px solid rgba(255,255,255,.1);border-radius:14px;width:90vw;max-width:1100px;height:87vh;display:flex;flex-direction:column;overflow:hidden;">
+  <div style="background:#ffffff;border:1px solid rgba(15,23,22,.1);border-radius:14px;width:90vw;max-width:1100px;height:87vh;display:flex;flex-direction:column;overflow:hidden;">
     <!-- Header tabs -->
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid rgba(255,255,255,.08);flex-shrink:0;">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid rgba(15,23,22,.08);flex-shrink:0;">
       <div style="display:flex;gap:6px;">
         <button id="etab-preview" onclick="setViewTabEditor('preview')" class="btn-secondary" style="font-size:11px;padding:4px 12px;">
           <i data-lucide="eye" style="width:12px;height:12px;"></i> Vista previa
@@ -157,7 +157,7 @@
           <i data-lucide="code-2" style="width:12px;height:12px;"></i> Editar HTML
         </button>
       </div>
-      <button onclick="cerrarEditor()" style="background:none;border:none;cursor:pointer;color:rgba(231,236,235,.4);font-size:20px;line-height:1;padding:0 2px;" onmouseenter="this.style.color='#e7eceb'" onmouseleave="this.style.color='rgba(231,236,235,.4)'">✕</button>
+      <button onclick="cerrarEditor()" style="background:none;border:none;cursor:pointer;color:rgba(15,23,22,.4);font-size:20px;line-height:1;padding:0 2px;" onmouseenter="this.style.color='#12181a'" onmouseleave="this.style.color='rgba(15,23,22,.4)'">✕</button>
     </div>
     <!-- Preview panel -->
     <div id="epanel-preview" style="flex:1;overflow:hidden;display:flex;">
@@ -166,9 +166,9 @@
     <!-- Code panel -->
     <div id="epanel-code" style="flex:1;flex-direction:column;overflow:hidden;display:none;">
       <textarea id="html-editor"
-                style="flex:1;background:#080b0a;color:#e7eceb;border:none;padding:16px;font-family:'JetBrains Mono',monospace;font-size:12px;resize:none;outline:none;overflow-y:auto;tab-size:2;white-space:pre;line-height:1.6;width:100%;box-sizing:border-box;"></textarea>
-      <div style="padding:10px 14px;border-top:1px solid rgba(255,255,255,.08);display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
-        <span id="editor-vars-hint" style="font-size:11px;color:rgba(231,236,235,.35);"></span>
+                style="flex:1;background:#ffffff;color:#12181a;border:none;padding:16px;font-family:'JetBrains Mono',monospace;font-size:12px;resize:none;outline:none;overflow-y:auto;tab-size:2;white-space:pre;line-height:1.6;width:100%;box-sizing:border-box;"></textarea>
+      <div style="padding:10px 14px;border-top:1px solid rgba(15,23,22,.08);display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
+        <span id="editor-vars-hint" style="font-size:11px;color:rgba(15,23,22,.35);"></span>
         <div style="display:flex;gap:8px;">
           <button onclick="cerrarEditor()" class="btn-secondary" style="font-size:11px;">Cancelar</button>
           <button onclick="aplicarCambios()" class="btn-primary" style="font-size:11px;">
@@ -199,7 +199,7 @@ function renderSteps() {
     const cls = s === currentStep ? 'step-active' : i < idx ? 'step-done' : 'step-pending';
     const action = i < idx ? `onclick="goStep('${s}')"` : '';
     return `<span class="step-pill ${cls}" ${action}>${i+1}. ${STEP_LABELS[s]}</span>`;
-  }).join('<i data-lucide="chevron-right" style="width:12px;height:12px;color:rgba(231,236,235,.2);flex-shrink:0;"></i>');
+  }).join('<i data-lucide="chevron-right" style="width:12px;height:12px;color:rgba(15,23,22,.2);flex-shrink:0;"></i>');
   lucide.createIcons();
 }
 
@@ -255,21 +255,21 @@ function setHtmlTab(tab) {
   htmlTab = tab;
   document.getElementById('html-upload-panel').classList.toggle('hidden', tab !== 'upload');
   document.getElementById('html-library-panel').classList.toggle('hidden', tab !== 'library');
-  document.getElementById('tab-upload').style.background  = tab === 'upload'  ? 'rgba(120,252,214,.1)' : '';
-  document.getElementById('tab-library').style.background = tab === 'library' ? 'rgba(120,252,214,.1)' : '';
+  document.getElementById('tab-upload').style.background  = tab === 'upload'  ? 'rgba(5,150,105,.1)' : '';
+  document.getElementById('tab-library').style.background = tab === 'library' ? 'rgba(5,150,105,.1)' : '';
   if (tab === 'library') loadLibrary();
 }
 
 async function loadLibrary() {
   templates = await fetch('/api/ob/templates').then(r => r.json());
   const el = document.getElementById('tpl-list');
-  if (!templates.length) { el.innerHTML = '<p style="color:rgba(231,236,235,.3);font-size:12px;text-align:center;padding:20px;">Sin plantillas guardadas</p>'; return; }
+  if (!templates.length) { el.innerHTML = '<p style="color:rgba(15,23,22,.3);font-size:12px;text-align:center;padding:20px;">Sin plantillas guardadas</p>'; return; }
   el.innerHTML = templates.map(t => `
-    <div style="display:flex;align-items:center;gap:10px;padding:10px;background:#0f1211;border-radius:8px;border:1px solid rgba(255,255,255,.06);">
-      <span style="flex:1;font-size:12px;color:#e7eceb;">${t.name}</span>
-      <span style="font-size:10px;color:rgba(231,236,235,.4);">${new Date(t.createdAt).toLocaleDateString('es')}</span>
+    <div style="display:flex;align-items:center;gap:10px;padding:10px;background:#ffffff;border-radius:8px;border:1px solid rgba(15,23,22,.06);">
+      <span style="flex:1;font-size:12px;color:#12181a;">${t.name}</span>
+      <span style="font-size:10px;color:rgba(15,23,22,.4);">${new Date(t.createdAt).toLocaleDateString('es')}</span>
       <button onclick="selectTpl('${t.id}')" class="btn-primary" style="padding:3px 10px;font-size:10px;">Usar</button>
-      <button onclick="deleteTpl('${t.id}')" style="background:transparent;border:none;color:#ef4444;cursor:pointer;font-size:14px;">×</button>
+      <button onclick="deleteTpl('${t.id}')" style="background:transparent;border:none;color:#dc2626;cursor:pointer;font-size:14px;">×</button>
     </div>`).join('');
 }
 
@@ -353,8 +353,8 @@ function cerrarEditor() {
 function setViewTabEditor(tab) {
   document.getElementById('epanel-preview').style.display = tab === 'preview' ? 'flex' : 'none';
   document.getElementById('epanel-code').style.display    = tab === 'code'    ? 'flex' : 'none';
-  document.getElementById('etab-preview').style.background = tab === 'preview' ? 'rgba(120,252,214,.1)' : '';
-  document.getElementById('etab-code').style.background    = tab === 'code'    ? 'rgba(120,252,214,.1)' : '';
+  document.getElementById('etab-preview').style.background = tab === 'preview' ? 'rgba(5,150,105,.1)' : '';
+  document.getElementById('etab-code').style.background    = tab === 'code'    ? 'rgba(5,150,105,.1)' : '';
   document.getElementById('etab-preview').style.color = tab === 'preview' ? '#78fcd6' : '';
   document.getElementById('etab-code').style.color    = tab === 'code'    ? '#78fcd6' : '';
   if (tab === 'code') {
