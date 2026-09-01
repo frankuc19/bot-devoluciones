@@ -79,18 +79,20 @@
 
       <!-- Table -->
       <div class="card" style="padding:0;overflow:hidden;">
-        <table style="width:100%;border-collapse:collapse;">
-          <thead>
-            <tr style="background:#f1f3f2;border-bottom:1px solid rgba(15,23,22,.07);">
-              <th style="padding:11px 20px;text-align:left;" class="label">Conductor</th>
-              <th style="padding:11px 20px;text-align:left;" class="label">RUT</th>
-              <th style="padding:11px 20px;text-align:left;" class="label">Patente</th>
-              <th style="padding:11px 20px;text-align:left;" class="label">Fecha alta</th>
-              <th style="padding:11px 20px;text-align:left;" class="label">Estado</th>
-            </tr>
-          </thead>
-          <tbody id="altasBody"></tbody>
-        </table>
+        <div class="overflow-x-auto">
+          <table style="width:100%;border-collapse:collapse;">
+            <thead>
+              <tr style="background:#f1f3f2;border-bottom:1px solid rgba(15,23,22,.07);">
+                <th style="padding:11px 20px;text-align:left;" class="label">Conductor</th>
+                <th style="padding:11px 20px;text-align:left;" class="label">RUT</th>
+                <th style="padding:11px 20px;text-align:left;" class="label">Patente</th>
+                <th style="padding:11px 20px;text-align:left;" class="label">Fecha alta</th>
+                <th style="padding:11px 20px;text-align:left;" class="label">Estado</th>
+              </tr>
+            </thead>
+            <tbody id="altasBody"></tbody>
+          </table>
+        </div>
         <div id="altasEmpty" style="text-align:center;padding:48px;color:rgba(15,23,22,.3);font-size:13px;display:none;">
           No hay registros
         </div>
