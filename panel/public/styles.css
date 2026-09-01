@@ -49,6 +49,13 @@ body { background: #f4f5f4; color: #12181a; font-family: Inter, sans-serif; }
   border: 1px solid rgba(15,23,22,0.08);
   border-radius: 12px;
   padding: 20px;
+  /* Evita que un contenedor flex (p.ej. el área de contenido con
+     overflow-y:auto) encoja la card en vez de hacer scroll: cuando
+     overflow no es "visible", el mínimo automático de un flex item
+     pasa a ser 0 y el navegador prefiere recortar contenido antes
+     que desbordar. flex-shrink:0 fuerza a la card a mantener su
+     alto natural para que sea la página la que scrollee. */
+  flex-shrink: 0;
 }
 
 /* ── Buttons ── */
