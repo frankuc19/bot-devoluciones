@@ -20,6 +20,11 @@
   .alert-box { border-radius:10px;padding:12px 16px;font-size:12.5px;display:flex;align-items:flex-start;gap:10px; }
   .alert-warn { background:rgba(180,83,9,.08);border:1px solid rgba(180,83,9,.2);color:#b45309; }
   .alert-error { background:rgba(220,38,38,.08);border:1px solid rgba(220,38,38,.2);color:#dc2626; }
+  .pagination { display:flex;align-items:center;gap:4px; }
+  .pg-btn { min-width:30px;height:30px;padding:0 8px;border-radius:6px;border:1px solid rgba(15,23,22,.07);background:#f1f3f2;color:rgba(15,23,22,.5);font-size:12px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center; }
+  .pg-btn:hover,.pg-btn.active { background:#f4f5f6;color:#12181a; }
+  .pg-btn.active { color:#059669;border-color:rgba(5,150,105,.3); }
+  .pg-btn:disabled { opacity:.35;cursor:default; }
 </style>
 </head>
 <body>
@@ -81,12 +86,12 @@
 
       <!-- Filters + search -->
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-        <select class="input" id="filtroCliente" style="width:200px;" onchange="filtrarYRender()">
+        <select class="input" id="filtroCliente" style="width:200px;" onchange="filtrarYRender(true)">
           <option value="">Todos los clientes</option>
         </select>
         <div style="flex:1;position:relative;min-width:200px;">
           <i data-lucide="search" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);width:13px;height:13px;color:rgba(15,23,22,.3);"></i>
-          <input id="busqueda" type="text" class="input" placeholder="Buscar por nombre o RUT..." style="padding-left:32px;" oninput="filtrarYRender()">
+          <input id="busqueda" type="text" class="input" placeholder="Buscar por nombre o RUT..." style="padding-left:32px;" oninput="filtrarYRender(true)">
         </div>
       </div>
 
@@ -113,6 +118,7 @@
         <div id="altasEmpty" style="text-align:center;padding:48px;color:rgba(15,23,22,.3);font-size:13px;display:none;">
           No hay registros
         </div>
+        <div id="altasPaginacion" style="display:none;align-items:center;justify-content:space-between;padding:12px 20px;border-top:1px solid rgba(15,23,22,.06);"></div>
       </div>
     </div>
   </div>
@@ -216,7 +222,11 @@ function poblarFiltroClientes() {
   sel.value = actual;
 }
 
-function filtrarYRender() {
+const PAGE_SIZE = 100;
+let paginaActual = 1;
+
+function filtrarYRender(resetPagina) {
+  if (resetPagina) paginaActual = 1;
   const q = document.getElementById('busqueda').value.toLowerCase();
   const cliente = document.getElementById('filtroCliente').value;
   let lista = todasAltas;
@@ -228,15 +238,56 @@ function filtrarYRender() {
   renderAltas(lista);
 }
 
-function renderAltas(lista) {
+function irAPagina(p) {
+  paginaActual = p;
+  filtrarYRender(false);
+}
+
+function renderPaginacion(totalItems) {
+  const cont = document.getElementById('altasPaginacion');
+  const totalPaginas = Math.ceil(totalItems / PAGE_SIZE);
+  if (totalPaginas <= 1) { cont.style.display = 'none'; cont.innerHTML = ''; return; }
+
+  const desde = (paginaActual - 1) * PAGE_SIZE + 1;
+  const hasta = Math.min(paginaActual * PAGE_SIZE, totalItems);
+
+  let botones = '';
+  const rango = 2;
+  for (let p = 1; p <= totalPaginas; p++) {
+    if (p === 1 || p === totalPaginas || (p >= paginaActual - rango && p <= paginaActual + rango)) {
+      botones += `<button class="pg-btn ${p === paginaActual ? 'active' : ''}" onclick="irAPagina(${p})">${p}</button>`;
+    } else if (p === paginaActual - rango - 1 || p === paginaActual + rango + 1) {
+      botones += `<span style="color:rgba(15,23,22,.3);padding:0 2px;">…</span>`;
+    }
+  }
+
+  cont.style.display = 'flex';
+  cont.innerHTML = `
+    <span style="font-size:11.5px;color:rgba(15,23,22,.45);">Mostrando ${desde}–${hasta} de ${totalItems}</span>
+    <div class="pagination">
+      <button class="pg-btn" onclick="irAPagina(${paginaActual - 1})" ${paginaActual === 1 ? 'disabled' : ''}><i data-lucide="chevron-left" style="width:13px;height:13px;"></i></button>
+      ${botones}
+      <button class="pg-btn" onclick="irAPagina(${paginaActual + 1})" ${paginaActual === totalPaginas ? 'disabled' : ''}><i data-lucide="chevron-right" style="width:13px;height:13px;"></i></button>
+    </div>`;
+  if (window.lucide) lucide.createIcons({ el: cont });
+}
+
+function renderAltas(listaCompleta) {
   const tbody = document.getElementById('altasBody');
   const empty = document.getElementById('altasEmpty');
-  if (!lista.length) {
+  if (!listaCompleta.length) {
     tbody.innerHTML = '';
     empty.style.display = '';
+    document.getElementById('altasPaginacion').style.display = 'none';
     return;
   }
   empty.style.display = 'none';
+
+  const totalPaginas = Math.max(1, Math.ceil(listaCompleta.length / PAGE_SIZE));
+  if (paginaActual > totalPaginas) paginaActual = totalPaginas;
+  const inicio = (paginaActual - 1) * PAGE_SIZE;
+  const lista = listaCompleta.slice(inicio, inicio + PAGE_SIZE);
+
   tbody.innerHTML = lista.map(a => `
     <tr style="border-bottom:1px solid rgba(15,23,22,.05);">
       <td style="padding:13px 20px;font-size:13px;font-weight:500;color:#12181a;">${a.nombre || '—'}</td>
@@ -253,6 +304,7 @@ function renderAltas(lista) {
       </td>
     </tr>`).join('');
   if (window.lucide) lucide.createIcons({ el: tbody });
+  renderPaginacion(listaCompleta.length);
 }
 
 async function cargarAltas() {
