@@ -1,4 +1,5 @@
 const { Router } = require('express');
+const XLSX = require('xlsx');
 const store = require('./altasStore');
 const { sincronizarAltasOB } = require('./altasSync');
 
@@ -15,6 +16,23 @@ router.get('/sync-log', (_req, res) => {
 router.post('/sync', async (_req, res) => {
   const resultado = await sincronizarAltasOB();
   res.json(resultado);
+});
+
+// Excel de los duplicados detectados en la última sincronización — para
+// revisar sin llenar la pantalla con cientos de nombres.
+router.get('/sync-log/duplicados/export', (_req, res) => {
+  const ultima = store.getSyncLog()[0];
+  const duplicados = ultima?.duplicados || [];
+
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.json_to_sheet(duplicados.map(d => ({ Nombre: d.nombre, RUT: d.rut })));
+  ws['!cols'] = [{ wch: 30 }, { wch: 14 }];
+  XLSX.utils.book_append_sheet(wb, ws, 'Duplicados');
+  const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.setHeader('Content-Disposition', 'attachment; filename="altas_duplicados.xlsx"');
+  res.send(buffer);
 });
 
 router.put('/:id', (req, res) => {

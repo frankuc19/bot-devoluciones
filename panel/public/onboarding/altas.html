@@ -181,9 +181,14 @@ function renderAlerta(log) {
       <div><b>Se leyeron ${ultima.totalFilasLeidas} fila(s) pero ninguna tiene Estatus "Alta"</b> (${fmtFechaHora(ultima.ejecutadoAt)}). Solo se importan filas cuyo Estado/Estatus empiece con "Alta". Valores encontrados en la columna: ${valores}.</div>
     </div>`;
   } else if (ultima.duplicados?.length) {
-    box.innerHTML = `<div class="alert-box alert-warn">
-      <i data-lucide="alert-triangle" style="width:16px;height:16px;flex-shrink:0;margin-top:1px;"></i>
-      <div><b>${ultima.duplicados.length} RUT duplicado(s)</b> detectados en la sincronización de ${fmtFechaHora(ultima.ejecutadoAt)} — no se crearon de nuevo: ${ultima.duplicados.map(d => `${d.nombre} (${d.rut})`).join(', ')}</div>
+    box.innerHTML = `<div class="alert-box alert-warn" style="align-items:center;justify-content:space-between;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <i data-lucide="alert-triangle" style="width:16px;height:16px;flex-shrink:0;"></i>
+        <div><b>${ultima.duplicados.length} RUT duplicado(s)</b> en la sincronización de ${fmtFechaHora(ultima.ejecutadoAt)} — ya existían, no se crearon de nuevo.</div>
+      </div>
+      <button class="btn-secondary" style="flex-shrink:0;" onclick="descargarDuplicados()">
+        <i data-lucide="download" style="width:12px;height:12px;"></i> Descargar Excel
+      </button>
     </div>`;
   } else {
     box.innerHTML = '';
@@ -272,6 +277,10 @@ async function sincronizarAhora() {
   lucide.createIcons();
   if (!r.ok) { alert('Error al sincronizar: ' + r.error); }
   await cargarAltas();
+}
+
+function descargarDuplicados() {
+  window.open('/api/ob/altas/sync-log/duplicados/export', '_blank');
 }
 
 function editar(id) {
