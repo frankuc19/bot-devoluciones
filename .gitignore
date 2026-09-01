@@ -19,6 +19,8 @@ data/turnos_asignaciones.json
 data/turnos_karriers.json
 data/turnos_settings.json
 data/turnos_seed_v1.json
+data/turnos_asistencia.json
+data/turnos_observaciones.json
 # Usuarios — almacenados en disco persistente en runtime
 config/users.json
 

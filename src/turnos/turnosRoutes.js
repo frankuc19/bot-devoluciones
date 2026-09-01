@@ -268,6 +268,69 @@ adminRouter.post('/asignaciones/:id/reasignar', async (req, res) => {
   }
 });
 
+// ─── Asistencia ───────────────────────────────────────────────────────────────
+adminRouter.get('/asistencia', (req, res) => {
+  const { storeId, date } = req.query;
+  if (!date) return res.status(400).json({ ok: false, error: 'Falta la fecha' });
+  try {
+    res.json({ ok: true, asistencia: store.listAsistenciaDia({ storeId: storeId || null, date }) });
+  } catch (e) {
+    res.status(400).json({ ok: false, error: e.message, code: e.code || 'ERROR' });
+  }
+});
+
+adminRouter.put('/asistencia/:assignmentId', (req, res) => {
+  const { asistio } = req.body || {};
+  try {
+    const registro = store.setAsistencia(req.params.assignmentId, asistio === null ? null : !!asistio);
+    res.json({ ok: true, asistencia: registro });
+  } catch (e) {
+    res.status(400).json({ ok: false, error: e.message, code: e.code || 'ERROR' });
+  }
+});
+
+adminRouter.post('/observaciones', (req, res) => {
+  const { assignmentId, texto } = req.body || {};
+  if (!assignmentId) return res.status(400).json({ ok: false, error: 'Falta la asignación' });
+  try {
+    const entry = store.addObservacion(assignmentId, texto);
+    res.json({ ok: true, observacion: entry });
+  } catch (e) {
+    res.status(400).json({ ok: false, error: e.message, code: e.code || 'ERROR' });
+  }
+});
+
+adminRouter.get('/bitacora/export', (req, res) => {
+  const { storeId, dateFrom, dateTo } = req.query;
+  const tienda = storeId ? store.getTiendaById(storeId) : null;
+
+  const filas = store.listBitacora({ storeId: storeId || null, dateFrom: dateFrom || null, dateTo: dateTo || null })
+    .map(o => ({
+      Fecha: o.date,
+      Turno: o.shiftType,
+      Tienda: o.storeName,
+      Karrier: o.karrierName,
+      RUT: o.karrierRut,
+      Asistencia: o.asistio === null || o.asistio === undefined ? 'Sin marcar' : (o.asistio ? 'Sí' : 'No'),
+      Observación: o.texto,
+      'Registrado el': new Date(o.createdAt).toLocaleString('es-CL'),
+    }));
+
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.json_to_sheet(filas);
+  ws['!cols'] = [
+    { wch: 12 }, { wch: 8 }, { wch: 18 }, { wch: 20 }, { wch: 13 },
+    { wch: 11 }, { wch: 40 }, { wch: 18 },
+  ];
+  XLSX.utils.book_append_sheet(wb, ws, 'Bitácora');
+  const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+
+  const filename = `bitacora_asistencia_${tienda ? tienda.code || tienda.name : 'todas'}.xlsx`.replace(/[^\w.\-]+/g, '_');
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+  res.send(buffer);
+});
+
 function mondayOf(dateStr) {
   const d = new Date(dateStr + 'T00:00:00');
   const day = d.getDay(); // 0=domingo

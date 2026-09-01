@@ -10,6 +10,8 @@ const ASIG_FILE       = path.join(DATA_DIR, 'turnos_asignaciones.json');
 const KARRIERS_FILE  = path.join(DATA_DIR, 'turnos_karriers.json');
 const SETTINGS_FILE  = path.join(DATA_DIR, 'turnos_settings.json');
 const SEED_MARKER_FILE = path.join(DATA_DIR, 'turnos_seed_v1.json');
+const ASISTENCIA_FILE   = path.join(DATA_DIR, 'turnos_asistencia.json');
+const OBSERVACIONES_FILE = path.join(DATA_DIR, 'turnos_observaciones.json');
 
 const SHIFT_TYPES = {
   AM:   { code: 'AM',   name: 'Mañana',   startTime: '08:00', endTime: '14:00' },
@@ -243,6 +245,7 @@ const ERRORES = {
   NOT_YOUR_SHIFT:        'Este turno no te pertenece.',
   ALREADY_CANCELLED:     'Este turno ya estaba cancelado.',
   CANCELLATION_DISABLED: 'Las cancelaciones están deshabilitadas. Contacta a operaciones para cancelar tu turno.',
+  EMPTY_OBSERVATION:     'La observación no puede estar vacía.',
   STORE_HAS_ACTIVE_ASSIGNMENTS: 'Esta tienda tiene Karriers con turnos activos. Cancela esas asignaciones o desactiva la tienda en vez de eliminarla.',
 };
 
@@ -434,6 +437,100 @@ function dashboardKpis(weekStartDate) {
   };
 }
 
+// ─── Asistencia ─────────────────────────────────────────────────────────────
+// Un registro de asistencia por asignación (una asignación ya identifica
+// unívocamente Karrier + tienda + fecha + turno, así que no hace falta más).
+function getAsistencias() { return readJson(ASISTENCIA_FILE, []); }
+function getAsistenciaByAssignment(assignmentId) {
+  return getAsistencias().find(a => a.assignmentId === assignmentId) || null;
+}
+function setAsistencia(assignmentId, asistio) {
+  if (!getAsignacionById(assignmentId)) throw err('ASSIGNMENT_NOT_FOUND');
+  const list = getAsistencias();
+  const idx = list.findIndex(a => a.assignmentId === assignmentId);
+  const registro = { assignmentId, asistio, updatedAt: new Date().toISOString() };
+  if (idx >= 0) list[idx] = registro; else list.push(registro);
+  writeJson(ASISTENCIA_FILE, list);
+  return registro;
+}
+
+// ─── Observaciones (bitácora) ───────────────────────────────────────────────
+// Log de solo agregar: cada nota queda registrada con fecha, nunca se
+// sobrescribe la anterior — así se arma la bitácora completa.
+function getObservaciones() { return readJson(OBSERVACIONES_FILE, []); }
+function observacionesDeAsignacion(assignmentId) {
+  return getObservaciones()
+    .filter(o => o.assignmentId === assignmentId)
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+}
+function addObservacion(assignmentId, texto) {
+  if (!getAsignacionById(assignmentId)) throw err('ASSIGNMENT_NOT_FOUND');
+  if (!texto || !texto.trim()) throw err('EMPTY_OBSERVATION');
+  const entry = { id: crypto.randomUUID(), assignmentId, texto: texto.trim(), createdAt: new Date().toISOString() };
+  const list = getObservaciones();
+  list.push(entry);
+  writeJson(OBSERVACIONES_FILE, list);
+  return entry;
+}
+
+// Lista de asistencia de un día (y opcionalmente una tienda): solo turnos
+// ACTIVOS de esa fecha, con su estado de asistencia y su bitácora.
+function listAsistenciaDia({ storeId, date }) {
+  if (!date) throw err('INVALID_DATE');
+  return getAsignaciones()
+    .filter(a => a.status === 'ACTIVE')
+    .map(a => {
+      const slot = getSlotById(a.slotId);
+      if (!slot || slot.date !== date) return null;
+      if (storeId && slot.storeId !== storeId) return null;
+      const tienda = getTiendaById(slot.storeId);
+      const asistencia = getAsistenciaByAssignment(a.id);
+      return {
+        assignmentId: a.id,
+        karrierRut: a.karrierRut,
+        karrierName: a.karrierName,
+        storeId: slot.storeId,
+        storeName: tienda?.name || '—',
+        date: slot.date,
+        shiftType: slot.shiftType,
+        startTime: slot.startTime,
+        endTime: slot.endTime,
+        asistio: asistencia ? asistencia.asistio : null,
+        observaciones: observacionesDeAsignacion(a.id),
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => (a.storeName + a.shiftType + a.karrierName).localeCompare(b.storeName + b.shiftType + b.karrierName));
+}
+
+// Bitácora completa (todas las observaciones, con contexto de Karrier/tienda/
+// fecha) para exportar — opcionalmente filtrada por tienda y/o rango de fechas.
+function listBitacora({ storeId, dateFrom, dateTo } = {}) {
+  return getObservaciones()
+    .map(o => {
+      const asig = getAsignacionById(o.assignmentId);
+      if (!asig) return null;
+      const slot = getSlotById(asig.slotId);
+      if (!slot) return null;
+      if (storeId && slot.storeId !== storeId) return null;
+      if (dateFrom && slot.date < dateFrom) return null;
+      if (dateTo && slot.date > dateTo) return null;
+      const tienda = getTiendaById(slot.storeId);
+      const asistencia = getAsistenciaByAssignment(asig.id);
+      return {
+        ...o,
+        karrierName: asig.karrierName,
+        karrierRut: asig.karrierRut,
+        storeName: tienda?.name || '—',
+        date: slot.date,
+        shiftType: slot.shiftType,
+        asistio: asistencia ? asistencia.asistio : null,
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+}
+
 module.exports = {
   SHIFT_TYPES,
   getSettings, saveSettings,
@@ -444,5 +541,8 @@ module.exports = {
   tomarTurno, cancelarTurno, reasignarTurno,
   disponibilidadTienda, misTurnos, coberturaTienda, coberturaGeneral, dashboardKpis,
   slotConInfo,
+  getAsistenciaByAssignment, setAsistencia,
+  observacionesDeAsignacion, addObservacion,
+  listAsistenciaDia, listBitacora,
   ERRORES,
 };

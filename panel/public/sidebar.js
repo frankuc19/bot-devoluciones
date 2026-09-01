@@ -41,6 +41,7 @@
         { label: 'Planificación',  href: '/turnos/planificacion.html', icon: 'calendar-days',     key: 'tu-planif'    },
         { label: 'Karriers',       href: '/turnos/karriers.html',      icon: 'users',             key: 'tu-karriers'  },
         { label: 'Asignaciones',  href: '/turnos/asignaciones.html',  icon: 'repeat',            key: 'tu-asignaciones' },
+        { label: 'Asistencia',    href: '/turnos/asistencia.html',    icon: 'clipboard-check',   key: 'tu-asistencia' },
         { label: 'Configuración', href: '/turnos/configuracion.html', icon: 'settings',          key: 'tu-config' },
       ],
     },

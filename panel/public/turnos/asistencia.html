@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Karri — Asistencia de Turnos</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .tbl-wrap { overflow-x:auto;border:1px solid rgba(15,23,22,.07);border-radius:10px; }
+  table { width:100%;border-collapse:collapse;font-size:12.5px; }
+  th { background:#f1f3f2;color:rgba(15,23,22,.35);font-weight:600;font-size:11px;letter-spacing:.04em;padding:9px 12px;text-align:left;border-bottom:1px solid rgba(15,23,22,.07); }
+  td { padding:9px 12px;border-bottom:1px solid rgba(15,23,22,.05);color:#12181a;vertical-align:top; }
+  tr:last-child td { border-bottom:none; }
+  tr:hover td { background:rgba(15,23,22,.02); }
+  .asist-toggle { display:inline-flex;border:1px solid rgba(15,23,22,.1);border-radius:8px;overflow:hidden; }
+  .asist-btn { padding:5px 12px;font-size:11.5px;font-weight:700;border:none;cursor:pointer;background:#fff;color:rgba(15,23,22,.4); }
+  .asist-btn.si.active { background:rgba(5,150,105,.12);color:#059669; }
+  .asist-btn.no.active { background:rgba(220,38,38,.1);color:#dc2626; }
+  .asist-btn:not(:last-child) { border-right:1px solid rgba(15,23,22,.1); }
+  .obs-list { display:flex;flex-direction:column;gap:4px;margin-bottom:6px;max-height:110px;overflow-y:auto; }
+  .obs-item { font-size:11.5px;color:rgba(15,23,22,.7);background:#f8f9f8;border-radius:6px;padding:5px 8px; }
+  .obs-item .obs-fecha { font-size:10px;color:rgba(15,23,22,.4);margin-bottom:1px; }
+  .obs-add { display:flex;gap:6px;min-width:220px; }
+  .obs-add input { flex:1;background:#f4f5f6;border:1px solid rgba(15,23,22,.08);color:#12181a;border-radius:6px;padding:5px 8px;font-size:12px; }
+  .obs-add button { background:#f1f3f2;border:1px solid rgba(15,23,22,.08);border-radius:6px;padding:5px 8px;cursor:pointer;color:#12181a; }
+  .obs-add button:hover { background:#e3e6e5; }
+</style>
+</head>
+<body class="flex h-screen overflow-hidden">
+
+<aside id="sidebar" class="sidebar"></aside>
+
+<div class="flex-1 flex flex-col overflow-hidden">
+  <header style="background:var(--bg-800);border-bottom:1px solid var(--border);padding:14px 24px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;flex-wrap:wrap;gap:10px;">
+    <div>
+      <h1 style="font-size:16px;font-weight:700;color:var(--text);">Asistencia</h1>
+      <p style="font-size:11px;color:var(--text-muted);margin-top:2px;">Marca quién se presentó y deja observaciones en la bitácora</p>
+    </div>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+      <select class="input" id="filtro-tienda" style="width:180px;" onchange="cargar()">
+        <option value="">Todas las tiendas</option>
+      </select>
+      <input type="date" class="input" id="filtro-fecha" style="width:150px;" onchange="cargar()">
+      <button class="btn-secondary" onclick="hoy()">Hoy</button>
+      <button class="btn-secondary" onclick="descargarBitacora()">
+        <i data-lucide="download" style="width:13px;height:13px;"></i> Descargar bitácora
+      </button>
+    </div>
+  </header>
+
+  <div class="flex-1 overflow-y-auto" style="padding:20px 24px;display:flex;flex-direction:column;gap:16px;">
+    <p id="resumen" style="font-size:12px;color:var(--text-muted);"></p>
+    <div class="card" style="overflow:hidden;">
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr>
+            <th>Karrier</th><th>Tienda</th><th>Turno</th><th>Asistencia</th><th style="min-width:260px;">Observaciones (bitácora)</th>
+          </tr></thead>
+          <tbody id="tbody-asistencia"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/sidebar.js"></script>
+<script>
+const TURNO_LABEL = { AM:'AM', PM:'PM', FULL:'FULL' };
+let tiendas = [];
+let filas = [];
+
+function hoyStr() { return new Date().toISOString().slice(0, 10); }
+function hoy() { document.getElementById('filtro-fecha').value = hoyStr(); cargar(); }
+
+async function cargarTiendas() {
+  const r = await fetch('/api/turnos/admin/tiendas').then(x => x.json());
+  tiendas = r.tiendas || [];
+  const sel = document.getElementById('filtro-tienda');
+  const actual = sel.value;
+  sel.innerHTML = '<option value="">Todas las tiendas</option>' + tiendas.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+  sel.value = actual;
+}
+
+async function cargar() {
+  const storeId = document.getElementById('filtro-tienda').value;
+  const date = document.getElementById('filtro-fecha').value || hoyStr();
+  const params = new URLSearchParams({ date });
+  if (storeId) params.set('storeId', storeId);
+  const r = await fetch(`/api/turnos/admin/asistencia?${params}`).then(x => x.json());
+  filas = r.ok ? r.asistencia : [];
+
+  const presentes = filas.filter(f => f.asistio === true).length;
+  const ausentes  = filas.filter(f => f.asistio === false).length;
+  const sinMarcar = filas.length - presentes - ausentes;
+  document.getElementById('resumen').textContent =
+    `${filas.length} agendados · ${presentes} presentes · ${ausentes} ausentes · ${sinMarcar} sin marcar`;
+
+  render();
+}
+
+function render() {
+  const tbody = document.getElementById('tbody-asistencia');
+  if (filas.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--text-faint);padding:24px;">Nadie agendado para este filtro.</td></tr>`;
+    if (window.lucide) lucide.createIcons();
+    return;
+  }
+  tbody.innerHTML = filas.map(f => `
+    <tr>
+      <td>
+        <div style="font-weight:600;">${f.karrierName}</div>
+        <div class="td-mono" style="font-size:11px;color:var(--text-muted);">${f.karrierRut}</div>
+      </td>
+      <td>${f.storeName}</td>
+      <td>${TURNO_LABEL[f.shiftType]}<br><span style="font-size:11px;color:var(--text-muted);">${f.startTime}-${f.endTime}</span></td>
+      <td>
+        <div class="asist-toggle">
+          <button class="asist-btn si ${f.asistio === true ? 'active' : ''}" onclick='marcarAsistencia(${JSON.stringify(f.assignmentId)}, true)'>Sí</button>
+          <button class="asist-btn no ${f.asistio === false ? 'active' : ''}" onclick='marcarAsistencia(${JSON.stringify(f.assignmentId)}, false)'>No</button>
+        </div>
+      </td>
+      <td>
+        <div class="obs-list">
+          ${f.observaciones.length === 0
+            ? '<span style="font-size:11px;color:var(--text-faint);">Sin observaciones</span>'
+            : f.observaciones.map(o => `
+              <div class="obs-item">
+                <div class="obs-fecha">${new Date(o.createdAt).toLocaleString('es-CL', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' })}</div>
+                ${o.texto}
+              </div>`).join('')}
+        </div>
+        <div class="obs-add">
+          <input type="text" placeholder="Agregar observación..." id="obs-${f.assignmentId}" onkeydown="if(event.key==='Enter') agregarObservacion('${f.assignmentId}')">
+          <button onclick="agregarObservacion('${f.assignmentId}')"><i data-lucide="plus" style="width:13px;height:13px;"></i></button>
+        </div>
+      </td>
+    </tr>`).join('');
+  if (window.lucide) lucide.createIcons();
+}
+
+async function marcarAsistencia(assignmentId, asistio) {
+  const fila = filas.find(f => f.assignmentId === assignmentId);
+  const nuevoValor = fila && fila.asistio === asistio ? null : asistio; // clic de nuevo = desmarcar
+  const r = await fetch(`/api/turnos/admin/asistencia/${assignmentId}`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ asistio: nuevoValor }),
+  }).then(x => x.json());
+  if (!r.ok) { alert(r.error || 'No se pudo guardar'); return; }
+  cargar();
+}
+
+async function agregarObservacion(assignmentId) {
+  const input = document.getElementById(`obs-${assignmentId}`);
+  const texto = input.value.trim();
+  if (!texto) return;
+  const r = await fetch('/api/turnos/admin/observaciones', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ assignmentId, texto }),
+  }).then(x => x.json());
+  if (!r.ok) { alert(r.error || 'No se pudo agregar la observación'); return; }
+  input.value = '';
+  cargar();
+}
+
+function descargarBitacora() {
+  const storeId = document.getElementById('filtro-tienda').value;
+  const params = new URLSearchParams();
+  if (storeId) params.set('storeId', storeId);
+  window.open(`/api/turnos/admin/bitacora/export?${params}`, '_blank');
+}
+
+initSidebar('tu-asistencia').then(async () => {
+  lucide.createIcons();
+  document.getElementById('filtro-fecha').value = hoyStr();
+  await cargarTiendas();
+  await cargar();
+});
+</script>
+</body>
+</html>
