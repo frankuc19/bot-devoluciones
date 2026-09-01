@@ -101,7 +101,10 @@ async function leerAltasOB() {
   const iSala      = buscarColumna(headers, ['sala/bodega', 'sala / bodega', 'sala', 'bodega']);
   const iTipoAuto  = buscarColumna(headers, ['tipo de auto', 'tipo auto', 'tipo de vehiculo', 'tipo vehiculo']);
   const iFechaAlta = buscarColumna(headers, ['fecha de alta', 'fecha alta', 'fecha']);
-  const iEstado    = buscarColumna(headers, ['estatus', 'estado']);
+  // La columna Estatus es la K (índice 10, 0-based) — se usa como respaldo
+  // si el encabezado de esa columna no calza exactamente con "Estado"/"Estatus".
+  const iEstadoPorNombre = buscarColumna(headers, ['estatus', 'estado']);
+  const iEstado = iEstadoPorNombre !== -1 ? iEstadoPorNombre : 10;
 
   const faltantes = [];
   if (iNombre === -1) faltantes.push('Nombre');
