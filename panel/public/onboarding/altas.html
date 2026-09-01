@@ -3,11 +3,24 @@
 <head>
 <meta charset="utf-8">
 <meta content="width=device-width, initial-scale=1.0" name="viewport">
-<title>Karri — Altas</title>
+<title>Karri — Altas Onboarding</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/styles.css">
+<style>
+  .modal-bg { position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:1000;padding:20px; }
+  .modal { background:#ffffff;border:1px solid rgba(15,23,22,.07);border-radius:14px;width:100%;max-width:520px;max-height:90vh;display:flex;flex-direction:column; }
+  .modal-header { display:flex;align-items:center;justify-content:space-between;padding:18px 20px 14px;border-bottom:1px solid rgba(15,23,22,.07); }
+  .modal-body { overflow-y:auto;padding:20px;flex:1;display:flex;flex-direction:column;gap:12px; }
+  .modal-footer { display:flex;justify-content:flex-end;gap:8px;padding:14px 20px;border-top:1px solid rgba(15,23,22,.07); }
+  .form-row { display:grid;grid-template-columns:1fr 1fr;gap:14px; }
+  .btn-ghost { background:none;color:rgba(15,23,22,.5);font-size:12px;padding:5px 8px;border-radius:6px;border:none;cursor:pointer;display:inline-flex;align-items:center;gap:5px; }
+  .btn-ghost:hover { background:#f1f3f2;color:#12181a; }
+  .alert-box { border-radius:10px;padding:12px 16px;font-size:12.5px;display:flex;align-items:flex-start;gap:10px; }
+  .alert-warn { background:rgba(180,83,9,.08);border:1px solid rgba(180,83,9,.2);color:#b45309; }
+  .alert-error { background:rgba(220,38,38,.08);border:1px solid rgba(220,38,38,.2);color:#dc2626; }
+</style>
 </head>
 <body>
 <div class="flex h-screen overflow-hidden">
@@ -17,11 +30,11 @@
     <header style="background:#ffffff;border-bottom:1px solid rgba(15,23,22,0.08);" class="h-14 flex items-center justify-between px-5 flex-shrink-0">
       <div class="flex items-center gap-3">
         <span style="color:#059669;"><i data-lucide="user-check" class="w-4 h-4"></i></span>
-        <h1 style="font-size:15px;font-weight:600;color:#12181a;">Altas de conductores</h1>
+        <h1 style="font-size:15px;font-weight:600;color:#12181a;">Altas Onboarding</h1>
       </div>
       <div class="flex items-center gap-2">
-        <button onclick="cargarAltas()" class="btn-secondary">
-          <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Recargar
+        <button id="btnSync" onclick="sincronizarAhora()" class="btn-secondary">
+          <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Sincronizar ahora
         </button>
         <button onclick="exportarCSV()" class="btn-primary">
           <i data-lucide="download" class="w-3.5 h-3.5"></i> Exportar CSV
@@ -30,6 +43,8 @@
     </header>
 
     <div class="flex-1 overflow-y-auto p-5 space-y-5">
+
+      <div id="alertBox"></div>
 
       <!-- Stats -->
       <div class="grid grid-cols-4 gap-4">
@@ -41,39 +56,36 @@
           </div>
         </div>
         <div class="card">
-          <p class="label mb-3">Pendientes</p>
+          <p class="label mb-3">Última sincronización</p>
           <div class="flex items-end justify-between">
-            <span id="statPending" style="font-size:28px;font-weight:900;color:#b45309;">—</span>
-            <i data-lucide="clock" style="width:18px;height:18px;color:#b45309;opacity:.4;"></i>
+            <span id="statUltimaSync" style="font-size:15px;font-weight:700;color:#12181a;">—</span>
+            <i data-lucide="clock" style="width:18px;height:18px;color:rgba(15,23,22,.3);"></i>
           </div>
         </div>
         <div class="card">
-          <p class="label mb-3">Completadas</p>
+          <p class="label mb-3">Nuevos (última sync)</p>
           <div class="flex items-end justify-between">
-            <span id="statOk" style="font-size:28px;font-weight:900;color:#059669;">—</span>
-            <i data-lucide="check-circle-2" style="width:18px;height:18px;color:#059669;opacity:.3;"></i>
+            <span id="statNuevos" style="font-size:28px;font-weight:900;color:#059669;">—</span>
+            <i data-lucide="user-plus" style="width:18px;height:18px;color:#059669;opacity:.3;"></i>
           </div>
         </div>
         <div class="card">
-          <p class="label mb-3">Rechazadas</p>
+          <p class="label mb-3">Duplicados (última sync)</p>
           <div class="flex items-end justify-between">
-            <span id="statRej" style="font-size:28px;font-weight:900;color:#dc2626;">—</span>
-            <i data-lucide="x-circle" style="width:18px;height:18px;color:#dc2626;opacity:.4;"></i>
+            <span id="statDuplicados" style="font-size:28px;font-weight:900;color:#b45309;">—</span>
+            <i data-lucide="alert-triangle" style="width:18px;height:18px;color:#b45309;opacity:.4;"></i>
           </div>
         </div>
       </div>
 
       <!-- Filters + search -->
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-        <div style="display:flex;gap:4px;background:#ffffff;border:1px solid rgba(15,23,22,.08);border-radius:10px;padding:4px;">
-          <button class="filter-tab active" onclick="setFiltro('todos',this)">Todos</button>
-          <button class="filter-tab" onclick="setFiltro('pendiente',this)">Pendientes</button>
-          <button class="filter-tab" onclick="setFiltro('completado',this)">Completados</button>
-          <button class="filter-tab" onclick="setFiltro('rechazado',this)">Rechazados</button>
-        </div>
+        <select class="input" id="filtroCliente" style="width:200px;" onchange="filtrarYRender()">
+          <option value="">Todos los clientes</option>
+        </select>
         <div style="flex:1;position:relative;min-width:200px;">
           <i data-lucide="search" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);width:13px;height:13px;color:rgba(15,23,22,.3);"></i>
-          <input id="busqueda" type="text" class="input" placeholder="Buscar por nombre, RUT o patente..." style="padding-left:32px;" oninput="filtrarYRender()">
+          <input id="busqueda" type="text" class="input" placeholder="Buscar por nombre o RUT..." style="padding-left:32px;" oninput="filtrarYRender()">
         </div>
       </div>
 
@@ -83,11 +95,15 @@
           <table style="width:100%;border-collapse:collapse;">
             <thead>
               <tr style="background:#f1f3f2;border-bottom:1px solid rgba(15,23,22,.07);">
-                <th style="padding:11px 20px;text-align:left;" class="label">Conductor</th>
+                <th style="padding:11px 20px;text-align:left;" class="label">Nombre</th>
                 <th style="padding:11px 20px;text-align:left;" class="label">RUT</th>
-                <th style="padding:11px 20px;text-align:left;" class="label">Patente</th>
-                <th style="padding:11px 20px;text-align:left;" class="label">Fecha alta</th>
+                <th style="padding:11px 20px;text-align:left;" class="label">Celular</th>
+                <th style="padding:11px 20px;text-align:left;" class="label">Cliente</th>
+                <th style="padding:11px 20px;text-align:left;" class="label">Sala/Bodega</th>
+                <th style="padding:11px 20px;text-align:left;" class="label">Tipo de auto</th>
+                <th style="padding:11px 20px;text-align:left;" class="label">Fecha de alta</th>
                 <th style="padding:11px 20px;text-align:left;" class="label">Estado</th>
+                <th style="padding:11px 20px;"></th>
               </tr>
             </thead>
             <tbody id="altasBody"></tbody>
@@ -101,48 +117,101 @@
   </div>
 </div>
 
+<!-- Modal editar -->
+<div class="modal-bg hidden" id="modal-bg">
+  <div class="modal">
+    <div class="modal-header">
+      <p style="font-size:14px;font-weight:700;">Editar alta</p>
+      <button class="btn-ghost" onclick="cerrarModal()"><i data-lucide="x" style="width:16px;height:16px;"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group"><p class="label mb-1">Nombre</p><input class="input" id="f-nombre"></div>
+      <div class="form-row">
+        <div class="form-group"><p class="label mb-1">RUT</p><input class="input" id="f-rut"></div>
+        <div class="form-group"><p class="label mb-1">Celular</p><input class="input" id="f-celular"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><p class="label mb-1">Cliente</p><input class="input" id="f-cliente"></div>
+        <div class="form-group"><p class="label mb-1">Sala/Bodega</p><input class="input" id="f-sala"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><p class="label mb-1">Tipo de auto</p><input class="input" id="f-tipoauto"></div>
+        <div class="form-group"><p class="label mb-1">Fecha de alta</p><input class="input" id="f-fecha"></div>
+      </div>
+      <div class="form-group"><p class="label mb-1">Estado</p><input class="input" id="f-estado"></div>
+      <p id="modal-error" class="hidden" style="color:#dc2626;font-size:12px;"></p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="cerrarModal()">Cancelar</button>
+      <button class="btn-primary" onclick="guardar()"><i data-lucide="save" style="width:13px;height:13px;"></i> Guardar</button>
+    </div>
+  </div>
+</div>
+
 <script src="/sidebar.js"></script>
 <script>
 let todasAltas = [];
-let filtroActivo = 'todos';
+let editingId = null;
 
-const STATUS = {
-  pendiente:  { label:'Pendiente',  color:'#f59e0b', bg:'rgba(180,83,9,.12)', border:'rgba(180,83,9,.25)' },
-  completado: { label:'Completado', color:'#78fcd6', bg:'rgba(5,150,105,.12)', border:'rgba(5,150,105,.25)' },
-  rechazado:  { label:'Rechazado',  color:'#ef4444', bg:'rgba(220,38,38,.12)',   border:'rgba(220,38,38,.25)'  },
-};
-
-function statusBadge(s) {
-  const st = STATUS[s] || STATUS.pendiente;
-  return `<span style="font-size:10px;font-weight:700;text-transform:uppercase;background:${st.bg};color:${st.color};border:1px solid ${st.border};padding:2px 10px;border-radius:99px;">${st.label}</span>`;
+function fmtFechaHora(iso) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleString('es-CL', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
 }
 
-function fmtDate(iso) {
-  return new Date(iso).toLocaleDateString('es', { day:'2-digit', month:'short', year:'numeric' });
+function renderAlerta(log) {
+  const box = document.getElementById('alertBox');
+  const ultima = log[0];
+  if (!ultima) { box.innerHTML = ''; return; }
+
+  if (!ultima.ok) {
+    box.innerHTML = `<div class="alert-box alert-error">
+      <i data-lucide="alert-octagon" style="width:16px;height:16px;flex-shrink:0;margin-top:1px;"></i>
+      <div><b>No se pudo sincronizar con "Consolidado Altas OB"</b> (${fmtFechaHora(ultima.ejecutadoAt)}).<br>${ultima.error}</div>
+    </div>`;
+  } else if (ultima.duplicados?.length) {
+    box.innerHTML = `<div class="alert-box alert-warn">
+      <i data-lucide="alert-triangle" style="width:16px;height:16px;flex-shrink:0;margin-top:1px;"></i>
+      <div><b>${ultima.duplicados.length} RUT duplicado(s)</b> detectados en la sincronización de ${fmtFechaHora(ultima.ejecutadoAt)} — no se crearon de nuevo: ${ultima.duplicados.map(d => `${d.nombre} (${d.rut})`).join(', ')}</div>
+    </div>`;
+  } else {
+    box.innerHTML = '';
+  }
+  if (window.lucide) lucide.createIcons({ el: box });
 }
 
-function setFiltro(f, btn) {
-  filtroActivo = f;
-  document.querySelectorAll('.filter-tab').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  filtrarYRender();
+async function cargarSyncLog() {
+  const r = await fetch('/api/ob/altas/sync-log').then(x => x.json());
+  const log = r.ok ? r.log : [];
+  const ultima = log[0];
+  document.getElementById('statUltimaSync').textContent = ultima ? fmtFechaHora(ultima.ejecutadoAt) : 'Nunca';
+  document.getElementById('statNuevos').textContent     = ultima?.ok ? ultima.creados : '—';
+  document.getElementById('statDuplicados').textContent = ultima?.ok ? ultima.duplicados.length : '—';
+  renderAlerta(log);
+}
+
+function poblarFiltroClientes() {
+  const sel = document.getElementById('filtroCliente');
+  const actual = sel.value;
+  const clientes = [...new Set(todasAltas.map(a => a.cliente).filter(Boolean))].sort();
+  sel.innerHTML = '<option value="">Todos los clientes</option>' + clientes.map(c => `<option value="${c}">${c}</option>`).join('');
+  sel.value = actual;
 }
 
 function filtrarYRender() {
   const q = document.getElementById('busqueda').value.toLowerCase();
+  const cliente = document.getElementById('filtroCliente').value;
   let lista = todasAltas;
-  if (filtroActivo !== 'todos') lista = lista.filter(a => a.status === filtroActivo);
+  if (cliente) lista = lista.filter(a => a.cliente === cliente);
   if (q) lista = lista.filter(a =>
-    (a.name||'').toLowerCase().includes(q) ||
-    (a.rut||'').toLowerCase().includes(q) ||
-    (a.patente||'').toLowerCase().includes(q)
+    (a.nombre || '').toLowerCase().includes(q) ||
+    (a.rut || '').toLowerCase().includes(q)
   );
   renderAltas(lista);
 }
 
 function renderAltas(lista) {
   const tbody = document.getElementById('altasBody');
-  const empty  = document.getElementById('altasEmpty');
+  const empty = document.getElementById('altasEmpty');
   if (!lista.length) {
     tbody.innerHTML = '';
     empty.style.display = '';
@@ -151,49 +220,108 @@ function renderAltas(lista) {
   empty.style.display = 'none';
   tbody.innerHTML = lista.map(a => `
     <tr style="border-bottom:1px solid rgba(15,23,22,.05);">
-      <td style="padding:13px 20px;">
-        <p style="font-size:13px;font-weight:500;color:#12181a;">${a.name}</p>
-        <p style="font-size:11px;color:rgba(15,23,22,.4);">${a.phone||'—'}</p>
+      <td style="padding:13px 20px;font-size:13px;font-weight:500;color:#12181a;">${a.nombre || '—'}</td>
+      <td style="padding:13px 20px;font-size:12px;font-family:'JetBrains Mono',monospace;color:rgba(15,23,22,.6);">${a.rut || '—'}</td>
+      <td style="padding:13px 20px;font-size:12px;color:rgba(15,23,22,.6);">${a.celular || '—'}</td>
+      <td style="padding:13px 20px;font-size:12px;color:rgba(15,23,22,.7);">${a.cliente || '—'}</td>
+      <td style="padding:13px 20px;font-size:12px;color:rgba(15,23,22,.7);">${a.salaBodega || '—'}</td>
+      <td style="padding:13px 20px;font-size:12px;color:rgba(15,23,22,.7);">${a.tipoAuto || '—'}</td>
+      <td style="padding:13px 20px;font-size:12px;color:rgba(15,23,22,.5);">${a.fechaAlta || '—'}</td>
+      <td style="padding:13px 20px;"><span class="badge badge-electric">${a.estado || '—'}</span></td>
+      <td style="padding:13px 20px;display:flex;gap:4px;">
+        <button class="btn-ghost" onclick='editar(${JSON.stringify(a.id)})' title="Editar"><i data-lucide="pencil" style="width:13px;height:13px;"></i></button>
+        <button class="btn-ghost" onclick='eliminar(${JSON.stringify(a.id)}, ${JSON.stringify(a.nombre)})' title="Eliminar"><i data-lucide="trash-2" style="width:13px;height:13px;"></i></button>
       </td>
-      <td style="padding:13px 20px;font-size:12px;font-family:'JetBrains Mono',monospace;color:rgba(15,23,22,.6);">${a.rut||'—'}</td>
-      <td style="padding:13px 20px;font-size:13px;font-weight:600;color:#059669;font-family:'JetBrains Mono',monospace;">${a.patente||'—'}</td>
-      <td style="padding:13px 20px;font-size:12px;color:rgba(15,23,22,.5);">${fmtDate(a.createdAt)}</td>
-      <td style="padding:13px 20px;">${statusBadge(a.status)}</td>
     </tr>`).join('');
+  if (window.lucide) lucide.createIcons({ el: tbody });
 }
 
 async function cargarAltas() {
   try {
-    const data = await fetch('/api/ob/altas').then(r => r.json());
-    todasAltas = Array.isArray(data) ? data : [];
+    const r = await fetch('/api/ob/altas').then(x => x.json());
+    todasAltas = r.ok ? r.altas : [];
   } catch { todasAltas = []; }
 
-  const total     = todasAltas.length;
-  const pendiente = todasAltas.filter(a => a.status === 'pendiente').length;
-  const completado= todasAltas.filter(a => a.status === 'completado').length;
-  const rechazado = todasAltas.filter(a => a.status === 'rechazado').length;
-
-  document.getElementById('statTotal').textContent   = total;
-  document.getElementById('statPending').textContent = pendiente;
-  document.getElementById('statOk').textContent      = completado;
-  document.getElementById('statRej').textContent     = rechazado;
-
+  document.getElementById('statTotal').textContent = todasAltas.length;
+  poblarFiltroClientes();
   filtrarYRender();
+  await cargarSyncLog();
+}
+
+async function sincronizarAhora() {
+  const btn = document.getElementById('btnSync');
+  btn.disabled = true;
+  btn.innerHTML = '<i data-lucide="loader-2" class="w-3.5 h-3.5" style="animation:spin 1s linear infinite;"></i> Sincronizando...';
+  const r = await fetch('/api/ob/altas/sync', { method: 'POST' }).then(x => x.json());
+  btn.disabled = false;
+  btn.innerHTML = '<i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Sincronizar ahora';
+  lucide.createIcons();
+  if (!r.ok) { alert('Error al sincronizar: ' + r.error); }
+  await cargarAltas();
+}
+
+function editar(id) {
+  const a = todasAltas.find(x => x.id === id);
+  if (!a) return;
+  editingId = id;
+  document.getElementById('f-nombre').value = a.nombre || '';
+  document.getElementById('f-rut').value = a.rut || '';
+  document.getElementById('f-celular').value = a.celular || '';
+  document.getElementById('f-cliente').value = a.cliente || '';
+  document.getElementById('f-sala').value = a.salaBodega || '';
+  document.getElementById('f-tipoauto').value = a.tipoAuto || '';
+  document.getElementById('f-fecha').value = a.fechaAlta || '';
+  document.getElementById('f-estado').value = a.estado || '';
+  document.getElementById('modal-error').classList.add('hidden');
+  document.getElementById('modal-bg').classList.remove('hidden');
+  lucide.createIcons();
+}
+function cerrarModal() { document.getElementById('modal-bg').classList.add('hidden'); editingId = null; }
+
+async function guardar() {
+  const body = {
+    nombre: document.getElementById('f-nombre').value.trim(),
+    rut: document.getElementById('f-rut').value.trim(),
+    celular: document.getElementById('f-celular').value.trim(),
+    cliente: document.getElementById('f-cliente').value.trim(),
+    salaBodega: document.getElementById('f-sala').value.trim(),
+    tipoAuto: document.getElementById('f-tipoauto').value.trim(),
+    fechaAlta: document.getElementById('f-fecha').value.trim(),
+    estado: document.getElementById('f-estado').value.trim(),
+  };
+  const r = await fetch(`/api/ob/altas/${editingId}`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+  }).then(x => x.json());
+  if (!r.ok) {
+    const err = document.getElementById('modal-error');
+    err.textContent = r.error || 'Error al guardar';
+    err.classList.remove('hidden');
+    return;
+  }
+  cerrarModal();
+  cargarAltas();
+}
+
+async function eliminar(id, nombre) {
+  if (!confirm(`¿Eliminar "${nombre}" de Altas Onboarding?`)) return;
+  await fetch(`/api/ob/altas/${id}`, { method: 'DELETE' });
+  cargarAltas();
 }
 
 function exportarCSV() {
   if (!todasAltas.length) return;
-  const rows = [['nombre','rut','patente','telefono','estado','fecha'],
-    ...todasAltas.map(a => [a.name, a.rut, a.patente, a.phone, a.status, a.createdAt])];
-  const csv = rows.map(r => r.map(v => `"${v||''}"`).join(',')).join('\n');
-  const el  = document.createElement('a');
-  el.href   = URL.createObjectURL(new Blob([csv], { type:'text/csv' }));
-  el.download = 'altas.csv';
+  const rows = [['nombre','rut','celular','cliente','sala_bodega','tipo_auto','fecha_alta','estado'],
+    ...todasAltas.map(a => [a.nombre, a.rut, a.celular, a.cliente, a.salaBodega, a.tipoAuto, a.fechaAlta, a.estado])];
+  const csv = rows.map(r => r.map(v => `"${v || ''}"`).join(',')).join('\n');
+  const el = document.createElement('a');
+  el.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+  el.download = 'altas_onboarding.csv';
   el.click();
 }
 
 initSidebar('ob-altas').then(() => lucide.createIcons());
 cargarAltas();
 </script>
+<style>@keyframes spin { from{transform:rotate(0)} to{transform:rotate(360deg)} }</style>
 </body>
 </html>

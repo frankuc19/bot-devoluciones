@@ -14,6 +14,7 @@
       perm:  'onboarding',
       items: [
         { label: 'Resumen',      href: '/onboarding/resumen.html',   icon: 'layout-dashboard', key: 'ob-resumen'  },
+        { label: 'Altas',        href: '/onboarding/altas.html',     icon: 'user-check',       key: 'ob-altas'    },
         { label: 'Email masivo', href: '/onboarding/email.html',     icon: 'mail',             key: 'ob-email'    },
         { label: 'WhatsApp',     href: '/onboarding/whatsapp.html',  icon: 'message-circle',   key: 'ob-whatsapp' },
       ],

@@ -30,6 +30,10 @@ const templatesRoutes = require('../src/onboarding/templatesRoutes');
 
 const { publicRouter: turnosPublicRoutes, adminRouter: turnosAdminRoutes } = require('../src/turnos/turnosRoutes');
 
+const altasRoutes = require('../src/onboarding/altasRoutes');
+const altasStore  = require('../src/onboarding/altasStore');
+const { sincronizarAltasOB } = require('../src/onboarding/altasSync');
+
 const DELAY_MS   = 5000;
 const PORT       = process.env.PORT || 3000;
 const USA_SHEETS = !!process.env.GOOGLE_SHEET_ID;
@@ -461,6 +465,7 @@ app.use('/api/ob/email',     requireAuthApi, emailRoutes);
 app.use('/api/ob/whatsapp',  requireAuthApi, whatsappRoutes);
 app.use('/api/ob/campaigns', requireAuthApi, campaignsRoutes);
 app.use('/api/ob/templates', requireAuthApi, templatesRoutes);
+app.use('/api/ob/altas',     requireAuthApi, altasRoutes);
 
 // ─── API: turnos (administración, solo panel) ─────────────────────────────────
 app.use('/api/turnos/admin', requireAuthApi, turnosAdminRoutes);
@@ -964,6 +969,22 @@ function scheduleCleanup() {
   }, 24 * 60 * 60 * 1000);
 }
 
+// ─── Sincronización "Consolidado Altas OB" (cada 4h, resistente a reinicios) ──
+const ALTAS_SYNC_INTERVAL_MS = 4 * 60 * 60 * 1000; // 4 horas
+const ALTAS_SYNC_CHECK_MS    = 10 * 60 * 1000;      // revisa cada 10 min si ya toca
+
+function scheduleAltasSync() {
+  const ejecutarSiCorresponde = () => {
+    const ultima = altasStore.getSyncLog()[0];
+    const elapsed = ultima ? Date.now() - new Date(ultima.ejecutadoAt).getTime() : Infinity;
+    if (elapsed < ALTAS_SYNC_INTERVAL_MS) return;
+    console.log('[Altas OB] Ejecutando sincronización programada...');
+    sincronizarAltasOB().catch(e => console.error('[Altas OB] Error en sincronización programada:', e.message));
+  };
+  ejecutarSiCorresponde(); // por si el plazo se cumplió mientras el server estaba caído
+  setInterval(ejecutarSiCorresponde, ALTAS_SYNC_CHECK_MS);
+}
+
 server.listen(PORT, () => {
   console.log(`\nPanel de control: http://localhost:${PORT}`);
   console.log(`Fuente de datos: ${USA_SHEETS ? 'Google Sheets' : 'archivo local CSV'}`);
@@ -983,4 +1004,5 @@ server.listen(PORT, () => {
   }
   console.log('');
   scheduleCleanup();
+  scheduleAltasSync();
 });
