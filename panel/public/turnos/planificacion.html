@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Karri — Planificación de Turnos</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .tbl-wrap { overflow-x:auto;border:1px solid rgba(255,255,255,.07);border-radius:10px; }
+  table { width:100%;border-collapse:collapse;font-size:12.5px; }
+  th { background:#1e2221;color:rgba(231,236,235,.35);font-weight:600;font-size:11px;letter-spacing:.04em;padding:9px 12px;text-align:left;white-space:nowrap;border-bottom:1px solid rgba(255,255,255,.07); }
+  td { padding:9px 12px;border-bottom:1px solid rgba(255,255,255,.05);color:#e7eceb;vertical-align:middle;white-space:nowrap; }
+  tr:last-child td { border-bottom:none; }
+  tr:hover td { background:rgba(255,255,255,.02); }
+  .week-nav { display:flex;align-items:center;gap:6px; }
+  .week-btn { width:30px;height:30px;border-radius:8px;border:1px solid rgba(255,255,255,.08);background:#1e2221;color:#e7eceb;cursor:pointer;display:inline-flex;align-items:center;justify-content:center; }
+  .week-btn:hover { background:#27272a; }
+  .cap-input { width:64px;background:#27272a;border:1px solid rgba(255,255,255,.08);color:#e7eceb;border-radius:6px;padding:4px 6px;font-size:12px;text-align:center; }
+  select.status-input { background:#27272a;border:1px solid rgba(255,255,255,.08);color:#e7eceb;border-radius:6px;padding:4px 6px;font-size:11px; }
+</style>
+</head>
+<body class="flex h-screen overflow-hidden">
+
+<aside id="sidebar" class="sidebar"></aside>
+
+<div class="flex-1 flex flex-col overflow-hidden">
+  <header style="background:var(--bg-800);border-bottom:1px solid var(--border);padding:14px 24px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;flex-wrap:wrap;gap:10px;">
+    <div>
+      <h1 style="font-size:16px;font-weight:700;color:var(--text);">Planificación de Turnos</h1>
+      <p style="font-size:11px;color:var(--text-muted);margin-top:2px;" id="sub-tienda">Selecciona una tienda</p>
+    </div>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+      <select class="input" id="sel-tienda" style="width:180px;" onchange="cargar()"></select>
+      <div class="week-nav">
+        <button class="week-btn" onclick="cambiarSemana(-7)"><i data-lucide="chevron-left" style="width:14px;height:14px;"></i></button>
+        <button class="btn-secondary" onclick="irHoy()">Hoy</button>
+        <button class="week-btn" onclick="cambiarSemana(7)"><i data-lucide="chevron-right" style="width:14px;height:14px;"></i></button>
+      </div>
+      <button class="btn-primary" onclick="generarSemana()">
+        <i data-lucide="calendar-plus" style="width:14px;height:14px;"></i> Generar semana (7 días × AM/PM/FULL)
+      </button>
+    </div>
+  </header>
+
+  <div class="flex-1 overflow-y-auto" style="padding:20px 24px;display:flex;flex-direction:column;gap:16px;">
+    <p id="rango-semana" style="font-size:12px;color:var(--text-muted);"></p>
+    <div class="card" style="overflow:hidden;">
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr>
+            <th>Fecha</th><th>Turno</th><th>Horario</th><th>Cupos</th><th>Tomados</th><th>Estado</th><th></th>
+          </tr></thead>
+          <tbody id="tbody-slots"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/sidebar.js"></script>
+<script>
+const DIAS = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+const TURNO_LABEL = { AM:'AM', PM:'PM', FULL:'FULL' };
+let weekStart = mondayOf(new Date());
+let tiendas = [];
+
+function mondayOf(d) {
+  const day = d.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  const m = new Date(d);
+  m.setDate(m.getDate() + diff);
+  return m.toISOString().slice(0, 10);
+}
+function fmtFecha(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00');
+  return `${DIAS[d.getDay()]} ${d.getDate()}/${d.getMonth()+1}`;
+}
+function cambiarSemana(dias) {
+  const d = new Date(weekStart + 'T00:00:00');
+  d.setDate(d.getDate() + dias);
+  weekStart = mondayOf(d);
+  cargar();
+}
+function irHoy() { weekStart = mondayOf(new Date()); cargar(); }
+
+async function cargarTiendas() {
+  const r = await fetch('/api/turnos/admin/tiendas').then(x => x.json());
+  tiendas = r.tiendas || [];
+  const sel = document.getElementById('sel-tienda');
+  sel.innerHTML = tiendas.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+}
+
+async function generarSemana() {
+  const storeId = document.getElementById('sel-tienda').value;
+  if (!storeId) return;
+  const r = await fetch('/api/turnos/admin/slots/generar-semana', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ storeId, weekStart }),
+  }).then(x => x.json());
+  if (r.ok) cargar();
+}
+
+async function cargar() {
+  const storeId = document.getElementById('sel-tienda').value;
+  const tienda = tiendas.find(t => t.id === storeId);
+  document.getElementById('sub-tienda').textContent = tienda ? tienda.name : 'Selecciona una tienda';
+
+  const d = new Date(weekStart + 'T00:00:00');
+  const fin = new Date(d); fin.setDate(fin.getDate() + 6);
+  document.getElementById('rango-semana').textContent =
+    `Semana del ${d.getDate()}/${d.getMonth()+1} al ${fin.getDate()}/${fin.getMonth()+1}`;
+
+  if (!storeId) { document.getElementById('tbody-slots').innerHTML = ''; return; }
+
+  const r = await fetch(`/api/turnos/admin/slots?storeId=${storeId}&weekStart=${weekStart}`).then(x => x.json());
+  const tbody = document.getElementById('tbody-slots');
+  if (!r.ok || r.slots.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--text-faint);padding:24px;">
+      Sin turnos planificados esta semana. Usa <b>Generar semana</b>.</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = r.slots.map(s => `
+    <tr>
+      <td>${fmtFecha(s.date)}</td>
+      <td>${TURNO_LABEL[s.shiftType]}</td>
+      <td>${s.startTime}–${s.endTime}</td>
+      <td><input class="cap-input" type="number" min="0" value="${s.capacity}" onchange="actualizarSlot('${s.id}',{capacity:this.value})"></td>
+      <td>${s.taken}</td>
+      <td>
+        <select class="status-input" onchange="actualizarSlot('${s.id}',{status:this.value})">
+          <option value="OPEN" ${s.status==='OPEN'?'selected':''}>Abierto</option>
+          <option value="CLOSED" ${s.status==='CLOSED'?'selected':''}>Cerrado</option>
+          <option value="CANCELLED" ${s.status==='CANCELLED'?'selected':''}>Cancelado</option>
+        </select>
+      </td>
+      <td>
+        <button class="btn-secondary" style="padding:4px 8px;" onclick="eliminarSlot('${s.id}')"><i data-lucide="trash-2" style="width:12px;height:12px;"></i></button>
+      </td>
+    </tr>`).join('');
+  if (window.lucide) lucide.createIcons({ el: tbody });
+}
+
+async function actualizarSlot(id, body) {
+  await fetch(`/api/turnos/admin/slots/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  cargar();
+}
+async function eliminarSlot(id) {
+  if (!confirm('¿Eliminar este turno? Se perderán las asignaciones asociadas.')) return;
+  await fetch(`/api/turnos/admin/slots/${id}`, { method: 'DELETE' });
+  cargar();
+}
+
+initSidebar('tu-planif').then(async () => {
+  lucide.createIcons();
+  await cargarTiendas();
+  await cargar();
+});
+</script>
+</body>
+</html>

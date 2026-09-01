@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Karri — Karriers (Turnos)</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .tbl-wrap { overflow-x:auto;border:1px solid rgba(255,255,255,.07);border-radius:10px; }
+  table { width:100%;border-collapse:collapse;font-size:12.5px; }
+  th { background:#1e2221;color:rgba(231,236,235,.35);font-weight:600;font-size:11px;letter-spacing:.04em;padding:9px 12px;text-align:left;white-space:nowrap;border-bottom:1px solid rgba(255,255,255,.07); }
+  td { padding:9px 12px;border-bottom:1px solid rgba(255,255,255,.05);color:#e7eceb;vertical-align:middle;white-space:nowrap; }
+  tr:last-child td { border-bottom:none; }
+  tr:hover td { background:rgba(255,255,255,.02); }
+  .modal-bg { position:fixed;inset:0;background:rgba(0,0,0,.65);display:flex;align-items:center;justify-content:center;z-index:1000;padding:20px; }
+  .modal { background:#181c1b;border:1px solid rgba(255,255,255,.07);border-radius:14px;width:100%;max-width:460px; }
+  .modal-header { display:flex;align-items:center;justify-content:space-between;padding:18px 20px 14px;border-bottom:1px solid rgba(255,255,255,.07); }
+  .modal-body { padding:20px;display:flex;flex-direction:column;gap:12px; }
+  .modal-footer { display:flex;justify-content:flex-end;gap:8px;padding:14px 20px;border-top:1px solid rgba(255,255,255,.07); }
+  .btn-ghost { background:none;color:rgba(231,236,235,.5);font-size:12px;padding:5px 8px;border-radius:6px;border:none;cursor:pointer;display:inline-flex;align-items:center;gap:5px; }
+  .btn-ghost:hover { background:#27272a;color:#e7eceb; }
+</style>
+</head>
+<body class="flex h-screen overflow-hidden">
+
+<aside id="sidebar" class="sidebar"></aside>
+
+<div class="flex-1 flex flex-col overflow-hidden">
+  <header style="background:var(--bg-800);border-bottom:1px solid var(--border);padding:14px 24px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+    <div>
+      <h1 style="font-size:16px;font-weight:700;color:var(--text);">Karriers</h1>
+      <p style="font-size:11px;color:var(--text-muted);margin-top:2px;">Prestadores habilitados para tomar turnos en /turnos</p>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <input class="input" id="buscar" placeholder="Buscar nombre o RUT..." style="width:220px;" oninput="render()">
+      <button class="btn-primary" onclick="abrirModal()"><i data-lucide="plus" style="width:14px;height:14px;"></i> Nuevo Karrier</button>
+    </div>
+  </header>
+
+  <div class="flex-1 overflow-y-auto" style="padding:20px 24px;">
+    <div class="card" style="overflow:hidden;">
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Nombre</th><th>RUT</th><th>Teléfono</th><th>Estado</th><th></th></tr></thead>
+          <tbody id="tbody-karriers"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg hidden" id="modal-bg">
+  <div class="modal">
+    <div class="modal-header">
+      <p style="font-size:14px;font-weight:700;" id="modal-title">Nuevo Karrier</p>
+      <button class="btn-ghost" onclick="cerrarModal()"><i data-lucide="x" style="width:16px;height:16px;"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group"><p class="label mb-1">Nombre</p><input class="input" id="f-name"></div>
+      <div class="form-group"><p class="label mb-1">RUT</p><input class="input" id="f-rut"></div>
+      <div class="form-group"><p class="label mb-1">Teléfono</p><input class="input" id="f-phone" placeholder="56912345678"></div>
+      <div class="form-group">
+        <p class="label mb-1">Estado</p>
+        <select class="input" id="f-status">
+          <option value="ACTIVE">Activo</option>
+          <option value="INACTIVE">Inactivo</option>
+          <option value="SUSPENDED">Suspendido</option>
+        </select>
+      </div>
+      <p id="modal-error" class="hidden" style="color:#ef4444;font-size:12px;"></p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="cerrarModal()">Cancelar</button>
+      <button class="btn-primary" onclick="guardar()"><i data-lucide="save" style="width:13px;height:13px;"></i> Guardar</button>
+    </div>
+  </div>
+</div>
+
+<script src="/sidebar.js"></script>
+<script>
+let karriers = [];
+let editingRut = null;
+
+async function cargar() {
+  const r = await fetch('/api/turnos/admin/karriers').then(x => x.json());
+  karriers = r.karriers || [];
+  render();
+}
+
+function render() {
+  const q = document.getElementById('buscar').value.toLowerCase();
+  const filtrados = karriers.filter(k => (k.name||'').toLowerCase().includes(q) || (k.rut||'').toLowerCase().includes(q));
+  const badge = { ACTIVE: '<span class="badge badge-electric">Activo</span>', INACTIVE: '<span class="badge badge-muted">Inactivo</span>', SUSPENDED: '<span class="badge badge-red">Suspendido</span>' };
+  document.getElementById('tbody-karriers').innerHTML = filtrados.map(k => `
+    <tr>
+      <td style="font-weight:600;">${k.name}</td>
+      <td class="td-mono">${k.rut}</td>
+      <td>${k.phone || '—'}</td>
+      <td>${badge[k.status] || badge.ACTIVE}</td>
+      <td style="display:flex;gap:4px;">
+        <button class="btn-ghost" onclick='editar(${JSON.stringify(k.rut)})'><i data-lucide="pencil" style="width:13px;height:13px;"></i></button>
+        <button class="btn-ghost" onclick='eliminar(${JSON.stringify(k.rut)})'><i data-lucide="trash-2" style="width:13px;height:13px;"></i></button>
+      </td>
+    </tr>`).join('');
+  if (window.lucide) lucide.createIcons();
+}
+
+function abrirModal() {
+  editingRut = null;
+  document.getElementById('modal-title').textContent = 'Nuevo Karrier';
+  document.getElementById('f-name').value = '';
+  document.getElementById('f-rut').value = '';
+  document.getElementById('f-rut').disabled = false;
+  document.getElementById('f-phone').value = '';
+  document.getElementById('f-status').value = 'ACTIVE';
+  document.getElementById('modal-error').classList.add('hidden');
+  document.getElementById('modal-bg').classList.remove('hidden');
+  lucide.createIcons();
+}
+
+function editar(rut) {
+  const k = karriers.find(x => x.rut === rut);
+  if (!k) return;
+  editingRut = rut;
+  document.getElementById('modal-title').textContent = 'Editar Karrier';
+  document.getElementById('f-name').value = k.name || '';
+  document.getElementById('f-rut').value = k.rut || '';
+  document.getElementById('f-rut').disabled = true;
+  document.getElementById('f-phone').value = k.phone || '';
+  document.getElementById('f-status').value = k.status || 'ACTIVE';
+  document.getElementById('modal-error').classList.add('hidden');
+  document.getElementById('modal-bg').classList.remove('hidden');
+  lucide.createIcons();
+}
+
+function cerrarModal() { document.getElementById('modal-bg').classList.add('hidden'); }
+
+async function guardar() {
+  const rut = document.getElementById('f-rut').value.trim();
+  const name = document.getElementById('f-name').value.trim();
+  if (!rut || !name) {
+    const err = document.getElementById('modal-error');
+    err.textContent = 'RUT y nombre son requeridos';
+    err.classList.remove('hidden');
+    return;
+  }
+  const body = { name, rut, phone: document.getElementById('f-phone').value.trim(), status: document.getElementById('f-status').value };
+  const url = editingRut ? `/api/turnos/admin/karriers/${encodeURIComponent(editingRut)}` : '/api/turnos/admin/karriers';
+  const method = editingRut ? 'PUT' : 'POST';
+  const r = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(x => x.json());
+  if (!r.ok) {
+    const err = document.getElementById('modal-error');
+    err.textContent = r.error || 'Error al guardar';
+    err.classList.remove('hidden');
+    return;
+  }
+  cerrarModal();
+  cargar();
+}
+
+async function eliminar(rut) {
+  if (!confirm('¿Eliminar este Karrier?')) return;
+  await fetch(`/api/turnos/admin/karriers/${encodeURIComponent(rut)}`, { method: 'DELETE' });
+  cargar();
+}
+
+initSidebar('tu-karriers').then(async () => { lucide.createIcons(); await cargar(); });
+</script>
+</body>
+</html>

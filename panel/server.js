@@ -28,6 +28,8 @@ const whatsappRoutes  = require('../src/onboarding/whatsappRoutes');
 const campaignsRoutes = require('../src/onboarding/campaignsRoutes');
 const templatesRoutes = require('../src/onboarding/templatesRoutes');
 
+const { publicRouter: turnosPublicRoutes, adminRouter: turnosAdminRoutes } = require('../src/turnos/turnosRoutes');
+
 const DELAY_MS   = 5000;
 const PORT       = process.env.PORT || 3000;
 const USA_SHEETS = !!process.env.GOOGLE_SHEET_ID;
@@ -125,7 +127,7 @@ function migrateLegacyPwd(pwd) {
   return /^[a-f0-9]{64}$/.test(pwd) ? pwd : hashPwd(pwd);
 }
 
-const ALL_SECTIONS = ['finanzas', 'onboarding', 'operaciones', 'capacitacion', 'perfiles'];
+const ALL_SECTIONS = ['finanzas', 'onboarding', 'operaciones', 'capacitacion', 'turnos', 'perfiles'];
 
 function loginUser(username, password) {
   const users = readUsers();
@@ -252,6 +254,12 @@ app.get('/api/lms/conductores', (req, res) => {
   res.json(readLmsCond());
 });
 
+// ─── Turnos: Karriers acceden sin login del panel (identificación por RUT) ────
+app.get('/turnos', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'turnos', 'tomar.html'));
+});
+app.use('/api/turnos/public', turnosPublicRoutes);
+
 // Protegido: requiere sesión del panel O cookie lms_admin
 app.post('/api/lms/conductores', requireLmsAdmin, (req, res) => {
   if (typeof req.body !== 'object' || Array.isArray(req.body))
@@ -310,6 +318,7 @@ const SECTION_HOME = {
   onboarding:  '/onboarding/resumen.html',
   operaciones: '/operaciones/tarifario.html',
   capacitacion: '/capacitacion/index.html',
+  turnos:      '/turnos/dashboard.html',
   perfiles:    '/perfiles.html',
 };
 
@@ -325,6 +334,10 @@ const PAGE_SECTION = {
   '/operaciones/tarifario.html':       'operaciones',
   '/capacitacion/index.html':          'capacitacion',
   '/capacitacion/lms.html':            'capacitacion',
+  '/turnos/dashboard.html':            'turnos',
+  '/turnos/tiendas.html':              'turnos',
+  '/turnos/planificacion.html':        'turnos',
+  '/turnos/karriers.html':             'turnos',
   '/perfiles.html':                    'perfiles',
 };
 
@@ -445,6 +458,9 @@ app.use('/api/ob/email',     requireAuthApi, emailRoutes);
 app.use('/api/ob/whatsapp',  requireAuthApi, whatsappRoutes);
 app.use('/api/ob/campaigns', requireAuthApi, campaignsRoutes);
 app.use('/api/ob/templates', requireAuthApi, templatesRoutes);
+
+// ─── API: turnos (administración, solo panel) ─────────────────────────────────
+app.use('/api/turnos/admin', requireAuthApi, turnosAdminRoutes);
 
 // ─── Estado global ────────────────────────────────────────────────────────────
 let waClient           = null;

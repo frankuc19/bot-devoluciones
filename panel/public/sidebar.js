@@ -33,6 +33,17 @@
       ],
     },
     {
+      label: 'Turnos',
+      perm:  'turnos',
+      items: [
+        { label: 'Dashboard',      href: '/turnos/dashboard.html',     icon: 'layout-dashboard', key: 'tu-dashboard' },
+        { label: 'Tiendas',        href: '/turnos/tiendas.html',       icon: 'store',             key: 'tu-tiendas'   },
+        { label: 'Planificación',  href: '/turnos/planificacion.html', icon: 'calendar-days',     key: 'tu-planif'    },
+        { label: 'Karriers',       href: '/turnos/karriers.html',      icon: 'users',             key: 'tu-karriers'  },
+        { label: 'Tomar turno (link para Karriers)', href: '/turnos', icon: 'external-link', key: 'tu-tomar', external: true },
+      ],
+    },
+    {
       label: 'Perfiles',
       perm:  'perfiles',
       items: [

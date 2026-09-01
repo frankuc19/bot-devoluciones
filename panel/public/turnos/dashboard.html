@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Karri — Control Operacional de Turnos</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .tbl-wrap { overflow-x:auto;border:1px solid rgba(255,255,255,.07);border-radius:10px; }
+  table { width:100%;border-collapse:collapse;font-size:12.5px; }
+  th { background:#1e2221;color:rgba(231,236,235,.35);font-weight:600;font-size:11px;letter-spacing:.04em;padding:9px 12px;text-align:left;white-space:nowrap;border-bottom:1px solid rgba(255,255,255,.07); }
+  td { padding:9px 12px;border-bottom:1px solid rgba(255,255,255,.05);color:#e7eceb;vertical-align:middle;white-space:nowrap; }
+  tr:last-child td { border-bottom:none; }
+  tr:hover td { background:rgba(255,255,255,.02); }
+  .kpi-card:hover { border-color:rgba(255,255,255,.13); }
+  .cov-cell { display:inline-flex;align-items:center;justify-content:center;min-width:48px;padding:3px 8px;border-radius:6px;font-weight:700;font-size:11.5px; }
+  .cov-ok    { background:rgba(120,252,214,.12); color:#78fcd6; }
+  .cov-warn  { background:rgba(245,158,11,.12);  color:#f59e0b; }
+  .cov-bad   { background:rgba(239,68,68,.12);   color:#ef4444; }
+  .week-nav { display:flex;align-items:center;gap:6px; }
+  .week-btn { width:30px;height:30px;border-radius:8px;border:1px solid rgba(255,255,255,.08);background:#1e2221;color:#e7eceb;cursor:pointer;display:inline-flex;align-items:center;justify-content:center; }
+  .week-btn:hover { background:#27272a; }
+</style>
+</head>
+<body class="flex h-screen overflow-hidden">
+
+<aside id="sidebar" class="sidebar"></aside>
+
+<div class="flex-1 flex flex-col overflow-hidden">
+  <header style="background:var(--bg-800);border-bottom:1px solid var(--border);padding:14px 24px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;flex-wrap:wrap;gap:10px;">
+    <div>
+      <h1 style="font-size:16px;font-weight:700;color:var(--text);">Control Operacional de Turnos</h1>
+      <p style="font-size:11px;color:var(--text-muted);margin-top:2px;">Cobertura de las 7 tiendas Karri</p>
+    </div>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+      <select class="input" id="filtro-tienda" style="width:180px;" onchange="cargarTodo()">
+        <option value="">Todas las tiendas</option>
+      </select>
+      <div class="week-nav">
+        <button class="week-btn" onclick="cambiarSemana(-7)"><i data-lucide="chevron-left" style="width:14px;height:14px;"></i></button>
+        <button class="btn-secondary" onclick="irHoy()">Hoy</button>
+        <button class="week-btn" onclick="cambiarSemana(7)"><i data-lucide="chevron-right" style="width:14px;height:14px;"></i></button>
+      </div>
+    </div>
+  </header>
+
+  <div class="flex-1 overflow-y-auto" style="padding:20px 24px;display:flex;flex-direction:column;gap:20px;">
+    <p id="rango-semana" style="font-size:12px;color:var(--text-muted);"></p>
+
+    <!-- KPIs -->
+    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:14px;">
+      <div class="card kpi-card" style="padding:16px 18px;">
+        <div class="label" style="margin-bottom:8px;">Karriers activos</div>
+        <div style="font-size:26px;font-weight:700;color:var(--electric);" id="kpi-karriers">—</div>
+      </div>
+      <div class="card kpi-card" style="padding:16px 18px;">
+        <div class="label" style="margin-bottom:8px;">Turnos tomados</div>
+        <div style="font-size:26px;font-weight:700;color:#60a5fa;" id="kpi-tomados">—</div>
+      </div>
+      <div class="card kpi-card" style="padding:16px 18px;">
+        <div class="label" style="margin-bottom:8px;">Cobertura</div>
+        <div style="font-size:26px;font-weight:700;color:var(--electric);" id="kpi-cobertura">—</div>
+      </div>
+      <div class="card kpi-card" style="padding:16px 18px;">
+        <div class="label" style="margin-bottom:8px;">Déficit</div>
+        <div style="font-size:26px;font-weight:700;color:#f87171;" id="kpi-deficit">—</div>
+      </div>
+      <div class="card kpi-card" style="padding:16px 18px;">
+        <div class="label" style="margin-bottom:8px;">Tiendas activas</div>
+        <div style="font-size:26px;font-weight:700;color:#e7eceb;" id="kpi-tiendas">—</div>
+      </div>
+    </div>
+
+    <!-- Tabla de cobertura -->
+    <div class="card" style="overflow:hidden;">
+      <div style="padding:16px 20px;border-bottom:1px solid rgba(255,255,255,.07);">
+        <p style="font-size:13px;font-weight:600;color:var(--text);">Cobertura por tienda, día y turno</p>
+      </div>
+      <div style="padding:0 20px 16px;">
+        <div class="tbl-wrap" style="margin-top:16px;">
+          <table>
+            <thead><tr>
+              <th>Tienda</th><th>Fecha</th><th>Turno</th>
+              <th>Requeridos</th><th>Tomados</th><th>Disponibles</th><th>Cobertura</th>
+            </tr></thead>
+            <tbody id="tbody-cobertura"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/sidebar.js"></script>
+<script>
+const DIAS = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+const TURNO_LABEL = { AM:'AM', PM:'PM', FULL:'FULL' };
+let weekStart = mondayOf(new Date());
+
+function mondayOf(d) {
+  const day = d.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  const m = new Date(d);
+  m.setDate(m.getDate() + diff);
+  return m.toISOString().slice(0, 10);
+}
+function fmtFecha(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00');
+  return `${DIAS[d.getDay()]} ${d.getDate()}/${d.getMonth()+1}`;
+}
+function covClass(p) {
+  if (p >= 95) return 'cov-ok';
+  if (p >= 80) return 'cov-warn';
+  return 'cov-bad';
+}
+
+function cambiarSemana(dias) {
+  const d = new Date(weekStart + 'T00:00:00');
+  d.setDate(d.getDate() + dias);
+  weekStart = mondayOf(d);
+  cargarTodo();
+}
+function irHoy() { weekStart = mondayOf(new Date()); cargarTodo(); }
+
+async function cargarTiendas() {
+  const r = await fetch('/api/turnos/admin/tiendas').then(x => x.json());
+  const sel = document.getElementById('filtro-tienda');
+  const actual = sel.value;
+  sel.innerHTML = '<option value="">Todas las tiendas</option>' +
+    r.tiendas.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+  sel.value = actual;
+}
+
+async function cargarTodo() {
+  const storeId = document.getElementById('filtro-tienda').value;
+
+  const d = new Date(weekStart + 'T00:00:00');
+  const fin = new Date(d); fin.setDate(fin.getDate() + 6);
+  document.getElementById('rango-semana').textContent =
+    `Semana del ${d.getDate()}/${d.getMonth()+1} al ${fin.getDate()}/${fin.getMonth()+1}`;
+
+  const kpis = await fetch(`/api/turnos/admin/dashboard?weekStart=${weekStart}`).then(x => x.json());
+  if (kpis.ok) {
+    document.getElementById('kpi-karriers').textContent  = kpis.kpis.karriersActivos;
+    document.getElementById('kpi-tomados').textContent   = kpis.kpis.turnosTomados;
+    document.getElementById('kpi-cobertura').textContent = kpis.kpis.cobertura + '%';
+    document.getElementById('kpi-deficit').textContent   = kpis.kpis.deficit;
+    document.getElementById('kpi-tiendas').textContent   = kpis.kpis.tiendasActivas;
+  }
+
+  const url = `/api/turnos/admin/cobertura?weekStart=${weekStart}` + (storeId ? `&storeId=${storeId}` : '');
+  const cov = await fetch(url).then(x => x.json());
+  const tbody = document.getElementById('tbody-cobertura');
+  if (!cov.ok || cov.cobertura.filas.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--text-faint);padding:24px;">
+      No hay turnos planificados para esta semana. Ve a <b>Planificación</b> para generarlos.</td></tr>`;
+  } else {
+    tbody.innerHTML = cov.cobertura.filas.map(f => `
+      <tr>
+        <td>${f.storeName}</td>
+        <td>${fmtFecha(f.date)}</td>
+        <td>${TURNO_LABEL[f.shiftType]}</td>
+        <td>${f.capacity}</td>
+        <td>${f.taken}</td>
+        <td>${f.available}</td>
+        <td><span class="cov-cell ${covClass(f.coverage)}">${f.coverage}%</span></td>
+      </tr>`).join('');
+  }
+  if (window.lucide) lucide.createIcons();
+}
+
+initSidebar('tu-dashboard').then(async () => {
+  lucide.createIcons();
+  await cargarTiendas();
+  await cargarTodo();
+});
+</script>
+</body>
+</html>

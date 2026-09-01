@@ -138,6 +138,13 @@
               <p style="font-size:11px;color:rgba(231,236,235,.4);">LMS de conductores y asistencia</p>
             </div>
           </label>
+          <label class="sec-option" id="sec-turnos">
+            <input type="checkbox" value="turnos" onchange="onSecChange(this)">
+            <div>
+              <p style="font-size:13px;font-weight:500;color:#e7eceb;">Turnos</p>
+              <p style="font-size:11px;color:rgba(231,236,235,.4);">Dashboard, tiendas, planificación y Karriers</p>
+            </div>
+          </label>
           <label class="sec-option" id="sec-perfiles">
             <input type="checkbox" value="perfiles" onchange="onSecChange(this)">
             <div>
@@ -162,7 +169,7 @@
 
 <script src="/sidebar.js"></script>
 <script>
-const SECTION_LABELS = { finanzas:'Finanzas', onboarding:'Onboarding', operaciones:'Operaciones', capacitacion:'Capacitación', perfiles:'Perfiles' };
+const SECTION_LABELS = { finanzas:'Finanzas', onboarding:'Onboarding', operaciones:'Operaciones', capacitacion:'Capacitación', turnos:'Turnos', perfiles:'Perfiles' };
 let editingId = null;
 let _usersCache = [];
 

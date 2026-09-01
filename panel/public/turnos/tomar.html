@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta http-equiv="X-Frame-Options" content="SAMEORIGIN"/>
+<meta http-equiv="Content-Security-Policy" content="frame-ancestors 'self'"/>
+<title>Karri — Toma tu turno</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f4f5f7;min-height:100vh}
+.wrap{max-width:560px;margin:0 auto;background:#fff;min-height:100vh;box-shadow:0 0 20px rgba(0,0,0,0.08)}
+.topbar{background:#1f3444;padding:14px 18px;display:flex;align-items:center;gap:10px}
+.topbar-logo{background:#1c9996;color:#fff;font-size:12px;font-weight:600;padding:3px 10px;border-radius:6px}
+.topbar-title{color:#fff;font-size:14px;font-weight:500;flex:1}
+.topbar-user{color:rgba(255,255,255,0.6);font-size:12px}
+.tabs{display:flex;border-bottom:1px solid #e5e7eb;background:#fff}
+.tab{flex:1;text-align:center;padding:12px;font-size:13px;font-weight:600;color:#9ca3af;cursor:pointer;border-bottom:2px solid transparent}
+.tab.active{color:#1c9996;border-color:#1c9996}
+.page{display:none;padding:20px}
+.page.active{display:block}
+h2{font-size:16px;font-weight:600;color:#1f3444;margin-bottom:4px}
+.sub{font-size:13px;color:#6b7280;margin-bottom:20px}
+label{font-size:13px;color:#6b7280;display:block;margin-bottom:5px}
+input[type=text],input[type=tel]{width:100%;padding:10px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:14px;color:#1f2937;background:#fff;outline:none;font-family:inherit;margin-bottom:12px}
+input:focus{border-color:#1c9996;box-shadow:0 0 0 3px rgba(28,153,150,0.1)}
+.err{font-size:12px;color:#dc2626;min-height:16px;margin-top:-6px;margin-bottom:8px}
+.btn{display:flex;align-items:center;justify-content:center;gap:7px;width:100%;padding:11px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;border:none;margin-top:6px;font-family:inherit}
+.btn-primary{background:#1c9996;color:#fff}
+.btn-primary:hover{background:#167a77}
+.btn-primary:disabled{background:#9ca3af;cursor:not-allowed}
+.btn-ghost{background:#fff;color:#374151;border:1px solid #d1d5db;margin-top:0}
+.btn-ghost:hover{background:#f9fafb}
+.btn-sm{padding:7px 13px;font-size:13px;width:auto;margin-top:0}
+
+.store-card{border:1px solid #e5e7eb;border-radius:12px;padding:16px;margin-bottom:10px;cursor:pointer;transition:border-color .15s}
+.store-card:hover{border-color:#1c9996}
+.store-card .name{font-size:15px;font-weight:700;color:#1f3444}
+.store-card .commune{font-size:12px;color:#6b7280;margin-top:2px}
+.store-card .avail{font-size:12px;color:#1c9996;margin-top:8px;font-weight:600}
+
+.current-store{display:flex;align-items:center;justify-content:space-between;background:#f0fdfa;border:1px solid #99f6e4;border-radius:10px;padding:10px 14px;margin-bottom:16px}
+.current-store .name{font-size:13px;font-weight:700;color:#1f3444}
+.current-store button{background:none;border:none;color:#1c9996;font-size:12px;font-weight:600;cursor:pointer}
+
+.days{display:flex;gap:6px;overflow-x:auto;margin-bottom:16px;padding-bottom:4px}
+.day-pill{flex-shrink:0;padding:8px 12px;border-radius:8px;border:1px solid #e5e7eb;font-size:12px;text-align:center;cursor:pointer;min-width:52px}
+.day-pill .dname{font-weight:600;color:#374151}
+.day-pill .dnum{font-size:14px;font-weight:700;color:#1f3444}
+.day-pill.active{border-color:#1c9996;background:#f0fdfa}
+.day-pill.active .dname,.day-pill.active .dnum{color:#1c9996}
+
+.shift-card{border:1px solid #e5e7eb;border-radius:12px;padding:14px 16px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between}
+.shift-card .stype{font-size:15px;font-weight:700;color:#1f3444}
+.shift-card .shrs{font-size:12px;color:#6b7280;margin-top:2px}
+.shift-card .scupos{font-size:12px;margin-top:4px;font-weight:600}
+.scupos.ok{color:#059669}
+.scupos.warn{color:#d97706}
+.scupos.full{color:#dc2626}
+
+.mt-card{border:1px solid #e5e7eb;border-radius:12px;padding:14px 16px;margin-bottom:10px}
+.mt-card .mstore{font-size:11px;font-weight:700;color:#1c9996;text-transform:uppercase;letter-spacing:.04em}
+.mt-card .mdate{font-size:15px;font-weight:700;color:#1f3444;margin-top:2px}
+.mt-card .mturno{font-size:13px;color:#374151;margin-top:2px}
+.mt-card .mstatus{display:inline-block;margin-top:8px;font-size:11px;font-weight:700;padding:2px 9px;border-radius:99px}
+.mstatus.ACTIVE{background:#d1fae5;color:#059669}
+.mstatus.CANCELLED{background:#fee2e2;color:#dc2626}
+
+.empty{text-align:center;padding:40px 20px;color:#9ca3af;font-size:13px}
+
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:flex-end;justify-content:center;z-index:1000}
+.modal{background:#fff;border-radius:16px 16px 0 0;width:100%;max-width:560px;padding:22px 20px;max-height:85vh;overflow-y:auto}
+.modal h3{font-size:16px;font-weight:700;color:#1f3444;margin-bottom:14px}
+.modal .row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f3f4f6;font-size:13px}
+.modal .row span:first-child{color:#6b7280}
+.modal .row span:last-child{font-weight:600;color:#1f3444}
+
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1f3444;color:#fff;padding:11px 20px;border-radius:8px;font-size:13px;z-index:2000;max-width:90%;text-align:center}
+.hidden{display:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <span class="topbar-logo">KARRI</span>
+    <span class="topbar-title">Turnos</span>
+    <span class="topbar-user" id="topbar-user"></span>
+  </div>
+  <div class="tabs hidden" id="tabs">
+    <div class="tab active" data-tab="tomar" onclick="switchTab('tomar')">Tomar turno</div>
+    <div class="tab" data-tab="mis" onclick="switchTab('mis')">Mis turnos</div>
+  </div>
+
+  <!-- Login por RUT -->
+  <div class="page active" id="page-login">
+    <h2>Identifícate</h2>
+    <p class="sub">Ingresa tu RUT para ver la disponibilidad y tomar turnos.</p>
+    <label>RUT</label>
+    <input type="text" id="login-rut" placeholder="12345678-9">
+    <div id="login-name-wrap" class="hidden">
+      <label>Nombre completo</label>
+      <input type="text" id="login-name" placeholder="Tu nombre">
+      <label>Teléfono (opcional)</label>
+      <input type="tel" id="login-phone" placeholder="56912345678">
+    </div>
+    <div class="err" id="login-err"></div>
+    <button class="btn btn-primary" onclick="continuarLogin()">Continuar</button>
+  </div>
+
+  <!-- Selección de tienda -->
+  <div class="page" id="page-tienda">
+    <h2>¿Dónde quieres trabajar?</h2>
+    <p class="sub">Selecciona la tienda</p>
+    <div id="lista-tiendas"></div>
+  </div>
+
+  <!-- Tomar turno -->
+  <div class="page" id="page-tomar">
+    <div class="current-store">
+      <span class="name" id="cs-name"></span>
+      <button onclick="irATiendas()">Cambiar tienda</button>
+    </div>
+    <div class="days" id="dias-semana"></div>
+    <div id="lista-turnos"></div>
+  </div>
+
+  <!-- Mis turnos -->
+  <div class="page" id="page-mis">
+    <h2>Mis turnos</h2>
+    <p class="sub">Próximos e historial</p>
+    <div id="lista-mis"></div>
+  </div>
+</div>
+
+<div class="modal-bg hidden" id="modal-confirm">
+  <div class="modal">
+    <h3>Confirmar turno</h3>
+    <div class="row"><span>Tienda</span><span id="m-tienda"></span></div>
+    <div class="row"><span>Fecha</span><span id="m-fecha"></span></div>
+    <div class="row"><span>Turno</span><span id="m-turno"></span></div>
+    <div class="row"><span>Horario</span><span id="m-horario"></span></div>
+    <button class="btn btn-primary" onclick="confirmarToma()">Confirmar turno</button>
+    <button class="btn btn-ghost" onclick="cerrarModalConfirm()">Cancelar</button>
+  </div>
+</div>
+
+<div class="toast hidden" id="toast"></div>
+
+<script>
+const DIAS_CORTO = ['DOM','LUN','MAR','MIÉ','JUE','VIE','SÁB'];
+const DIAS_LARGO = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+const TURNO_LABEL = { AM: 'Mañana (AM)', PM: 'Tarde (PM)', FULL: 'Jornada completa' };
+
+let rut = localStorage.getItem('turnos_rut') || '';
+let karrier = null;
+let tiendaActual = JSON.parse(localStorage.getItem('turnos_tienda') || 'null');
+let weekStart = mondayOf(new Date());
+let diaSeleccionado = new Date().toISOString().slice(0, 10);
+let slotSeleccionado = null;
+
+function mondayOf(d) {
+  const day = d.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  const m = new Date(d);
+  m.setDate(m.getDate() + diff);
+  return m.toISOString().slice(0, 10);
+}
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.remove('hidden');
+  setTimeout(() => t.classList.add('hidden'), 3200);
+}
+
+async function init() {
+  if (rut) {
+    const r = await fetch(`/api/turnos/public/karrier/${encodeURIComponent(rut)}`).then(x => x.json());
+    if (r.karrier) {
+      karrier = r.karrier;
+      arrancarApp();
+      return;
+    }
+  }
+  showPage('page-login');
+}
+
+document.getElementById('login-rut').addEventListener('blur', async () => {
+  const v = document.getElementById('login-rut').value.trim();
+  if (!v) return;
+  const r = await fetch(`/api/turnos/public/karrier/${encodeURIComponent(v)}`).then(x => x.json());
+  document.getElementById('login-name-wrap').classList.toggle('hidden', !!r.karrier);
+});
+
+async function continuarLogin() {
+  const v = document.getElementById('login-rut').value.trim();
+  const err = document.getElementById('login-err');
+  err.textContent = '';
+  if (!v) { err.textContent = 'Ingresa tu RUT'; return; }
+
+  const existente = await fetch(`/api/turnos/public/karrier/${encodeURIComponent(v)}`).then(x => x.json());
+  let name = existente.karrier?.name;
+  let phone = existente.karrier?.phone;
+  if (!existente.karrier) {
+    name = document.getElementById('login-name').value.trim();
+    phone = document.getElementById('login-phone').value.trim();
+    if (!name) {
+      document.getElementById('login-name-wrap').classList.remove('hidden');
+      err.textContent = 'Ingresa tu nombre para continuar';
+      return;
+    }
+  }
+
+  const r = await fetch('/api/turnos/public/karrier', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ rut: v, name, phone }),
+  }).then(x => x.json());
+  if (!r.ok) { err.textContent = r.error || 'No se pudo continuar'; return; }
+
+  rut = v;
+  karrier = r.karrier;
+  localStorage.setItem('turnos_rut', rut);
+  arrancarApp();
+}
+
+function arrancarApp() {
+  document.getElementById('tabs').classList.remove('hidden');
+  document.getElementById('topbar-user').textContent = karrier.name;
+  if (tiendaActual) { showPage('page-tomar'); cargarTurnos(); }
+  else irATiendas();
+}
+
+function irATiendas() {
+  showPage('page-tienda');
+  cargarTiendas();
+}
+
+async function cargarTiendas() {
+  const r = await fetch('/api/turnos/public/tiendas').then(x => x.json());
+  const cont = document.getElementById('lista-tiendas');
+  if (!r.ok || r.tiendas.length === 0) {
+    cont.innerHTML = '<div class="empty">No hay tiendas disponibles por ahora.</div>';
+    return;
+  }
+  cont.innerHTML = r.tiendas.map(t => `
+    <div class="store-card" onclick='seleccionarTienda(${JSON.stringify(t)})'>
+      <div class="name">${t.name}</div>
+      <div class="commune">${t.commune || ''}</div>
+      <div class="avail">${t.turnosDisponibles} turnos disponibles esta semana</div>
+    </div>`).join('');
+}
+
+function seleccionarTienda(t) {
+  tiendaActual = t;
+  localStorage.setItem('turnos_tienda', JSON.stringify(t));
+  switchTab('tomar');
+}
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+  if (tab === 'tomar') { showPage('page-tomar'); cargarTurnos(); }
+  else { showPage('page-mis'); cargarMisTurnos(); }
+}
+
+function renderDias() {
+  const cont = document.getElementById('dias-semana');
+  const hoy = new Date().toISOString().slice(0, 10);
+  let html = '';
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(weekStart + 'T00:00:00');
+    d.setDate(d.getDate() + i);
+    const dateStr = d.toISOString().slice(0, 10);
+    const pasado = dateStr < hoy;
+    html += `<div class="day-pill ${dateStr === diaSeleccionado ? 'active' : ''}" style="${pasado ? 'opacity:.4' : ''}" onclick="${pasado ? '' : `seleccionarDia('${dateStr}')`}">
+      <div class="dname">${DIAS_CORTO[d.getDay()]}</div>
+      <div class="dnum">${d.getDate()}</div>
+    </div>`;
+  }
+  cont.innerHTML = html;
+}
+function seleccionarDia(dateStr) {
+  diaSeleccionado = dateStr;
+  renderDias();
+  renderTurnosDelDia();
+}
+
+let slotsSemana = [];
+async function cargarTurnos() {
+  document.getElementById('cs-name').textContent = tiendaActual.name;
+  renderDias();
+  const r = await fetch(`/api/turnos/public/disponibilidad?storeId=${tiendaActual.id}&weekStart=${weekStart}`).then(x => x.json());
+  slotsSemana = r.ok ? r.slots : [];
+  renderTurnosDelDia();
+}
+
+function renderTurnosDelDia() {
+  const cont = document.getElementById('lista-turnos');
+  const delDia = slotsSemana.filter(s => s.date === diaSeleccionado && s.status === 'OPEN');
+  if (delDia.length === 0) {
+    cont.innerHTML = '<div class="empty">No hay turnos disponibles para este día.</div>';
+    return;
+  }
+  cont.innerHTML = delDia.map(s => {
+    const cls = s.available === 0 ? 'full' : (s.coverage >= 80 ? 'warn' : 'ok');
+    const texto = s.available === 0 ? 'Completo' : `${s.available} / ${s.capacity} cupos`;
+    return `
+      <div class="shift-card">
+        <div>
+          <div class="stype">${TURNO_LABEL[s.shiftType]}</div>
+          <div class="shrs">${s.startTime} - ${s.endTime}</div>
+          <div class="scupos ${cls}">${texto}</div>
+        </div>
+        <button class="btn btn-primary btn-sm" ${s.available === 0 ? 'disabled' : ''} onclick='abrirConfirmacion(${JSON.stringify(s)})'>Tomar</button>
+      </div>`;
+  }).join('');
+}
+
+function abrirConfirmacion(slot) {
+  slotSeleccionado = slot;
+  document.getElementById('m-tienda').textContent = tiendaActual.name;
+  const d = new Date(slot.date + 'T00:00:00');
+  document.getElementById('m-fecha').textContent = `${DIAS_LARGO[d.getDay()]} ${d.getDate()}`.replace(/^\w/, c => c.toUpperCase());
+  document.getElementById('m-turno').textContent = TURNO_LABEL[slot.shiftType];
+  document.getElementById('m-horario').textContent = `${slot.startTime} - ${slot.endTime}`;
+  document.getElementById('modal-confirm').classList.remove('hidden');
+}
+function cerrarModalConfirm() { document.getElementById('modal-confirm').classList.add('hidden'); }
+
+async function confirmarToma() {
+  const r = await fetch('/api/turnos/public/tomar', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ slotId: slotSeleccionado.id, rut }),
+  }).then(x => x.json());
+  cerrarModalConfirm();
+  if (!r.ok) { toast(r.error || 'No se pudo tomar el turno'); return; }
+  toast('Turno tomado correctamente.');
+  cargarTurnos();
+}
+
+async function cargarMisTurnos() {
+  const r = await fetch(`/api/turnos/public/mis-turnos?rut=${encodeURIComponent(rut)}`).then(x => x.json());
+  const cont = document.getElementById('lista-mis');
+  const turnos = r.ok ? r.turnos : [];
+  if (turnos.length === 0) {
+    cont.innerHTML = '<div class="empty">No tienes turnos tomados.<br>Ve a "Tomar turno" para revisar la disponibilidad.</div>';
+    return;
+  }
+  const hoy = new Date().toISOString().slice(0, 10);
+  cont.innerHTML = turnos.slice().reverse().map(t => {
+    const d = new Date(t.slot.date + 'T00:00:00');
+    const puedeCancelar = t.status === 'ACTIVE' && t.slot.date >= hoy;
+    return `
+      <div class="mt-card">
+        <div class="mstore">${t.tienda?.name || ''}</div>
+        <div class="mdate">${DIAS_LARGO[d.getDay()].replace(/^\w/, c => c.toUpperCase())} ${d.getDate()}/${d.getMonth()+1}</div>
+        <div class="mturno">${TURNO_LABEL[t.slot.shiftType]} · ${t.slot.startTime}-${t.slot.endTime}</div>
+        <span class="mstatus ${t.status}">${t.status === 'ACTIVE' ? 'Confirmado' : 'Cancelado'}</span>
+        ${puedeCancelar ? `<button class="btn btn-ghost btn-sm" style="margin-top:8px;" onclick='cancelarTurno(${JSON.stringify(t.id)})'>Cancelar turno</button>` : ''}
+      </div>`;
+  }).join('');
+}
+
+async function cancelarTurno(assignmentId) {
+  if (!confirm('¿Quieres cancelar este turno? Esto liberará el cupo para otro Karrier.')) return;
+  const r = await fetch('/api/turnos/public/cancelar', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ assignmentId, rut }),
+  }).then(x => x.json());
+  if (!r.ok) { toast(r.error || 'No se pudo cancelar'); return; }
+  toast('Turno cancelado.');
+  cargarMisTurnos();
+}
+
+init();
+</script>
+</body>
+</html>

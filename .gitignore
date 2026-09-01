@@ -12,6 +12,12 @@ data/lms_contenido.json
 data/lms_progreso.json
 data/lms_logs.json
 data/sessions.json
+# Datos de Turnos — se crean en runtime, no deben estar en la imagen Docker
+data/turnos_tiendas.json
+data/turnos_slots.json
+data/turnos_asignaciones.json
+data/turnos_karriers.json
+data/turnos_settings.json
 # Usuarios — almacenados en disco persistente en runtime
 config/users.json
 
