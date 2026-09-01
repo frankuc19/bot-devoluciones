@@ -38,7 +38,14 @@
         <button class="week-btn" onclick="cambiarSemana(-7)"><i data-lucide="chevron-left" style="width:14px;height:14px;"></i></button>
         <button class="btn-secondary" onclick="irHoy()">Hoy</button>
         <button class="week-btn" onclick="cambiarSemana(7)"><i data-lucide="chevron-right" style="width:14px;height:14px;"></i></button>
+        <button class="btn-secondary" onclick="abrirElegirSemana()" title="Elegir semana por fecha">
+          <i data-lucide="calendar" style="width:13px;height:13px;"></i> Elegir semana
+        </button>
+        <input type="date" id="date-picker" style="position:absolute;opacity:0;width:1px;height:1px;pointer-events:none;" onchange="elegirSemanaDesdeFecha(this.value)">
       </div>
+      <button class="btn-secondary" onclick="exportarExcel()">
+        <i data-lucide="download" style="width:13px;height:13px;"></i> Exportar Excel
+      </button>
       <button class="btn-primary" onclick="generarSemana()">
         <i data-lucide="calendar-plus" style="width:14px;height:14px;"></i> Generar semana (7 días × AM/PM/FULL)
       </button>
@@ -85,6 +92,24 @@ function cambiarSemana(dias) {
   cargar();
 }
 function irHoy() { weekStart = mondayOf(new Date()); cargar(); }
+
+function abrirElegirSemana() {
+  const input = document.getElementById('date-picker');
+  input.value = weekStart;
+  if (input.showPicker) input.showPicker();
+  else input.click();
+}
+function elegirSemanaDesdeFecha(dateStr) {
+  if (!dateStr) return;
+  weekStart = mondayOf(new Date(dateStr + 'T00:00:00'));
+  cargar();
+}
+
+function exportarExcel() {
+  const storeId = document.getElementById('sel-tienda').value;
+  if (!storeId) { alert('Selecciona una tienda primero'); return; }
+  window.open(`/api/turnos/admin/slots/export?storeId=${storeId}&weekStart=${weekStart}`, '_blank');
+}
 
 async function cargarTiendas() {
   const r = await fetch('/api/turnos/admin/tiendas').then(x => x.json());

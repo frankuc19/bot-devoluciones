@@ -24,17 +24,41 @@ const DEFAULT_SETTINGS = {
   minimumCoverageTarget:   95,
 };
 
-const DEFAULT_TIENDAS = Array.from({ length: 7 }, (_, i) => ({
-  id: `tienda-${i + 1}`,
-  name: `Tienda ${i + 1}`,
-  code: `T${i + 1}`,
-  address: '',
-  commune: '',
-  region: '',
-  active: true,
-  capacity: { AM: 30, PM: 30, FULL: 20 },
-  createdAt: new Date().toISOString(),
-}));
+// Tiendas reales (código, nombre, comuna) — se reconcilian automáticamente al
+// arrancar: si el código no existe todavía en turnos_tiendas.json se agrega,
+// sin tocar ni duplicar tiendas que el usuario ya haya creado o editado.
+const SEED_TIENDAS = [
+  { code: '35',  name: 'Walmart Rancagua',        commune: 'Rancagua' },
+  { code: '54',  name: 'LIDER Vicuña Mackenna',   commune: 'La Florida' },
+  { code: '79',  name: 'Walmart Talca',           commune: 'Talca' },
+  { code: '127', name: 'Walmart Linares',         commune: 'Linares' },
+  { code: '518', name: 'Walmart Valparaiso',      commune: 'Valparaíso' },
+  { code: '612', name: 'Walmart Chillan',         commune: 'Chillán' },
+  { code: '632', name: 'Walmart Viña Centro',     commune: 'Viña del Mar' },
+];
+
+function tiendaDesdeSeed(seed) {
+  return {
+    id: crypto.randomUUID(),
+    name: seed.name,
+    code: seed.code,
+    address: '',
+    commune: seed.commune,
+    region: '',
+    active: true,
+    capacity: { AM: 30, PM: 30, FULL: 20 },
+    createdAt: new Date().toISOString(),
+  };
+}
+
+function ensureSeedTiendas(list) {
+  const codigosExistentes = new Set(list.map(t => t.code));
+  const faltantes = SEED_TIENDAS.filter(s => !codigosExistentes.has(s.code)).map(tiendaDesdeSeed);
+  if (faltantes.length === 0) return list;
+  const actualizada = [...list, ...faltantes];
+  writeJson(TIENDAS_FILE, actualizada);
+  return actualizada;
+}
 
 function ensureDir() {
   if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -55,8 +79,12 @@ function writeJson(file, data) {
 // ─── Tiendas ──────────────────────────────────────────────────────────────────
 function getTiendas() {
   const list = readJson(TIENDAS_FILE, null);
-  if (list === null) { writeJson(TIENDAS_FILE, DEFAULT_TIENDAS); return DEFAULT_TIENDAS; }
-  return list;
+  if (list === null) {
+    const seeded = SEED_TIENDAS.map(tiendaDesdeSeed);
+    writeJson(TIENDAS_FILE, seeded);
+    return seeded;
+  }
+  return ensureSeedTiendas(list);
 }
 function getTiendaById(id) { return getTiendas().find(t => t.id === id) || null; }
 function saveTienda(tienda) {
@@ -206,49 +234,55 @@ function err(code) {
   return e;
 }
 
+// Valida las reglas de negocio y crea la asignación. `excludeAssignmentId` se
+// usa al reasignar: ignora la asignación que se está moviendo al revisar
+// conflictos del propio Karrier ese día (si no, chocaría consigo misma).
+function _validarYCrearAsignacion(slotId, rut, excludeAssignmentId) {
+  const karrier = getKarrierByRut(rut);
+  if (!karrier) throw err('INVALID_STORE'); // no debería pasar: el caller registra antes
+  if (karrier.status !== 'ACTIVE') throw err('USER_INACTIVE');
+
+  const slot = getSlotById(slotId);
+  if (!slot) throw err('SHIFT_NOT_FOUND');
+  if (slot.status !== 'OPEN') throw err('SHIFT_CLOSED');
+  if (slot.date < new Date().toISOString().slice(0, 10)) throw err('INVALID_DATE');
+  if (cuposDisponibles(slot) <= 0) throw err('SHIFT_FULL');
+
+  const misAsignaciones = getAsignaciones()
+    .filter(a => a.karrierRut === rut && a.status === 'ACTIVE' && a.id !== excludeAssignmentId);
+  if (misAsignaciones.some(a => a.slotId === slotId)) throw err('SHIFT_ALREADY_TAKEN');
+
+  const misSlotsHoy = misAsignaciones
+    .map(a => getSlotById(a.slotId))
+    .filter(s => s && s.date === slot.date);
+  const tiposHoy = new Set(misSlotsHoy.map(s => s.shiftType));
+
+  const settings = getSettings();
+  if (slot.shiftType === 'FULL' && (tiposHoy.has('AM') || tiposHoy.has('PM') || tiposHoy.has('FULL'))) {
+    if (tiposHoy.has('AM')) throw err('CONFLICT_AM_FULL');
+    if (tiposHoy.has('PM')) throw err('CONFLICT_PM_FULL');
+    throw err('CONFLICT_FULL');
+  }
+  if (tiposHoy.has('FULL')) throw err('CONFLICT_FULL');
+  if (slot.shiftType === 'AM' && tiposHoy.has('PM') && !settings.allowAmPmSameDay) throw err('CONFLICT_AM_PM');
+  if (slot.shiftType === 'PM' && tiposHoy.has('AM') && !settings.allowAmPmSameDay) throw err('CONFLICT_AM_PM');
+
+  const asignacion = {
+    id: crypto.randomUUID(),
+    slotId,
+    karrierRut: rut,
+    karrierName: karrier.name,
+    status: 'ACTIVE',
+    createdAt: new Date().toISOString(),
+    cancelledAt: null,
+    cancellationReason: null,
+  };
+  saveAsignacion(asignacion);
+  return asignacion;
+}
+
 function tomarTurno(slotId, rut) {
-  return conBloqueo(async () => {
-    const karrier = getKarrierByRut(rut);
-    if (!karrier) throw err('INVALID_STORE'); // no debería pasar: el caller registra antes
-    if (karrier.status !== 'ACTIVE') throw err('USER_INACTIVE');
-
-    const slot = getSlotById(slotId);
-    if (!slot) throw err('SHIFT_NOT_FOUND');
-    if (slot.status !== 'OPEN') throw err('SHIFT_CLOSED');
-    if (slot.date < new Date().toISOString().slice(0, 10)) throw err('INVALID_DATE');
-    if (cuposDisponibles(slot) <= 0) throw err('SHIFT_FULL');
-
-    const misAsignaciones = getAsignaciones().filter(a => a.karrierRut === rut && a.status === 'ACTIVE');
-    if (misAsignaciones.some(a => a.slotId === slotId)) throw err('SHIFT_ALREADY_TAKEN');
-
-    const misSlotsHoy = misAsignaciones
-      .map(a => getSlotById(a.slotId))
-      .filter(s => s && s.date === slot.date);
-    const tiposHoy = new Set(misSlotsHoy.map(s => s.shiftType));
-
-    const settings = getSettings();
-    if (slot.shiftType === 'FULL' && (tiposHoy.has('AM') || tiposHoy.has('PM') || tiposHoy.has('FULL'))) {
-      if (tiposHoy.has('AM')) throw err('CONFLICT_AM_FULL');
-      if (tiposHoy.has('PM')) throw err('CONFLICT_PM_FULL');
-      throw err('CONFLICT_FULL');
-    }
-    if (tiposHoy.has('FULL')) throw err('CONFLICT_FULL');
-    if (slot.shiftType === 'AM' && tiposHoy.has('PM') && !settings.allowAmPmSameDay) throw err('CONFLICT_AM_PM');
-    if (slot.shiftType === 'PM' && tiposHoy.has('AM') && !settings.allowAmPmSameDay) throw err('CONFLICT_AM_PM');
-
-    const asignacion = {
-      id: crypto.randomUUID(),
-      slotId,
-      karrierRut: rut,
-      karrierName: karrier.name,
-      status: 'ACTIVE',
-      createdAt: new Date().toISOString(),
-      cancelledAt: null,
-      cancellationReason: null,
-    };
-    saveAsignacion(asignacion);
-    return asignacion;
-  });
+  return conBloqueo(async () => _validarYCrearAsignacion(slotId, rut));
 }
 
 function cancelarTurno(assignmentId, rut, { isAdmin = false, reason = '' } = {}) {
@@ -262,6 +296,26 @@ function cancelarTurno(assignmentId, rut, { isAdmin = false, reason = '' } = {})
     asignacion.cancellationReason = reason || null;
     saveAsignacion(asignacion);
     return asignacion;
+  });
+}
+
+// Mueve a un Karrier de su turno actual a otro turno (mismo u otro día/tienda),
+// validando las mismas reglas de negocio que tomarTurno. Uso administrativo.
+function reasignarTurno(assignmentId, newSlotId) {
+  return conBloqueo(async () => {
+    const actual = getAsignacionById(assignmentId);
+    if (!actual) throw err('ASSIGNMENT_NOT_FOUND');
+    if (actual.status !== 'ACTIVE') throw err('ALREADY_CANCELLED');
+    if (actual.slotId === newSlotId) return actual;
+
+    const nueva = _validarYCrearAsignacion(newSlotId, actual.karrierRut, actual.id);
+
+    actual.status = 'CANCELLED';
+    actual.cancelledAt = new Date().toISOString();
+    actual.cancellationReason = 'Reasignado por operaciones';
+    saveAsignacion(actual);
+
+    return nueva;
   });
 }
 
@@ -299,6 +353,29 @@ function misTurnos(rut) {
     })
     .filter(Boolean)
     .sort((a, b) => a.slot.date.localeCompare(b.slot.date));
+}
+
+// Lista asignaciones (tomas de turno) con datos de tienda/slot embebidos,
+// para la pantalla administrativa de "Asignaciones".
+function listAsignaciones({ storeId, weekStartDate, status } = {}) {
+  const weekEnd = weekStartDate ? (() => {
+    const d = new Date(weekStartDate + 'T00:00:00');
+    d.setDate(d.getDate() + 6);
+    return d.toISOString().slice(0, 10);
+  })() : null;
+
+  return getAsignaciones()
+    .map(a => {
+      const slot = getSlotById(a.slotId);
+      if (!slot) return null;
+      const tienda = getTiendaById(slot.storeId);
+      return { ...a, slot, tienda };
+    })
+    .filter(Boolean)
+    .filter(a => !storeId || a.slot.storeId === storeId)
+    .filter(a => !weekStartDate || (a.slot.date >= weekStartDate && a.slot.date <= weekEnd))
+    .filter(a => !status || a.status === status)
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
 function coberturaTienda(storeId, weekStartDate) {
@@ -342,8 +419,8 @@ module.exports = {
   getTiendas, getTiendaById, saveTienda, deleteTienda,
   getKarriers, getKarrierByRut, saveKarrier, deleteKarrier, ensureKarrier,
   getSlots, getSlotById, saveSlot, deleteSlot, createSlot, generarSemana,
-  getAsignaciones, getAsignacionById,
-  tomarTurno, cancelarTurno,
+  getAsignaciones, getAsignacionById, listAsignaciones,
+  tomarTurno, cancelarTurno, reasignarTurno,
   disponibilidadTienda, misTurnos, coberturaTienda, coberturaGeneral, dashboardKpis,
   slotConInfo,
   ERRORES,

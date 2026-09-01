@@ -338,6 +338,7 @@ const PAGE_SECTION = {
   '/turnos/tiendas.html':              'turnos',
   '/turnos/planificacion.html':        'turnos',
   '/turnos/karriers.html':             'turnos',
+  '/turnos/asignaciones.html':         'turnos',
   '/perfiles.html':                    'perfiles',
 };
 

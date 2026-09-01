@@ -1,4 +1,5 @@
 const { Router } = require('express');
+const XLSX = require('xlsx');
 const store = require('./turnosStore');
 
 // ─── Router público (sin login del panel) — lo usan los Karriers desde su celular ──
@@ -123,6 +124,47 @@ adminRouter.post('/slots', (req, res) => {
     res.status(400).json({ ok: false, error: e.message });
   }
 });
+const TURNO_LABEL_XLSX = { AM: 'Mañana (AM)', PM: 'Tarde (PM)', FULL: 'Jornada completa' };
+const DIA_LABEL_XLSX = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+
+adminRouter.get('/slots/export', (req, res) => {
+  const { storeId, weekStart } = req.query;
+  if (!storeId || !weekStart) return res.status(400).json({ ok: false, error: 'Faltan parámetros' });
+  const tienda = store.getTiendaById(storeId);
+  if (!tienda) return res.status(404).json({ ok: false, error: 'Tienda no encontrada' });
+
+  const slots = store.disponibilidadTienda(storeId, weekStart);
+  const filas = slots.map(s => {
+    const dia = new Date(s.date + 'T00:00:00').getDay();
+    return {
+      Tienda: tienda.name,
+      Fecha: s.date,
+      Día: DIA_LABEL_XLSX[dia],
+      Turno: TURNO_LABEL_XLSX[s.shiftType] || s.shiftType,
+      Horario: `${s.startTime}-${s.endTime}`,
+      Cupos: s.capacity,
+      Tomados: s.taken,
+      Disponibles: s.available,
+      'Cobertura %': s.coverage,
+      Estado: s.status,
+    };
+  });
+
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.json_to_sheet(filas);
+  ws['!cols'] = [
+    { wch: 18 }, { wch: 12 }, { wch: 12 }, { wch: 18 }, { wch: 13 },
+    { wch: 8 }, { wch: 9 }, { wch: 11 }, { wch: 12 }, { wch: 9 },
+  ];
+  XLSX.utils.book_append_sheet(wb, ws, 'Planificación');
+  const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+
+  const filename = `planificacion_${tienda.code || tienda.name}_${weekStart}.xlsx`.replace(/[^\w.\-]+/g, '_');
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+  res.send(buffer);
+});
+
 adminRouter.post('/slots/generar-semana', (req, res) => {
   const { storeId, weekStart } = req.body || {};
   if (!storeId || !weekStart) return res.status(400).json({ ok: false, error: 'Faltan datos' });
@@ -182,9 +224,25 @@ adminRouter.get('/dashboard', (req, res) => {
   res.json({ ok: true, kpis: store.dashboardKpis(weekStart) });
 });
 
+adminRouter.get('/asignaciones', (req, res) => {
+  const { storeId, weekStart, status } = req.query;
+  res.json({ ok: true, asignaciones: store.listAsignaciones({ storeId: storeId || null, weekStartDate: weekStart || null, status: status || null }) });
+});
+
 adminRouter.post('/asignaciones/:id/cancelar', async (req, res) => {
   try {
     const asignacion = await store.cancelarTurno(req.params.id, null, { isAdmin: true, reason: req.body?.reason });
+    res.json({ ok: true, asignacion });
+  } catch (e) {
+    res.status(400).json({ ok: false, error: e.message, code: e.code || 'ERROR' });
+  }
+});
+
+adminRouter.post('/asignaciones/:id/reasignar', async (req, res) => {
+  const { newSlotId } = req.body || {};
+  if (!newSlotId) return res.status(400).json({ ok: false, error: 'Falta el turno destino' });
+  try {
+    const asignacion = await store.reasignarTurno(req.params.id, newSlotId);
     res.json({ ok: true, asignacion });
   } catch (e) {
     res.status(400).json({ ok: false, error: e.message, code: e.code || 'ERROR' });
