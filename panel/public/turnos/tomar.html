@@ -157,6 +157,7 @@ let tiendaActual = JSON.parse(localStorage.getItem('turnos_tienda') || 'null');
 let weekStart = mondayOf(new Date());
 let diaSeleccionado = new Date().toISOString().slice(0, 10);
 let slotSeleccionado = null;
+let settings = { allowCancellation: true, minimumCoverageWarning: 80 };
 
 function mondayOf(d) {
   const day = d.getDay();
@@ -177,6 +178,9 @@ function toast(msg) {
 }
 
 async function init() {
+  const r0 = await fetch('/api/turnos/public/settings').then(x => x.json()).catch(() => null);
+  if (r0?.ok) settings = r0.settings;
+
   if (rut) {
     const r = await fetch(`/api/turnos/public/karrier/${encodeURIComponent(rut)}`).then(x => x.json());
     if (r.karrier) {
@@ -304,7 +308,7 @@ function renderTurnosDelDia() {
     return;
   }
   cont.innerHTML = delDia.map(s => {
-    const cls = s.available === 0 ? 'full' : (s.coverage >= 80 ? 'warn' : 'ok');
+    const cls = s.available === 0 ? 'full' : (s.coverage >= settings.minimumCoverageWarning ? 'warn' : 'ok');
     const texto = s.available === 0 ? 'Completo' : `${s.available} / ${s.capacity} cupos`;
     return `
       <div class="shift-card">
@@ -351,7 +355,7 @@ async function cargarMisTurnos() {
   const hoy = new Date().toISOString().slice(0, 10);
   cont.innerHTML = turnos.slice().reverse().map(t => {
     const d = new Date(t.slot.date + 'T00:00:00');
-    const puedeCancelar = t.status === 'ACTIVE' && t.slot.date >= hoy;
+    const puedeCancelar = t.status === 'ACTIVE' && t.slot.date >= hoy && settings.allowCancellation;
     return `
       <div class="mt-card">
         <div class="mstore">${t.tienda?.name || ''}</div>

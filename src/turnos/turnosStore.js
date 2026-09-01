@@ -242,6 +242,7 @@ const ERRORES = {
   ASSIGNMENT_NOT_FOUND:  'La asignación no existe.',
   NOT_YOUR_SHIFT:        'Este turno no te pertenece.',
   ALREADY_CANCELLED:     'Este turno ya estaba cancelado.',
+  CANCELLATION_DISABLED: 'Las cancelaciones están deshabilitadas. Contacta a operaciones para cancelar tu turno.',
   STORE_HAS_ACTIVE_ASSIGNMENTS: 'Esta tienda tiene Karriers con turnos activos. Cancela esas asignaciones o desactiva la tienda en vez de eliminarla.',
 };
 
@@ -307,6 +308,9 @@ function cancelarTurno(assignmentId, rut, { isAdmin = false, reason = '' } = {})
     const asignacion = getAsignacionById(assignmentId);
     if (!asignacion) throw err('ASSIGNMENT_NOT_FOUND');
     if (!isAdmin && asignacion.karrierRut !== rut) throw err('NOT_YOUR_SHIFT');
+    // La restricción de "permitir cancelación" es para que el Karrier cancele
+    // su propio turno; operaciones (isAdmin) siempre puede, desde Asignaciones.
+    if (!isAdmin && !getSettings().allowCancellation) throw err('CANCELLATION_DISABLED');
     if (asignacion.status === 'CANCELLED') throw err('ALREADY_CANCELLED');
     asignacion.status = 'CANCELLED';
     asignacion.cancelledAt = new Date().toISOString();

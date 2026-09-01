@@ -99,6 +99,7 @@
 const DIAS = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
 const TURNO_LABEL = { AM:'AM', PM:'PM', FULL:'FULL' };
 let weekStart = mondayOf(new Date());
+let settings = { minimumCoverageWarning: 80, minimumCoverageTarget: 95 };
 
 function mondayOf(d) {
   const day = d.getDay();
@@ -112,9 +113,14 @@ function fmtFecha(dateStr) {
   return `${DIAS[d.getDay()]} ${d.getDate()}/${d.getMonth()+1}`;
 }
 function covClass(p) {
-  if (p >= 95) return 'cov-ok';
-  if (p >= 80) return 'cov-warn';
+  if (p >= settings.minimumCoverageTarget) return 'cov-ok';
+  if (p >= settings.minimumCoverageWarning) return 'cov-warn';
   return 'cov-bad';
+}
+
+async function cargarSettings() {
+  const r = await fetch('/api/turnos/admin/settings').then(x => x.json());
+  if (r.ok) settings = r.settings;
 }
 
 function cambiarSemana(dias) {
@@ -174,6 +180,7 @@ async function cargarTodo() {
 
 initSidebar('tu-dashboard').then(async () => {
   lucide.createIcons();
+  await cargarSettings();
   await cargarTiendas();
   await cargarTodo();
 });

@@ -22,6 +22,21 @@ publicRouter.post('/karrier', (req, res) => {
   res.json({ ok: true, karrier });
 });
 
+// Solo el subconjunto de settings que necesita el flujo del Karrier —
+// nunca exponer la configuración completa por el router público.
+publicRouter.get('/settings', (_req, res) => {
+  const s = store.getSettings();
+  res.json({
+    ok: true,
+    settings: {
+      allowAmPmSameDay: s.allowAmPmSameDay,
+      allowCancellation: s.allowCancellation,
+      minimumCoverageWarning: s.minimumCoverageWarning,
+      minimumCoverageTarget: s.minimumCoverageTarget,
+    },
+  });
+});
+
 publicRouter.get('/tiendas', (_req, res) => {
   const tiendas = store.getTiendas().filter(t => t.active);
   const hoy = new Date().toISOString().slice(0, 10);
