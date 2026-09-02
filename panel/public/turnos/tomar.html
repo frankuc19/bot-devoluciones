@@ -103,8 +103,13 @@ input:focus{border-color:#1c9996;box-shadow:0 0 0 3px rgba(28,153,150,0.1)}
       <label>Teléfono (opcional)</label>
       <input type="tel" id="login-phone" placeholder="56912345678">
     </div>
+    <div id="login-noelegible" class="hidden" style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:14px;margin-bottom:10px;">
+      <p style="font-size:13px;color:#991b1b;font-weight:600;margin-bottom:4px;">Tu RUT no está registrado</p>
+      <p style="font-size:12.5px;color:#7f1d1d;margin-bottom:10px;">Para tomar turnos primero debes inscribirte. Escríbenos por WhatsApp y te ayudamos.</p>
+      <a href="https://wa.me/56941114635" target="_blank" class="btn btn-primary" style="background:#25d366;text-decoration:none;">Escribir por WhatsApp</a>
+    </div>
     <div class="err" id="login-err"></div>
-    <button class="btn btn-primary" onclick="continuarLogin()">Continuar</button>
+    <button class="btn btn-primary" id="btn-continuar-login" onclick="continuarLogin()">Continuar</button>
   </div>
 
   <!-- Selección de tienda -->
@@ -196,7 +201,14 @@ document.getElementById('login-rut').addEventListener('blur', async () => {
   const v = document.getElementById('login-rut').value.trim();
   if (!v) return;
   const r = await fetch(`/api/turnos/public/karrier/${encodeURIComponent(v)}`).then(x => x.json());
-  document.getElementById('login-name-wrap').classList.toggle('hidden', !!r.karrier);
+  const noElegible = !r.karrier && !r.elegible;
+  document.getElementById('login-noelegible').classList.toggle('hidden', !noElegible);
+  document.getElementById('btn-continuar-login').classList.toggle('hidden', noElegible);
+  document.getElementById('login-name-wrap').classList.toggle('hidden', !!r.karrier || noElegible);
+  if (!r.karrier && r.alta) {
+    document.getElementById('login-name').value = r.alta.nombre || '';
+    document.getElementById('login-phone').value = r.alta.celular || '';
+  }
 });
 
 async function continuarLogin() {
@@ -206,11 +218,17 @@ async function continuarLogin() {
   if (!v) { err.textContent = 'Ingresa tu RUT'; return; }
 
   const existente = await fetch(`/api/turnos/public/karrier/${encodeURIComponent(v)}`).then(x => x.json());
+  if (!existente.karrier && !existente.elegible) {
+    document.getElementById('login-noelegible').classList.remove('hidden');
+    document.getElementById('btn-continuar-login').classList.add('hidden');
+    document.getElementById('login-name-wrap').classList.add('hidden');
+    return;
+  }
   let name = existente.karrier?.name;
   let phone = existente.karrier?.phone;
   if (!existente.karrier) {
-    name = document.getElementById('login-name').value.trim();
-    phone = document.getElementById('login-phone').value.trim();
+    name = document.getElementById('login-name').value.trim() || existente.alta?.nombre;
+    phone = document.getElementById('login-phone').value.trim() || existente.alta?.celular;
     if (!name) {
       document.getElementById('login-name-wrap').classList.remove('hidden');
       err.textContent = 'Ingresa tu nombre para continuar';
@@ -222,7 +240,16 @@ async function continuarLogin() {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ rut: v, name, phone }),
   }).then(x => x.json());
-  if (!r.ok) { err.textContent = r.error || 'No se pudo continuar'; return; }
+  if (!r.ok) {
+    if (r.code === 'NOT_IN_ALTAS') {
+      document.getElementById('login-noelegible').classList.remove('hidden');
+      document.getElementById('btn-continuar-login').classList.add('hidden');
+      document.getElementById('login-name-wrap').classList.add('hidden');
+      return;
+    }
+    err.textContent = r.error || 'No se pudo continuar';
+    return;
+  }
 
   rut = v;
   karrier = r.karrier;

@@ -41,6 +41,9 @@
         <button id="btnSync" onclick="sincronizarAhora()" class="btn-secondary">
           <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Sincronizar ahora
         </button>
+        <button onclick="exportarExcel()" class="btn-secondary">
+          <i data-lucide="file-spreadsheet" class="w-3.5 h-3.5"></i> Exportar Excel
+        </button>
         <button onclick="exportarCSV()" class="btn-primary">
           <i data-lucide="download" class="w-3.5 h-3.5"></i> Exportar CSV
         </button>
@@ -52,7 +55,7 @@
       <div id="alertBox"></div>
 
       <!-- Stats -->
-      <div class="grid grid-cols-4 gap-4">
+      <div class="grid grid-cols-5 gap-4">
         <div class="card">
           <p class="label mb-3">Total altas</p>
           <div class="flex items-end justify-between">
@@ -75,8 +78,15 @@
             <i data-lucide="user-plus" style="width:18px;height:18px;color:#059669;opacity:.3;"></i>
           </div>
         </div>
-        <div class="card">
-          <p class="label mb-3">Duplicados (última sync)</p>
+        <div class="card" title="Personas que la hoja sigue listando como Alta pero que ya se habían importado antes — normal, no requiere acción.">
+          <p class="label mb-3">Ya existían (última sync)</p>
+          <div class="flex items-end justify-between">
+            <span id="statYaExistian" style="font-size:28px;font-weight:900;color:rgba(15,23,22,.5);">—</span>
+            <i data-lucide="check" style="width:18px;height:18px;color:rgba(15,23,22,.3);"></i>
+          </div>
+        </div>
+        <div class="card" title="RUT que aparecen más de una vez dentro de la misma hoja — esto sí es un problema de datos para revisar.">
+          <p class="label mb-3">Repetidos en la hoja</p>
           <div class="flex items-end justify-between">
             <span id="statDuplicados" style="font-size:28px;font-weight:900;color:#b45309;">—</span>
             <i data-lucide="alert-triangle" style="width:18px;height:18px;color:#b45309;opacity:.4;"></i>
@@ -86,8 +96,11 @@
 
       <!-- Filters + search -->
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-        <select class="input" id="filtroCliente" style="width:200px;" onchange="filtrarYRender(true)">
+        <select class="input" id="filtroCliente" style="width:180px;" onchange="filtrarYRender(true)">
           <option value="">Todos los clientes</option>
+        </select>
+        <select class="input" id="filtroSala" style="width:180px;" onchange="filtrarYRender(true)">
+          <option value="">Todas las salas/bodegas</option>
         </select>
         <div style="display:flex;align-items:center;gap:6px;">
           <span class="label" style="white-space:nowrap;">Fecha de alta</span>
@@ -193,11 +206,11 @@ function renderAlerta(log) {
       <i data-lucide="alert-triangle" style="width:16px;height:16px;flex-shrink:0;margin-top:1px;"></i>
       <div><b>Se leyeron ${ultima.totalFilasLeidas} fila(s) pero ninguna tiene Estatus "Alta"</b> (${fmtFechaHora(ultima.ejecutadoAt)}). Solo se importan filas cuyo Estado/Estatus empiece con "Alta". Valores encontrados en la columna: ${valores}.</div>
     </div>`;
-  } else if (ultima.duplicados?.length) {
+  } else if (ultima.duplicadosEnHoja?.length) {
     box.innerHTML = `<div class="alert-box alert-warn" style="align-items:center;justify-content:space-between;">
       <div style="display:flex;align-items:center;gap:10px;">
         <i data-lucide="alert-triangle" style="width:16px;height:16px;flex-shrink:0;"></i>
-        <div><b>${ultima.duplicados.length} RUT duplicado(s)</b> en la sincronización de ${fmtFechaHora(ultima.ejecutadoAt)} — ya existían, no se crearon de nuevo.</div>
+        <div><b>${ultima.duplicadosEnHoja.length} RUT aparecen más de una vez</b> dentro de "Consolidado Altas OB" (sincronización de ${fmtFechaHora(ultima.ejecutadoAt)}) — vale la pena revisar y limpiar la hoja.</div>
       </div>
       <button class="btn-secondary" style="flex-shrink:0;" onclick="descargarDuplicados()">
         <i data-lucide="download" style="width:12px;height:12px;"></i> Descargar Excel
@@ -215,7 +228,8 @@ async function cargarSyncLog() {
   const ultima = log[0];
   document.getElementById('statUltimaSync').textContent = ultima ? fmtFechaHora(ultima.ejecutadoAt) : 'Nunca';
   document.getElementById('statNuevos').textContent     = ultima?.ok ? ultima.creados : '—';
-  document.getElementById('statDuplicados').textContent = ultima?.ok ? ultima.duplicados.length : '—';
+  document.getElementById('statYaExistian').textContent = ultima?.ok ? ultima.yaExistian : '—';
+  document.getElementById('statDuplicados').textContent = ultima?.ok ? ultima.duplicadosEnHoja.length : '—';
   const detalle = document.getElementById('statSyncDetalle');
   detalle.textContent = ultima?.ok ? `${ultima.totalFilasLeidas} filas leídas · ${ultima.altas} con estatus "Alta"` : '';
   renderAlerta(log);
@@ -226,6 +240,14 @@ function poblarFiltroClientes() {
   const actual = sel.value;
   const clientes = [...new Set(todasAltas.map(a => a.cliente).filter(Boolean))].sort();
   sel.innerHTML = '<option value="">Todos los clientes</option>' + clientes.map(c => `<option value="${c}">${c}</option>`).join('');
+  sel.value = actual;
+}
+
+function poblarFiltroSalas() {
+  const sel = document.getElementById('filtroSala');
+  const actual = sel.value;
+  const salas = [...new Set(todasAltas.map(a => a.salaBodega).filter(Boolean))].sort();
+  sel.innerHTML = '<option value="">Todas las salas/bodegas</option>' + salas.map(s => `<option value="${s}">${s}</option>`).join('');
   sel.value = actual;
 }
 
@@ -269,6 +291,7 @@ function filtrarYRender(resetPagina) {
   if (resetPagina) paginaActual = 1;
   const q = document.getElementById('busqueda').value.toLowerCase();
   const cliente = document.getElementById('filtroCliente').value;
+  const sala = document.getElementById('filtroSala').value;
   const desdeStr = document.getElementById('filtroFechaDesde').value;
   const hastaStr = document.getElementById('filtroFechaHasta').value;
   const desde = desdeStr ? new Date(desdeStr + 'T00:00:00') : null;
@@ -276,6 +299,7 @@ function filtrarYRender(resetPagina) {
 
   let lista = todasAltas;
   if (cliente) lista = lista.filter(a => a.cliente === cliente);
+  if (sala) lista = lista.filter(a => a.salaBodega === sala);
   if (desde || hasta) {
     lista = lista.filter(a => {
       const f = parsearFecha(a.fechaAlta);
@@ -369,6 +393,7 @@ async function cargarAltas() {
 
   document.getElementById('statTotal').textContent = todasAltas.length;
   poblarFiltroClientes();
+  poblarFiltroSalas();
   filtrarYRender();
   await cargarSyncLog();
 }
@@ -446,6 +471,10 @@ function exportarCSV() {
   el.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
   el.download = 'altas_onboarding.csv';
   el.click();
+}
+
+function exportarExcel() {
+  window.open('/api/ob/altas/export', '_blank');
 }
 
 document.getElementById('filtroFechaDesde').value = fechaInputStr(primerDiaMesAnterior());

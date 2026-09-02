@@ -18,15 +18,35 @@ router.post('/sync', async (_req, res) => {
   res.json(resultado);
 });
 
-// Excel de los duplicados detectados en la última sincronización — para
-// revisar sin llenar la pantalla con cientos de nombres.
-router.get('/sync-log/duplicados/export', (_req, res) => {
-  const ultima = store.getSyncLog()[0];
-  const duplicados = ultima?.duplicados || [];
+// Excel con todas las Altas Onboarding registradas (mismas columnas que el CSV).
+router.get('/export', (_req, res) => {
+  const altas = store.getAltas();
+  const filas = altas.map(a => ({
+    Nombre: a.nombre, RUT: a.rut, Celular: a.celular, Cliente: a.cliente,
+    'Sala/Bodega': a.salaBodega, 'Tipo de auto': a.tipoAuto,
+    'Fecha de alta': a.fechaAlta, Estado: a.estado,
+  }));
 
   const wb = XLSX.utils.book_new();
-  const ws = XLSX.utils.json_to_sheet(duplicados.map(d => ({ Nombre: d.nombre, RUT: d.rut })));
-  ws['!cols'] = [{ wch: 30 }, { wch: 14 }];
+  const ws = XLSX.utils.json_to_sheet(filas);
+  ws['!cols'] = [{ wch: 26 }, { wch: 13 }, { wch: 14 }, { wch: 16 }, { wch: 16 }, { wch: 14 }, { wch: 13 }, { wch: 10 }];
+  XLSX.utils.book_append_sheet(wb, ws, 'Altas Onboarding');
+  const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.setHeader('Content-Disposition', 'attachment; filename="altas_onboarding.xlsx"');
+  res.send(buffer);
+});
+
+// Excel de los RUT que aparecen más de una vez dentro de la misma hoja en la
+// última sincronización — problema de datos para que operaciones revise.
+router.get('/sync-log/duplicados/export', (_req, res) => {
+  const ultima = store.getSyncLog()[0];
+  const duplicados = ultima?.duplicadosEnHoja || [];
+
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.json_to_sheet(duplicados.map(d => ({ Nombre: d.nombre, RUT: d.rut, 'Veces en la hoja': d.veces })));
+  ws['!cols'] = [{ wch: 30 }, { wch: 14 }, { wch: 14 }];
   XLSX.utils.book_append_sheet(wb, ws, 'Duplicados');
   const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
 

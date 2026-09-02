@@ -1,24 +1,53 @@
 const { Router } = require('express');
 const XLSX = require('xlsx');
 const store = require('./turnosStore');
+const altasStore = require('../onboarding/altasStore');
+
+const WHATSAPP_INSCRIPCION = 'https://wa.me/56941114635';
+function limpiarRutTurnos(rut) {
+  return String(rut || '').toUpperCase().replace(/[^0-9K]/g, '');
+}
 
 // ─── Router público (sin login del panel) — lo usan los Karriers desde su celular ──
 const publicRouter = Router();
 
+// Solo puede identificarse/agendar quien ya es Karrier O aparece en Altas
+// Onboarding con ese RUT — si no, se le redirige a inscribirse por WhatsApp.
 publicRouter.get('/karrier/:rut', (req, res) => {
-  const k = store.getKarrierByRut(req.params.rut.trim());
-  res.json({ ok: true, karrier: k });
+  const rut = req.params.rut.trim();
+  const k = store.getKarrierByRut(rut);
+  let alta = null;
+  if (!k) alta = altasStore.getAltaByRutKey(limpiarRutTurnos(rut));
+  res.json({
+    ok: true,
+    karrier: k,
+    elegible: !!k || !!alta,
+    alta: alta ? { nombre: alta.nombre, celular: alta.celular } : null,
+    whatsapp: WHATSAPP_INSCRIPCION,
+  });
 });
 
 // Registro rápido / identificación del Karrier (crea el registro si no existe)
 publicRouter.post('/karrier', (req, res) => {
   const { rut, name, phone } = req.body || {};
   if (!rut || !name) return res.status(400).json({ ok: false, error: 'RUT y nombre son requeridos' });
-  const existente = store.getKarrierByRut(rut.trim());
+  const rutTrim = rut.trim();
+  const existente = store.getKarrierByRut(rutTrim);
   if (existente && existente.status !== 'ACTIVE') {
     return res.status(403).json({ ok: false, error: 'Tu cuenta está inactiva. Contacta a operaciones.' });
   }
-  const karrier = store.ensureKarrier(rut.trim(), name.trim(), (phone || '').trim());
+  if (!existente) {
+    const alta = altasStore.getAltaByRutKey(limpiarRutTurnos(rutTrim));
+    if (!alta) {
+      return res.status(403).json({
+        ok: false,
+        code: 'NOT_IN_ALTAS',
+        error: 'Tu RUT no está registrado en Altas Onboarding. Escríbenos por WhatsApp para inscribirte.',
+        whatsapp: WHATSAPP_INSCRIPCION,
+      });
+    }
+  }
+  const karrier = store.ensureKarrier(rutTrim, name.trim(), (phone || '').trim());
   res.json({ ok: true, karrier });
 });
 

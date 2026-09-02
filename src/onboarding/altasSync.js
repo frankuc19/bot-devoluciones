@@ -10,8 +10,14 @@ function esAlta(estado) {
 
 /**
  * Sincroniza "Consolidado Altas OB" hacia la sección Altas Onboarding.
- * Solo crea personas con Estatus "Alta"; nunca duplica por RUT — si ya
- * existe, lo registra como alerta en vez de crear un segundo registro.
+ * Solo crea personas con Estatus "Alta"; nunca duplica por RUT.
+ *
+ * Importante: la hoja sigue listando para siempre a todo el que alguna vez
+ * tuvo Estatus "Alta", así que en CADA corrida se vuelve a encontrar a la
+ * gente ya importada — eso es normal y no es una alerta ("yaExistian").
+ * Lo que sí es una alerta real es que el mismo RUT aparezca MÁS DE UNA VEZ
+ * dentro de la propia hoja en esta misma lectura ("duplicadosEnHoja"), lo
+ * que indica un problema de datos que operaciones debería revisar ahí.
  */
 async function sincronizarAltasOB() {
   let filas;
@@ -30,13 +36,31 @@ async function sincronizarAltasOB() {
   }
 
   const altas = filas.filter(f => esAlta(f.estado));
-  const duplicados = [];
+
+  // RUTs que aparecen más de una vez dentro de la misma hoja (esta lectura)
+  const conteoEnHoja = new Map();
+  for (const f of altas) conteoEnHoja.set(f.rutKey, (conteoEnHoja.get(f.rutKey) || 0) + 1);
+  const rutsRepetidosEnHoja = new Set([...conteoEnHoja.entries()].filter(([, n]) => n > 1).map(([k]) => k));
+  const duplicadosEnHoja = [];
+  const vistosParaReporte = new Set();
+  for (const f of altas) {
+    if (rutsRepetidosEnHoja.has(f.rutKey) && !vistosParaReporte.has(f.rutKey)) {
+      vistosParaReporte.add(f.rutKey);
+      duplicadosEnHoja.push({ rut: f.rut, nombre: f.nombre, veces: conteoEnHoja.get(f.rutKey) });
+    }
+  }
+
   let creados = 0;
+  let yaExistian = 0;
+  const procesadosEnEstaCorrida = new Set();
 
   for (const fila of altas) {
+    if (procesadosEnEstaCorrida.has(fila.rutKey)) continue; // ya se procesó (era repetido dentro de la hoja)
+    procesadosEnEstaCorrida.add(fila.rutKey);
+
     const existente = store.getAltaByRutKey(fila.rutKey);
     if (existente) {
-      duplicados.push({ rut: fila.rut, nombre: fila.nombre });
+      yaExistian++;
       continue;
     }
     store.saveAlta({
@@ -64,14 +88,14 @@ async function sincronizarAltasOB() {
     totalFilasLeidas: filas.length,
     altas: altas.length,
     creados,
-    duplicados,
+    yaExistian,
+    duplicadosEnHoja,
     // Muestra de valores de Estado/Estatus tal como vienen en la hoja —
-    // ayuda a diagnosticar cuando "altas" da 0 (p.ej. la hoja dice
-    // "Alta " con algo raro, o la columna viene vacía).
+    // ayuda a diagnosticar cuando "altas" da 0.
     estadosEncontrados: [...new Set(filas.map(f => f.estado).filter(Boolean))].slice(0, 20),
   };
   store.addSyncLog(resultado);
-  console.log(`[Altas OB] Sincronización: ${creados} nuevo(s), ${duplicados.length} duplicado(s) (de ${altas.length} con estatus "Alta" / ${filas.length} filas leídas)`);
+  console.log(`[Altas OB] Sincronización: ${creados} nuevo(s), ${yaExistian} ya existían, ${duplicadosEnHoja.length} RUT repetido(s) dentro de la hoja (de ${altas.length} con estatus "Alta" / ${filas.length} filas leídas)`);
   return resultado;
 }
 
