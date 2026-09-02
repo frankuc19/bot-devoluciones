@@ -20,6 +20,13 @@
   .week-btn:hover { background:#f4f5f6; }
   .cap-input { width:64px;background:#f4f5f6;border:1px solid rgba(15,23,22,.08);color:#12181a;border-radius:6px;padding:4px 6px;font-size:12px;text-align:center; }
   select.status-input { background:#f4f5f6;border:1px solid rgba(15,23,22,.08);color:#12181a;border-radius:6px;padding:4px 6px;font-size:11px; }
+  .modal-bg { position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:1000;padding:20px; }
+  .modal { background:#ffffff;border:1px solid rgba(15,23,22,.07);border-radius:14px;width:100%;max-width:420px; }
+  .modal-header { display:flex;align-items:center;justify-content:space-between;padding:18px 20px 14px;border-bottom:1px solid rgba(15,23,22,.07); }
+  .modal-body { padding:20px;display:flex;flex-direction:column;gap:12px; }
+  .modal-footer { display:flex;justify-content:flex-end;gap:8px;padding:14px 20px;border-top:1px solid rgba(15,23,22,.07); }
+  .btn-ghost { background:none;color:rgba(15,23,22,.5);font-size:12px;padding:5px 8px;border-radius:6px;border:none;cursor:pointer;display:inline-flex;align-items:center;gap:5px; }
+  .btn-ghost:hover { background:#f4f5f6;color:#12181a; }
 </style>
 </head>
 <body class="flex h-screen overflow-hidden">
@@ -46,8 +53,11 @@
       <button class="btn-secondary" onclick="exportarExcel()">
         <i data-lucide="download" style="width:13px;height:13px;"></i> Exportar Excel
       </button>
-      <button class="btn-primary" onclick="generarSemana()">
-        <i data-lucide="calendar-plus" style="width:14px;height:14px;"></i> Generar semana (7 días × AM/PM/FULL)
+      <button class="btn-secondary" onclick="generarSemana()">
+        <i data-lucide="calendar-plus" style="width:14px;height:14px;"></i> Generar semana actual
+      </button>
+      <button class="btn-primary" onclick="abrirModalRango()">
+        <i data-lucide="calendar-range" style="width:14px;height:14px;"></i> Planificar rango
       </button>
     </div>
   </header>
@@ -77,6 +87,26 @@
           <tbody id="tbody-slots"></tbody>
         </table>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: planificar un rango de fechas a elección -->
+<div class="modal-bg hidden" id="modal-rango-bg">
+  <div class="modal">
+    <div class="modal-header">
+      <p style="font-size:14px;font-weight:700;">Planificar rango de fechas</p>
+      <button class="btn-ghost" onclick="cerrarModalRango()"><i data-lucide="x" style="width:16px;height:16px;"></i></button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:12px;color:var(--text-muted);">Crea AM/PM/FULL para cada día del rango, con los cupos por defecto de la tienda. No duplica turnos que ya existan.</p>
+      <div class="form-group"><p class="label mb-1">Desde</p><input type="date" class="input" id="f-rango-desde"></div>
+      <div class="form-group"><p class="label mb-1">Hasta</p><input type="date" class="input" id="f-rango-hasta"></div>
+      <p id="modal-rango-error" class="hidden" style="color:#dc2626;font-size:12px;"></p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="cerrarModalRango()">Cancelar</button>
+      <button class="btn-primary" id="btn-generar-rango" onclick="generarRango()"><i data-lucide="calendar-range" style="width:13px;height:13px;"></i> Generar</button>
     </div>
   </div>
 </div>
@@ -140,6 +170,43 @@ async function generarSemana() {
     body: JSON.stringify({ storeId, weekStart }),
   }).then(x => x.json());
   if (r.ok) cargar();
+}
+
+function abrirModalRango() {
+  const storeId = document.getElementById('sel-tienda').value;
+  if (!storeId) { alert('Selecciona una tienda primero'); return; }
+  const d = new Date(weekStart + 'T00:00:00');
+  const fin = new Date(d); fin.setDate(fin.getDate() + 6);
+  document.getElementById('f-rango-desde').value = fechaInputStr(d);
+  document.getElementById('f-rango-hasta').value = fechaInputStr(fin);
+  document.getElementById('modal-rango-error').classList.add('hidden');
+  document.getElementById('modal-rango-bg').classList.remove('hidden');
+  lucide.createIcons();
+}
+function cerrarModalRango() { document.getElementById('modal-rango-bg').classList.add('hidden'); }
+function fechaInputStr(d) { return d.toISOString().slice(0, 10); }
+
+async function generarRango() {
+  const storeId = document.getElementById('sel-tienda').value;
+  const desde = document.getElementById('f-rango-desde').value;
+  const hasta = document.getElementById('f-rango-hasta').value;
+  const err = document.getElementById('modal-rango-error');
+  err.classList.add('hidden');
+  if (!desde || !hasta) { err.textContent = 'Completa ambas fechas'; err.classList.remove('hidden'); return; }
+  if (hasta < desde) { err.textContent = 'La fecha "hasta" no puede ser anterior a "desde"'; err.classList.remove('hidden'); return; }
+
+  const btn = document.getElementById('btn-generar-rango');
+  btn.disabled = true;
+  const r = await fetch('/api/turnos/admin/slots/generar-rango', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ storeId, dateFrom: desde, dateTo: hasta }),
+  }).then(x => x.json());
+  btn.disabled = false;
+
+  if (!r.ok) { err.textContent = r.error || 'No se pudo generar'; err.classList.remove('hidden'); return; }
+  cerrarModalRango();
+  weekStart = mondayOf(new Date(desde + 'T00:00:00'));
+  cargar();
 }
 
 async function cargar() {

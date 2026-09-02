@@ -251,13 +251,26 @@ function createSlot({ storeId, shiftType, date, capacity }) {
 }
 
 // Crea (o completa) los 7 días x 3 turnos de una tienda para la semana que contiene weekStartDate
-function generarSemana(storeId, weekStartDate) {
+const RANGO_MAX_DIAS = 120; // tope de seguridad para no crear miles de turnos por error
+
+// Crea (o completa) AM/PM/FULL para cada día entre dateFrom y dateTo (ambos
+// incluidos), usando los cupos por defecto de la tienda. Nunca duplica un
+// turno que ya exista para esa fecha+tipo.
+function generarRango(storeId, dateFrom, dateTo) {
   const tienda = getTiendaById(storeId);
   if (!tienda) throw new Error('Tienda no encontrada');
+  if (!dateFrom || !dateTo) throw new Error('Faltan fechas');
+  if (dateTo < dateFrom) throw new Error('La fecha "hasta" no puede ser anterior a "desde"');
+
+  const inicio = new Date(dateFrom + 'T00:00:00');
+  const fin = new Date(dateTo + 'T00:00:00');
+  const dias = Math.round((fin - inicio) / (24 * 60 * 60 * 1000)) + 1;
+  if (dias > RANGO_MAX_DIAS) throw new Error(`El rango es muy largo (${dias} días). El máximo permitido es ${RANGO_MAX_DIAS} días.`);
+
   const existentes = getSlots().filter(s => s.storeId === storeId);
   const creados = [];
-  for (let i = 0; i < 7; i++) {
-    const d = new Date(weekStartDate + 'T00:00:00');
+  for (let i = 0; i < dias; i++) {
+    const d = new Date(inicio);
     d.setDate(d.getDate() + i);
     const dateStr = d.toISOString().slice(0, 10);
     for (const tipo of ['AM', 'PM', 'FULL']) {
@@ -267,6 +280,13 @@ function generarSemana(storeId, weekStartDate) {
     }
   }
   return creados;
+}
+
+// Atajo: genera los 7 días de la semana que empieza en weekStartDate.
+function generarSemana(storeId, weekStartDate) {
+  const fin = new Date(weekStartDate + 'T00:00:00');
+  fin.setDate(fin.getDate() + 6);
+  return generarRango(storeId, weekStartDate, fin.toISOString().slice(0, 10));
 }
 
 // ─── Asignaciones (toma de turnos) ─────────────────────────────────────────────
@@ -629,7 +649,7 @@ module.exports = {
   getSettings, saveSettings,
   getTiendas, getTiendaById, saveTienda, deleteTienda,
   getKarriers, getKarrierByRut, saveKarrier, deleteKarrier, ensureKarrier,
-  getSlots, getSlotById, saveSlot, deleteSlot, createSlot, generarSemana,
+  getSlots, getSlotById, saveSlot, deleteSlot, createSlot, generarSemana, generarRango,
   getAsignaciones, getAsignacionById, listAsignaciones,
   tomarTurno, cancelarTurno, reasignarTurno,
   disponibilidadTienda, misTurnos, coberturaTienda, coberturaGeneral, dashboardKpis,

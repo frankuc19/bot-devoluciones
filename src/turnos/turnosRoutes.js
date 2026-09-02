@@ -244,6 +244,17 @@ adminRouter.post('/slots/generar-semana', (req, res) => {
     res.status(400).json({ ok: false, error: e.message });
   }
 });
+
+adminRouter.post('/slots/generar-rango', (req, res) => {
+  const { storeId, dateFrom, dateTo } = req.body || {};
+  if (!storeId || !dateFrom || !dateTo) return res.status(400).json({ ok: false, error: 'Faltan datos' });
+  try {
+    const creados = store.generarRango(storeId, dateFrom, dateTo);
+    res.json({ ok: true, creados: creados.length });
+  } catch (e) {
+    res.status(400).json({ ok: false, error: e.message });
+  }
+});
 adminRouter.put('/slots/:id', (req, res) => {
   const slot = store.getSlotById(req.params.id);
   if (!slot) return res.status(404).json({ ok: false, error: 'Turno no encontrado' });
