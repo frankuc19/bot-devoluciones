@@ -79,11 +79,29 @@ publicRouter.get('/tiendas', (_req, res) => {
 });
 
 publicRouter.get('/disponibilidad', (req, res) => {
-  const { storeId, weekStart } = req.query;
+  const { storeId, weekStart, rut } = req.query;
   if (!storeId || !weekStart) return res.status(400).json({ ok: false, error: 'Faltan parámetros' });
   const tienda = store.getTiendaById(storeId);
   if (!tienda) return res.status(404).json({ ok: false, error: 'Tienda no encontrada' });
-  res.json({ ok: true, tienda, slots: store.disponibilidadTienda(storeId, weekStart) });
+
+  let slots = store.disponibilidadTienda(storeId, weekStart);
+  // Si conocemos el RUT, mostramos cupos/disponibilidad de SU rol específico
+  // (Picker/Shopper/Driver) en vez del agregado — evita que alguien vea
+  // "cupos disponibles" que en realidad son de otro rol y no puede tomar.
+  if (rut) {
+    const { rol } = store.determinarRolKarrier(rut);
+    if (rol) {
+      slots = slots.map(s => ({
+        ...s,
+        role: rol,
+        capacity: s.porRol[rol].capacity,
+        taken: s.porRol[rol].taken,
+        available: s.porRol[rol].available,
+        coverage: s.porRol[rol].capacity > 0 ? Math.round((s.porRol[rol].taken / s.porRol[rol].capacity) * 100) : 0,
+      }));
+    }
+  }
+  res.json({ ok: true, tienda, slots });
 });
 
 publicRouter.post('/tomar', async (req, res) => {
@@ -128,7 +146,7 @@ adminRouter.post('/tiendas', (req, res) => {
     id: require('crypto').randomUUID(),
     name, code: code || '', address: address || '', commune: commune || '', region: region || '',
     active: true,
-    capacity: { AM: Number(capacity?.AM) || 0, PM: Number(capacity?.PM) || 0, FULL: Number(capacity?.FULL) || 0 },
+    capacity: capacity || {}, // store.saveTienda normaliza { AM/PM/FULL: {Picker,Shopper,Driver} }
     createdAt: new Date().toISOString(),
   };
   store.saveTienda(tienda);
@@ -144,7 +162,7 @@ adminRouter.put('/tiendas/:id', (req, res) => {
   if (commune !== undefined) tienda.commune = commune;
   if (region !== undefined) tienda.region = region;
   if (active !== undefined) tienda.active = !!active;
-  if (capacity) tienda.capacity = { ...tienda.capacity, ...capacity };
+  if (capacity) tienda.capacity = capacity; // store.saveTienda normaliza y completa roles faltantes
   store.saveTienda(tienda);
   res.json({ ok: true, tienda });
 });
@@ -184,26 +202,29 @@ adminRouter.get('/slots/export', (req, res) => {
   const slots = store.disponibilidadTienda(storeId, weekStart);
   const filas = slots.map(s => {
     const dia = new Date(s.date + 'T00:00:00').getDay();
-    return {
+    const fila = {
       Tienda: tienda.name,
       Fecha: s.date,
       Día: DIA_LABEL_XLSX[dia],
       Turno: TURNO_LABEL_XLSX[s.shiftType] || s.shiftType,
       Horario: `${s.startTime}-${s.endTime}`,
-      Cupos: s.capacity,
-      Tomados: s.taken,
-      Disponibles: s.available,
-      'Cobertura %': s.coverage,
-      Estado: s.status,
     };
+    for (const rol of store.ROLES) {
+      fila[`Cupos ${rol}`]      = s.porRol[rol].capacity;
+      fila[`Tomados ${rol}`]    = s.porRol[rol].taken;
+      fila[`Disponibles ${rol}`] = s.porRol[rol].available;
+    }
+    fila['Cupos Total'] = s.capacity;
+    fila['Tomados Total'] = s.taken;
+    fila['Cobertura %'] = s.coverage;
+    fila['Estado'] = s.status;
+    return fila;
   });
 
   const wb = XLSX.utils.book_new();
   const ws = XLSX.utils.json_to_sheet(filas);
-  ws['!cols'] = [
-    { wch: 18 }, { wch: 12 }, { wch: 12 }, { wch: 18 }, { wch: 13 },
-    { wch: 8 }, { wch: 9 }, { wch: 11 }, { wch: 12 }, { wch: 9 },
-  ];
+  const headers = filas.length ? Object.keys(filas[0]) : [];
+  ws['!cols'] = headers.map(h => ({ wch: Math.max(10, h.length + 2) }));
   XLSX.utils.book_append_sheet(wb, ws, 'Planificación');
   const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
 
@@ -227,10 +248,10 @@ adminRouter.put('/slots/:id', (req, res) => {
   const slot = store.getSlotById(req.params.id);
   if (!slot) return res.status(404).json({ ok: false, error: 'Turno no encontrado' });
   const { capacity, status } = req.body || {};
-  if (capacity !== undefined) slot.capacity = Number(capacity) || 0;
+  if (capacity !== undefined) slot.capacity = capacity; // { Picker, Shopper, Driver }
   if (status !== undefined) slot.status = status;
   store.saveSlot(slot);
-  res.json({ ok: true, slot });
+  res.json({ ok: true, slot: store.slotConInfo(slot) });
 });
 adminRouter.delete('/slots/:id', (req, res) => {
   store.deleteSlot(req.params.id);

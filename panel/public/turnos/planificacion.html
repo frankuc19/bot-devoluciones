@@ -57,9 +57,23 @@
     <div class="card" style="overflow:hidden;">
       <div class="tbl-wrap">
         <table>
-          <thead><tr>
-            <th>Fecha</th><th>Turno</th><th>Horario</th><th>Cupos</th><th>Tomados</th><th>Estado</th><th></th>
-          </tr></thead>
+          <thead>
+            <tr>
+              <th rowspan="2" style="vertical-align:bottom;">Fecha</th>
+              <th rowspan="2" style="vertical-align:bottom;">Turno</th>
+              <th rowspan="2" style="vertical-align:bottom;">Horario</th>
+              <th colspan="2" style="text-align:center;border-left:1px solid rgba(15,23,22,.07);">Picker</th>
+              <th colspan="2" style="text-align:center;border-left:1px solid rgba(15,23,22,.07);">Shopper</th>
+              <th colspan="2" style="text-align:center;border-left:1px solid rgba(15,23,22,.07);">Driver</th>
+              <th rowspan="2" style="vertical-align:bottom;border-left:1px solid rgba(15,23,22,.07);">Estado</th>
+              <th rowspan="2" style="vertical-align:bottom;"></th>
+            </tr>
+            <tr>
+              <th style="border-left:1px solid rgba(15,23,22,.07);">Cupos</th><th>Tomados</th>
+              <th style="border-left:1px solid rgba(15,23,22,.07);">Cupos</th><th>Tomados</th>
+              <th style="border-left:1px solid rgba(15,23,22,.07);">Cupos</th><th>Tomados</th>
+            </tr>
+          </thead>
           <tbody id="tbody-slots"></tbody>
         </table>
       </div>
@@ -143,18 +157,21 @@ async function cargar() {
   const r = await fetch(`/api/turnos/admin/slots?storeId=${storeId}&weekStart=${weekStart}`).then(x => x.json());
   const tbody = document.getElementById('tbody-slots');
   if (!r.ok || r.slots.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--text-faint);padding:24px;">
+    tbody.innerHTML = `<tr><td colspan="11" style="text-align:center;color:var(--text-faint);padding:24px;">
       Sin turnos planificados esta semana. Usa <b>Generar semana</b>.</td></tr>`;
     return;
   }
+  const ROLES = ['Picker', 'Shopper', 'Driver'];
   tbody.innerHTML = r.slots.map(s => `
     <tr>
       <td>${fmtFecha(s.date)}</td>
       <td>${TURNO_LABEL[s.shiftType]}</td>
       <td>${s.startTime}–${s.endTime}</td>
-      <td><input class="cap-input" type="number" min="0" value="${s.capacity}" onchange="actualizarSlot('${s.id}',{capacity:this.value})"></td>
-      <td>${s.taken}</td>
-      <td>
+      ${ROLES.map(rol => `
+        <td style="border-left:1px solid rgba(15,23,22,.07);"><input class="cap-input" type="number" min="0" value="${s.porRol[rol].capacity}" onchange="actualizarCupoRol('${s.id}','${rol}',this.value)"></td>
+        <td>${s.porRol[rol].taken}</td>
+      `).join('')}
+      <td style="border-left:1px solid rgba(15,23,22,.07);">
         <select class="status-input" onchange="actualizarSlot('${s.id}',{status:this.value})">
           <option value="OPEN" ${s.status==='OPEN'?'selected':''}>Abierto</option>
           <option value="CLOSED" ${s.status==='CLOSED'?'selected':''}>Cerrado</option>
@@ -166,6 +183,17 @@ async function cargar() {
       </td>
     </tr>`).join('');
   if (window.lucide) lucide.createIcons({ el: tbody });
+  ultimosSlots = r.slots;
+}
+
+let ultimosSlots = [];
+
+async function actualizarCupoRol(id, rol, valor) {
+  const slot = ultimosSlots.find(s => s.id === id);
+  if (!slot) return;
+  const capacity = { Picker: slot.porRol.Picker.capacity, Shopper: slot.porRol.Shopper.capacity, Driver: slot.porRol.Driver.capacity };
+  capacity[rol] = Number(valor) || 0;
+  await actualizarSlot(id, { capacity });
 }
 
 async function actualizarSlot(id, body) {

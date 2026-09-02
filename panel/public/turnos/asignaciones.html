@@ -60,7 +60,7 @@
       <div class="tbl-wrap">
         <table>
           <thead><tr>
-            <th>Karrier</th><th>RUT</th><th>Tienda</th><th>Fecha</th><th>Turno</th><th>Estado</th><th></th>
+            <th>Karrier</th><th>RUT</th><th>Rol</th><th>Tienda</th><th>Fecha</th><th>Turno</th><th>Estado</th><th></th>
           </tr></thead>
           <tbody id="tbody-asig"></tbody>
         </table>
@@ -103,6 +103,7 @@ let weekStart = mondayOf(new Date());
 let tiendas = [];
 let asignaciones = [];
 let reasignandoId = null;
+let reasignandoRol = null;
 
 function mondayOf(d) {
   const day = d.getDay();
@@ -152,13 +153,14 @@ async function cargar() {
 function render() {
   const tbody = document.getElementById('tbody-asig');
   if (asignaciones.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--text-faint);padding:24px;">Sin asignaciones para este filtro.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;color:var(--text-faint);padding:24px;">Sin asignaciones para este filtro.</td></tr>`;
     return;
   }
   tbody.innerHTML = asignaciones.map(a => `
     <tr>
       <td style="font-weight:600;">${a.karrierName}</td>
       <td class="td-mono">${a.karrierRut}</td>
+      <td>${a.role ? `<span class="badge badge-muted">${a.role}</span>` : '—'}</td>
       <td>${a.tienda?.name || '—'}</td>
       <td>${fmtFecha(a.slot.date)}</td>
       <td>${TURNO_LABEL[a.slot.shiftType]} · ${a.slot.startTime}-${a.slot.endTime}</td>
@@ -184,7 +186,8 @@ async function cancelar(id) {
 
 function abrirReasignar(a) {
   reasignandoId = a.id;
-  document.getElementById('modal-karrier').textContent = `${a.karrierName} (${a.karrierRut}) — turno actual: ${fmtFecha(a.slot.date)} ${TURNO_LABEL[a.slot.shiftType]} en ${a.tienda?.name || '—'}`;
+  reasignandoRol = a.role || null;
+  document.getElementById('modal-karrier').textContent = `${a.karrierName} (${a.karrierRut}) · ${a.role || 'sin rol'} — turno actual: ${fmtFecha(a.slot.date)} ${TURNO_LABEL[a.slot.shiftType]} en ${a.tienda?.name || '—'}`;
   const selTienda = document.getElementById('modal-tienda');
   selTienda.innerHTML = tiendas.map(t => `<option value="${t.id}" ${t.id === a.slot.storeId ? 'selected' : ''}>${t.name}</option>`).join('');
   document.getElementById('modal-error').classList.add('hidden');
@@ -199,12 +202,16 @@ async function cargarSlotsDestino(excluirSlotId) {
   const selSlot = document.getElementById('modal-slot');
   selSlot.innerHTML = '<option>Cargando…</option>';
   const r = await fetch(`/api/turnos/admin/slots?storeId=${storeId}&weekStart=${weekStart}`).then(x => x.json());
-  const disponibles = (r.ok ? r.slots : []).filter(s => s.status === 'OPEN' && (s.available > 0 || s.id === excluirSlotId));
+  const rol = reasignandoRol;
+  const disponibles = (r.ok ? r.slots : [])
+    .filter(s => s.status === 'OPEN')
+    .map(s => rol ? { ...s, available: s.porRol[rol].available, capacity: s.porRol[rol].capacity } : s)
+    .filter(s => s.available > 0 || s.id === excluirSlotId);
   if (disponibles.length === 0) {
-    selSlot.innerHTML = '<option value="">Sin turnos disponibles esta semana</option>';
+    selSlot.innerHTML = `<option value="">Sin turnos disponibles${rol ? ` para ${rol}` : ''} esta semana</option>`;
     return;
   }
-  selSlot.innerHTML = disponibles.map(s => `<option value="${s.id}">${fmtFecha(s.date)} · ${TURNO_LABEL[s.shiftType]} (${s.available}/${s.capacity} cupos)</option>`).join('');
+  selSlot.innerHTML = disponibles.map(s => `<option value="${s.id}">${fmtFecha(s.date)} · ${TURNO_LABEL[s.shiftType]} (${s.available}/${s.capacity} cupos${rol ? ' ' + rol : ''})</option>`).join('');
 }
 
 async function confirmarReasignacion() {

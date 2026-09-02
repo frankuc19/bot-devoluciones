@@ -322,7 +322,7 @@ let slotsSemana = [];
 async function cargarTurnos() {
   document.getElementById('cs-name').textContent = tiendaActual.name;
   renderDias();
-  const r = await fetch(`/api/turnos/public/disponibilidad?storeId=${tiendaActual.id}&weekStart=${weekStart}`).then(x => x.json());
+  const r = await fetch(`/api/turnos/public/disponibilidad?storeId=${tiendaActual.id}&weekStart=${weekStart}&rut=${encodeURIComponent(rut)}`).then(x => x.json());
   slotsSemana = r.ok ? r.slots : [];
   renderTurnosDelDia();
 }

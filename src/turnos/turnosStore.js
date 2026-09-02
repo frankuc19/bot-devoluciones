@@ -1,6 +1,7 @@
 const fs     = require('fs');
 const path   = require('path');
 const crypto = require('crypto');
+const altasStore = require('../onboarding/altasStore');
 
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, '../../data');
 
@@ -18,6 +19,65 @@ const SHIFT_TYPES = {
   PM:   { code: 'PM',   name: 'Tarde',    startTime: '14:00', endTime: '20:00' },
   FULL: { code: 'FULL', name: 'Jornada completa', startTime: '08:00', endTime: '20:00' },
 };
+
+// Cupos y tomados se segmentan por rol operativo — el rol de cada Karrier se
+// detecta automáticamente a partir del campo "Cliente" de su ficha en Altas
+// Onboarding (p.ej. "Walmart Picker", "SMU Picker Rancagua", "Drivers Tottus").
+const ROLES = ['Picker', 'Shopper', 'Driver'];
+
+// Objeto de cupos "vacío" segmentado por rol — base para migrar formatos
+// viejos (un solo número) y para completar roles faltantes.
+function capacidadVacia() {
+  return { Picker: 0, Shopper: 0, Driver: 0 };
+}
+
+// Tolera el formato viejo (capacity: 30, un solo número) migrándolo a un
+// reparto parejo entre los 3 roles, y completa roles que falten en objetos
+// ya segmentados. Nunca modifica el original.
+function normalizarCapacidadRol(valor) {
+  if (typeof valor === 'number') {
+    const base = Math.floor(valor / ROLES.length);
+    const resto = valor - base * ROLES.length;
+    const obj = capacidadVacia();
+    ROLES.forEach((r, i) => { obj[r] = base + (i < resto ? 1 : 0); });
+    return obj;
+  }
+  const obj = capacidadVacia();
+  ROLES.forEach(r => { obj[r] = Number(valor?.[r]) || 0; });
+  return obj;
+}
+
+// Normaliza el objeto de capacidad de una tienda/turno completo: { AM, PM, FULL }
+function normalizarCapacidadTurnos(capacity) {
+  const out = {};
+  for (const tipo of Object.keys(SHIFT_TYPES)) out[tipo] = normalizarCapacidadRol(capacity?.[tipo]);
+  return out;
+}
+
+function sumaCapacidad(capacityPorRol) {
+  return ROLES.reduce((acc, r) => acc + (Number(capacityPorRol?.[r]) || 0), 0);
+}
+
+// Detecta Picker/Shopper/Driver a partir del texto libre de "Cliente" en
+// Altas Onboarding — tolera mayúsculas, plural ("Drivers") y texto extra
+// alrededor (p.ej. "SMU Picker Rancagua", "Walmart Driver").
+function normalizarRolPorCliente(cliente) {
+  const c = String(cliente || '').toLowerCase();
+  if (c.includes('picker'))  return 'Picker';
+  if (c.includes('shopper')) return 'Shopper';
+  if (c.includes('driver'))  return 'Driver';
+  return null;
+}
+
+// Determina el rol operativo de un Karrier a partir de su ficha en Altas
+// Onboarding (por RUT). Devuelve null si no está en Altas o si su Cliente no
+// menciona ninguno de los 3 roles.
+function determinarRolKarrier(rut) {
+  const rutKey = String(rut || '').toUpperCase().replace(/[^0-9K]/g, '');
+  const alta = altasStore.getAltaByRutKey(rutKey);
+  if (!alta) return { rol: null, cliente: null };
+  return { rol: normalizarRolPorCliente(alta.cliente), cliente: alta.cliente || null };
+}
 
 const DEFAULT_SETTINGS = {
   weekStartsMonday:        true,
@@ -52,7 +112,11 @@ function tiendaDesdeSeed(seed) {
     commune: seed.commune,
     region: '',
     active: true,
-    capacity: { AM: 30, PM: 30, FULL: 20 },
+    capacity: {
+      AM:   { Picker: 10, Shopper: 10, Driver: 10 },
+      PM:   { Picker: 10, Shopper: 10, Driver: 10 },
+      FULL: { Picker: 7,  Shopper: 7,  Driver: 6  },
+    },
     createdAt: new Date().toISOString(),
   };
 }
@@ -87,21 +151,24 @@ function writeJson(file, data) {
 // ─── Tiendas ──────────────────────────────────────────────────────────────────
 function getTiendas() {
   const list = readJson(TIENDAS_FILE, null);
-  if (list === null) {
+  const conSeed = list === null ? (() => {
     const seeded = SEED_TIENDAS.map(tiendaDesdeSeed);
     writeJson(TIENDAS_FILE, seeded);
     writeJson(SEED_MARKER_FILE, { appliedAt: new Date().toISOString() });
     return seeded;
-  }
-  return ensureSeedTiendas(list);
+  })() : ensureSeedTiendas(list);
+  // Tolera tiendas guardadas con el formato viejo de cupos (un solo número
+  // por turno) migrándolas en memoria a cupos segmentados por rol.
+  return conSeed.map(t => ({ ...t, capacity: normalizarCapacidadTurnos(t.capacity) }));
 }
 function getTiendaById(id) { return getTiendas().find(t => t.id === id) || null; }
 function saveTienda(tienda) {
+  const normalizada = { ...tienda, capacity: normalizarCapacidadTurnos(tienda.capacity) };
   const list = getTiendas();
-  const idx = list.findIndex(t => t.id === tienda.id);
-  if (idx >= 0) list[idx] = tienda; else list.push(tienda);
+  const idx = list.findIndex(t => t.id === normalizada.id);
+  if (idx >= 0) list[idx] = normalizada; else list.push(normalizada);
   writeJson(TIENDAS_FILE, list);
-  return tienda;
+  return normalizada;
 }
 // Elimina la tienda y sus turnos planificados. Se niega si hay Karriers con
 // una asignación ACTIVA en esa tienda, para no borrarles el turno sin avisar
@@ -176,7 +243,7 @@ function createSlot({ storeId, shiftType, date, capacity }) {
     date, // YYYY-MM-DD
     startTime: tipo.startTime,
     endTime: tipo.endTime,
-    capacity: Number(capacity) || 0,
+    capacity: normalizarCapacidadRol(capacity), // { Picker, Shopper, Driver }
     status: 'OPEN',
     createdAt: new Date().toISOString(),
   };
@@ -213,12 +280,16 @@ function saveAsignacion(a) {
   return a;
 }
 
-function asignacionesActivasDeSlot(slotId) {
-  return getAsignaciones().filter(a => a.slotId === slotId && a.status === 'ACTIVE');
+function asignacionesActivasDeSlot(slotId, role) {
+  return getAsignaciones().filter(a => a.slotId === slotId && a.status === 'ACTIVE' && (!role || a.role === role));
 }
 
-function cuposDisponibles(slot) {
-  return Math.max(0, slot.capacity - asignacionesActivasDeSlot(slot.id).length);
+// Cupos disponibles para un rol específico dentro de un slot. Normaliza la
+// capacidad primero por si el slot quedó guardado con el formato viejo
+// (un solo número, sin segmentar por rol).
+function cuposDisponibles(slot, role) {
+  const cap = normalizarCapacidadRol(slot.capacity)[role] || 0;
+  return Math.max(0, cap - asignacionesActivasDeSlot(slot.id, role).length);
 }
 
 // Serializa las tomas de turno para evitar sobreasignación por condiciones de carrera
@@ -247,6 +318,7 @@ const ERRORES = {
   CANCELLATION_DISABLED: 'Las cancelaciones están deshabilitadas. Contacta a operaciones para cancelar tu turno.',
   EMPTY_OBSERVATION:     'La observación no puede estar vacía.',
   STORE_HAS_ACTIVE_ASSIGNMENTS: 'Esta tienda tiene Karriers con turnos activos. Cancela esas asignaciones o desactiva la tienda en vez de eliminarla.',
+  ROLE_NOT_DETERMINED:  'No pudimos determinar tu rol (Picker/Shopper/Driver) a partir de tu ficha en Altas Onboarding. Contacta a operaciones.',
 };
 
 function err(code) {
@@ -263,11 +335,14 @@ function _validarYCrearAsignacion(slotId, rut, excludeAssignmentId) {
   if (!karrier) throw err('INVALID_STORE'); // no debería pasar: el caller registra antes
   if (karrier.status !== 'ACTIVE') throw err('USER_INACTIVE');
 
+  const { rol, cliente } = determinarRolKarrier(rut);
+  if (!rol) throw err('ROLE_NOT_DETERMINED');
+
   const slot = getSlotById(slotId);
   if (!slot) throw err('SHIFT_NOT_FOUND');
   if (slot.status !== 'OPEN') throw err('SHIFT_CLOSED');
   if (slot.date < new Date().toISOString().slice(0, 10)) throw err('INVALID_DATE');
-  if (cuposDisponibles(slot) <= 0) throw err('SHIFT_FULL');
+  if (cuposDisponibles(slot, rol) <= 0) throw err('SHIFT_FULL');
 
   const misAsignaciones = getAsignaciones()
     .filter(a => a.karrierRut === rut && a.status === 'ACTIVE' && a.id !== excludeAssignmentId);
@@ -293,6 +368,8 @@ function _validarYCrearAsignacion(slotId, rut, excludeAssignmentId) {
     slotId,
     karrierRut: rut,
     karrierName: karrier.name,
+    role: rol, // Picker/Shopper/Driver, determinado desde Altas Onboarding
+    cliente: cliente || null, // snapshot del Cliente al momento de tomar el turno
     status: 'ACTIVE',
     createdAt: new Date().toISOString(),
     cancelledAt: null,
@@ -344,13 +421,28 @@ function reasignarTurno(assignmentId, newSlotId) {
 }
 
 // ─── Consultas agregadas ────────────────────────────────────────────────────────
+// Agrega el desglose por rol (porRol) y también totales agregados (capacity/
+// taken/available/coverage sumados entre los 3 roles) para no romper las
+// pantallas que solo necesitan el número global (Dashboard, Asignaciones...).
 function slotConInfo(slot) {
-  const activas = asignacionesActivasDeSlot(slot.id);
+  const capacityPorRol = normalizarCapacidadRol(slot.capacity);
+  const porRol = {};
+  let taken = 0, capacityTotal = 0;
+  for (const rol of ROLES) {
+    const tomadosRol = asignacionesActivasDeSlot(slot.id, rol).length;
+    const capRol = capacityPorRol[rol];
+    porRol[rol] = { capacity: capRol, taken: tomadosRol, available: Math.max(0, capRol - tomadosRol) };
+    taken += tomadosRol;
+    capacityTotal += capRol;
+  }
   return {
     ...slot,
-    taken: activas.length,
-    available: Math.max(0, slot.capacity - activas.length),
-    coverage: slot.capacity > 0 ? Math.round((activas.length / slot.capacity) * 100) : 0,
+    capacity: capacityTotal,      // agregado — mantiene compatibilidad con pantallas que ya sumaban un número
+    capacityPorRol,
+    porRol,
+    taken,
+    available: Math.max(0, capacityTotal - taken),
+    coverage: capacityTotal > 0 ? Math.round((taken / capacityTotal) * 100) : 0,
   };
 }
 
@@ -532,7 +624,8 @@ function listBitacora({ storeId, dateFrom, dateTo } = {}) {
 }
 
 module.exports = {
-  SHIFT_TYPES,
+  SHIFT_TYPES, ROLES,
+  normalizarRolPorCliente, determinarRolKarrier, cuposDisponibles,
   getSettings, saveSettings,
   getTiendas, getTiendaById, saveTienda, deleteTienda,
   getKarriers, getKarrierByRut, saveKarrier, deleteKarrier, ensureKarrier,

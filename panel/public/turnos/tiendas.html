@@ -16,13 +16,18 @@
   tr:last-child td { border-bottom:none; }
   tr:hover td { background:rgba(15,23,22,.02); }
   .modal-bg { position:fixed;inset:0;background:rgba(0,0,0,.65);display:flex;align-items:center;justify-content:center;z-index:1000;padding:20px; }
-  .modal { background:#ffffff;border:1px solid rgba(15,23,22,.07);border-radius:14px;width:100%;max-width:520px;max-height:90vh;display:flex;flex-direction:column; }
+  .modal { background:#ffffff;border:1px solid rgba(15,23,22,.07);border-radius:14px;width:100%;max-width:560px;max-height:90vh;display:flex;flex-direction:column; }
   .modal-header { display:flex;align-items:center;justify-content:space-between;padding:18px 20px 14px;border-bottom:1px solid rgba(15,23,22,.07); }
   .modal-body { overflow-y:auto;padding:20px;flex:1;display:flex;flex-direction:column;gap:12px; }
   .modal-footer { display:flex;justify-content:flex-end;gap:8px;padding:14px 20px;border-top:1px solid rgba(15,23,22,.07); }
   .form-row { display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px; }
   .btn-ghost { background:none;color:rgba(15,23,22,.5);font-size:12px;padding:5px 8px;border-radius:6px;border:none;cursor:pointer;display:inline-flex;align-items:center;gap:5px; }
   .btn-ghost:hover { background:#f4f5f6;color:#12181a; }
+  .cap-grid { display:grid;grid-template-columns:70px repeat(3,1fr);gap:6px;align-items:center; }
+  .cap-grid .hcell { font-size:10px;color:rgba(15,23,22,.4);font-weight:700;text-transform:uppercase;text-align:center; }
+  .cap-grid input { width:100%; }
+  .rol-breakdown { font-size:11px;color:rgba(15,23,22,.6);white-space:nowrap; }
+  .rol-breakdown b { color:#12181a; }
 </style>
 </head>
 <body class="flex h-screen overflow-hidden">
@@ -33,7 +38,7 @@
   <header style="background:var(--bg-800);border-bottom:1px solid var(--border);padding:14px 24px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
     <div>
       <h1 style="font-size:16px;font-weight:700;color:var(--text);">Tiendas</h1>
-      <p style="font-size:11px;color:var(--text-muted);margin-top:2px;">Cupos por defecto (AM / PM / FULL) usados al generar la planificación semanal</p>
+      <p style="font-size:11px;color:var(--text-muted);margin-top:2px;">Cupos por defecto (AM / PM / FULL), segmentados por Picker / Shopper / Driver — se usan al generar la planificación semanal</p>
     </div>
     <button class="btn-primary" onclick="abrirModal()">
       <i data-lucide="plus" style="width:14px;height:14px;"></i> Nueva tienda
@@ -46,7 +51,7 @@
         <table>
           <thead><tr>
             <th>Nombre</th><th>Código</th><th>Comuna</th><th>Estado</th>
-            <th>Cupos AM</th><th>Cupos PM</th><th>Cupos FULL</th><th></th>
+            <th>AM (P/S/D)</th><th>PM (P/S/D)</th><th>FULL (P/S/D)</th><th></th>
           </tr></thead>
           <tbody id="tbody-tiendas"></tbody>
         </table>
@@ -70,12 +75,28 @@
         <div class="form-group"><p class="label mb-1">Región</p><input class="input" id="f-region"></div>
       </div>
       <div class="form-group"><p class="label mb-1">Dirección</p><input class="input" id="f-address"></div>
-      <p class="label" style="margin-top:6px;">Cupos por turno</p>
-      <div class="form-row">
-        <div class="form-group"><p class="label mb-1">AM</p><input class="input" type="number" min="0" id="f-cap-am" value="30"></div>
-        <div class="form-group"><p class="label mb-1">PM</p><input class="input" type="number" min="0" id="f-cap-pm" value="30"></div>
-        <div class="form-group"><p class="label mb-1">FULL</p><input class="input" type="number" min="0" id="f-cap-full" value="20"></div>
+
+      <p class="label" style="margin-top:6px;">Cupos por turno y rol</p>
+      <div class="cap-grid">
+        <span></span>
+        <span class="hcell">Picker</span><span class="hcell">Shopper</span><span class="hcell">Driver</span>
+
+        <span class="label">AM</span>
+        <input class="input" type="number" min="0" id="f-cap-am-picker">
+        <input class="input" type="number" min="0" id="f-cap-am-shopper">
+        <input class="input" type="number" min="0" id="f-cap-am-driver">
+
+        <span class="label">PM</span>
+        <input class="input" type="number" min="0" id="f-cap-pm-picker">
+        <input class="input" type="number" min="0" id="f-cap-pm-shopper">
+        <input class="input" type="number" min="0" id="f-cap-pm-driver">
+
+        <span class="label">FULL</span>
+        <input class="input" type="number" min="0" id="f-cap-full-picker">
+        <input class="input" type="number" min="0" id="f-cap-full-shopper">
+        <input class="input" type="number" min="0" id="f-cap-full-driver">
       </div>
+
       <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-muted);margin-top:6px;">
         <input type="checkbox" id="f-active" checked> Tienda activa
       </label>
@@ -90,6 +111,8 @@
 
 <script src="/sidebar.js"></script>
 <script>
+const ROLES = ['Picker', 'Shopper', 'Driver'];
+const TURNOS = ['am', 'pm', 'full'];
 let tiendas = [];
 let editingId = null;
 
@@ -97,6 +120,11 @@ async function cargar() {
   const r = await fetch('/api/turnos/admin/tiendas').then(x => x.json());
   tiendas = r.tiendas || [];
   render();
+}
+
+function fmtRolBreakdown(cap) {
+  if (!cap) return '—';
+  return `<span class="rol-breakdown"><b>${cap.Picker ?? 0}</b>/<b>${cap.Shopper ?? 0}</b>/<b>${cap.Driver ?? 0}</b></span>`;
 }
 
 function render() {
@@ -107,9 +135,9 @@ function render() {
       <td>${t.code || '—'}</td>
       <td>${t.commune || '—'}</td>
       <td>${t.active ? '<span class="badge badge-electric">Activa</span>' : '<span class="badge badge-muted">Inactiva</span>'}</td>
-      <td>${t.capacity?.AM ?? 0}</td>
-      <td>${t.capacity?.PM ?? 0}</td>
-      <td>${t.capacity?.FULL ?? 0}</td>
+      <td>${fmtRolBreakdown(t.capacity?.AM)}</td>
+      <td>${fmtRolBreakdown(t.capacity?.PM)}</td>
+      <td>${fmtRolBreakdown(t.capacity?.FULL)}</td>
       <td style="display:flex;gap:4px;">
         <button class="btn-ghost" onclick='editar(${JSON.stringify(t.id)})' title="Editar"><i data-lucide="pencil" style="width:13px;height:13px;"></i></button>
         <button class="btn-ghost" onclick='eliminar(${JSON.stringify(t.id)}, ${JSON.stringify(t.name)})' title="Eliminar"><i data-lucide="trash-2" style="width:13px;height:13px;"></i></button>
@@ -118,13 +146,31 @@ function render() {
   if (window.lucide) lucide.createIcons({ el: tbody });
 }
 
+function setCapInputs(cap) {
+  for (const turno of TURNOS) {
+    for (const rol of ROLES) {
+      const el = document.getElementById(`f-cap-${turno}-${rol.toLowerCase()}`);
+      if (el) el.value = cap?.[turno.toUpperCase()]?.[rol] ?? 0;
+    }
+  }
+}
+function readCapInputs() {
+  const cap = {};
+  for (const turno of TURNOS) {
+    cap[turno.toUpperCase()] = {};
+    for (const rol of ROLES) {
+      const el = document.getElementById(`f-cap-${turno}-${rol.toLowerCase()}`);
+      cap[turno.toUpperCase()][rol] = Number(el?.value) || 0;
+    }
+  }
+  return cap;
+}
+
 function abrirModal() {
   editingId = null;
   document.getElementById('modal-title').textContent = 'Nueva tienda';
   ['f-name','f-code','f-commune','f-region','f-address'].forEach(id => document.getElementById(id).value = '');
-  document.getElementById('f-cap-am').value = 30;
-  document.getElementById('f-cap-pm').value = 30;
-  document.getElementById('f-cap-full').value = 20;
+  setCapInputs({ AM: { Picker: 10, Shopper: 10, Driver: 10 }, PM: { Picker: 10, Shopper: 10, Driver: 10 }, FULL: { Picker: 7, Shopper: 7, Driver: 6 } });
   document.getElementById('f-active').checked = true;
   document.getElementById('modal-error').classList.add('hidden');
   document.getElementById('modal-bg').classList.remove('hidden');
@@ -141,9 +187,7 @@ function editar(id) {
   document.getElementById('f-commune').value = t.commune || '';
   document.getElementById('f-region').value = t.region || '';
   document.getElementById('f-address').value = t.address || '';
-  document.getElementById('f-cap-am').value = t.capacity?.AM ?? 0;
-  document.getElementById('f-cap-pm').value = t.capacity?.PM ?? 0;
-  document.getElementById('f-cap-full').value = t.capacity?.FULL ?? 0;
+  setCapInputs(t.capacity);
   document.getElementById('f-active').checked = !!t.active;
   document.getElementById('modal-error').classList.add('hidden');
   document.getElementById('modal-bg').classList.remove('hidden');
@@ -160,11 +204,7 @@ async function guardar() {
     region: document.getElementById('f-region').value.trim(),
     address: document.getElementById('f-address').value.trim(),
     active: document.getElementById('f-active').checked,
-    capacity: {
-      AM: Number(document.getElementById('f-cap-am').value) || 0,
-      PM: Number(document.getElementById('f-cap-pm').value) || 0,
-      FULL: Number(document.getElementById('f-cap-full').value) || 0,
-    },
+    capacity: readCapInputs(),
   };
   if (!body.name) {
     const err = document.getElementById('modal-error');
