@@ -106,6 +106,30 @@
     canvas.getContext('2d').drawImage(tmp, minX, minY, w, h, 0, 0, w, h);
   }
 
+  const MOBILE_BREAKPOINT = 860;
+  const isMobile = () => window.innerWidth <= MOBILE_BREAKPOINT;
+
+  // Botón flotante (☰) y fondo oscuro — se crean una sola vez, fuera de
+  // #sidebar, para que sobrevivan a los re-render del innerHTML del rail.
+  function getOrCreateGlobalControls() {
+    let hamburger = document.getElementById('sidebar-hamburger');
+    if (!hamburger) {
+      hamburger = document.createElement('button');
+      hamburger.id = 'sidebar-hamburger';
+      hamburger.setAttribute('aria-label', 'Abrir menú');
+      hamburger.innerHTML = '<i data-lucide="menu" style="width:18px;height:18px;"></i>';
+      document.body.appendChild(hamburger);
+      if (window.lucide) lucide.createIcons({ el: hamburger });
+    }
+    let backdrop = document.getElementById('sidebar-backdrop');
+    if (!backdrop) {
+      backdrop = document.createElement('div');
+      backdrop.id = 'sidebar-backdrop';
+      document.body.appendChild(backdrop);
+    }
+    return { hamburger, backdrop };
+  }
+
   async function init(activeKey) {
     let me = { role: 'beginner', username: '', name: '', sections: [] };
     try { me = await fetch('/api/me').then(r => r.json()); } catch {}
@@ -115,6 +139,51 @@
 
     const el = document.getElementById('sidebar');
     if (!el) return;
+
+    // ── Abrir/cerrar la sidebar completa (no las secciones internas) ──────
+    const { hamburger, backdrop } = getOrCreateGlobalControls();
+    let openDesktop = localStorage.getItem('sidebar_open') !== 'false'; // abierta por defecto en desktop
+    let openMobile = false; // siempre arranca cerrada en mobile
+
+    // Deja espacio para el botón ☰ flotante para que no tape el título del
+    // header de la página cuando estamos en mobile (cada página tiene su
+    // propio <header>, así que se ajusta acá de forma centralizada).
+    const pageHeader = document.querySelector('header');
+    let pageHeaderPadSet = false;
+    function ajustarHeaderPagina() {
+      if (!pageHeader) return;
+      if (isMobile()) {
+        if (!pageHeaderPadSet) { pageHeader.style.paddingLeft = '56px'; pageHeaderPadSet = true; }
+      } else if (pageHeaderPadSet) {
+        pageHeader.style.paddingLeft = '';
+        pageHeaderPadSet = false;
+      }
+    }
+
+    function applySidebarState() {
+      if (isMobile()) {
+        el.classList.remove('sidebar-collapsed');
+        el.classList.toggle('sidebar-mobile-open', openMobile);
+        hamburger.classList.toggle('show', !openMobile);
+        backdrop.classList.toggle('show', openMobile);
+      } else {
+        el.classList.toggle('sidebar-collapsed', !openDesktop);
+        el.classList.remove('sidebar-mobile-open');
+        hamburger.classList.toggle('show', !openDesktop);
+        backdrop.classList.remove('show');
+      }
+      ajustarHeaderPagina();
+    }
+    function toggleSidebar() {
+      if (isMobile()) { openMobile = !openMobile; }
+      else { openDesktop = !openDesktop; localStorage.setItem('sidebar_open', String(openDesktop)); }
+      applySidebarState();
+    }
+    hamburger.onclick = toggleSidebar;
+    backdrop.onclick = () => { openMobile = false; applySidebarState(); };
+    window.addEventListener('resize', applySidebarState);
+    window._toggleSidebarPanel = toggleSidebar;
+    applySidebarState();
 
     // Estado de colapso persistido en localStorage
     const collapseKey = 'sidebar_collapsed';
@@ -187,6 +256,9 @@
           <img src="https://res.cloudinary.com/dkkab5dea/image/upload/v1778254790/guphgo6mzpq46e71nk0f.png"
                alt="Karri" style="height:18px;width:auto;display:block;object-fit:contain;">
         </div>
+        <button class="sidebar-close-btn" style="margin-left:auto;" onclick="window._toggleSidebarPanel()" aria-label="Cerrar menú">
+          <i data-lucide="panel-left-close" style="width:16px;height:16px;"></i>
+        </button>
       </div>
       <nav class="flex-1 px-3 py-4 overflow-y-auto">${navHTML}</nav>
       <div class="px-3 pb-5" style="border-top:1px solid rgba(255,255,255,0.06);">

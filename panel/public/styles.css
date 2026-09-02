@@ -41,6 +41,47 @@ body { background: #f4f5f4; color: #12181a; font-family: Inter, sans-serif; }
   display: flex; flex-direction: column; height: 100%;
   background: #0f1211;
   border-right: 1px solid rgba(255,255,255,0.08);
+  transition: width .2s ease, transform .25s ease;
+}
+/* Colapsada en desktop: se encoge a 0 y el contenido reflota solo (flex-1) */
+.sidebar.sidebar-collapsed { width: 0; border-right: none; overflow: hidden; }
+
+/* Botón flotante para abrir la sidebar cuando está colapsada/cerrada.
+   Solo se muestra cuando hace falta (JS le agrega/quita .show). */
+#sidebar-hamburger {
+  display: none;
+  position: fixed; top: 14px; left: 14px; z-index: 60;
+  width: 38px; height: 38px; border-radius: 10px;
+  background: #0f1211; border: 1px solid rgba(255,255,255,.1);
+  color: #e7eceb; align-items: center; justify-content: center;
+  box-shadow: 0 4px 14px rgba(0,0,0,.35);
+  cursor: pointer;
+}
+#sidebar-hamburger.show { display: flex; }
+
+/* Fondo oscuro detrás del drawer en mobile */
+#sidebar-backdrop {
+  display: none;
+  position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 45;
+}
+#sidebar-backdrop.show { display: block; }
+
+/* Botón "cerrar sidebar" dentro del propio rail (junto al logo) */
+.sidebar-close-btn {
+  background: none; border: none; color: rgba(231,236,235,.4);
+  cursor: pointer; padding: 6px; border-radius: 8px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.sidebar-close-btn:hover { background: rgba(255,255,255,.06); color: #e7eceb; }
+
+@media (max-width: 860px) {
+  .sidebar {
+    position: fixed; top: 0; left: 0; height: 100vh;
+    width: 260px !important;
+    transform: translateX(-100%);
+    z-index: 50;
+  }
+  .sidebar.sidebar-mobile-open { transform: translateX(0); }
 }
 
 /* ── Card ── */
