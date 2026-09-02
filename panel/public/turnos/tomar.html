@@ -43,6 +43,10 @@ input:focus{border-color:#1c9996;box-shadow:0 0 0 3px rgba(28,153,150,0.1)}
 .current-store .name{font-size:13px;font-weight:700;color:#1f3444}
 .current-store button{background:none;border:none;color:#1c9996;font-size:12px;font-weight:600;cursor:pointer}
 
+.week-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.week-nav button{background:#f4f5f7;border:1px solid #e5e7eb;color:#1f3444;width:30px;height:30px;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700}
+.week-nav button:hover{background:#e5e7eb}
+.week-label{font-size:12.5px;font-weight:600;color:#374151}
 .days{display:flex;gap:6px;overflow-x:auto;margin-bottom:16px;padding-bottom:4px}
 .day-pill{flex-shrink:0;padding:8px 12px;border-radius:8px;border:1px solid #e5e7eb;font-size:12px;text-align:center;cursor:pointer;min-width:52px}
 .day-pill .dname{font-weight:600;color:#374151}
@@ -124,6 +128,11 @@ input:focus{border-color:#1c9996;box-shadow:0 0 0 3px rgba(28,153,150,0.1)}
     <div class="current-store">
       <span class="name" id="cs-name"></span>
       <button onclick="irATiendas()">Cambiar tienda</button>
+    </div>
+    <div class="week-nav">
+      <button onclick="cambiarSemana(-7)" aria-label="Semana anterior">‹</button>
+      <span class="week-label" id="week-label"></span>
+      <button onclick="cambiarSemana(7)" aria-label="Semana siguiente">›</button>
     </div>
     <div class="days" id="dias-semana"></div>
     <div id="lista-turnos"></div>
@@ -318,9 +327,27 @@ function seleccionarDia(dateStr) {
   renderTurnosDelDia();
 }
 
+function renderWeekLabel() {
+  const d = new Date(weekStart + 'T00:00:00');
+  const fin = new Date(d); fin.setDate(fin.getDate() + 6);
+  document.getElementById('week-label').textContent = `${d.getDate()}/${d.getMonth()+1} al ${fin.getDate()}/${fin.getMonth()+1}`;
+}
+
+function cambiarSemana(dias) {
+  const d = new Date(weekStart + 'T00:00:00');
+  d.setDate(d.getDate() + dias);
+  weekStart = mondayOf(d);
+  // si el día que tenías elegido queda fuera de la nueva semana, salta al lunes de esa semana
+  if (diaSeleccionado < weekStart) diaSeleccionado = weekStart;
+  const finNueva = new Date(weekStart + 'T00:00:00'); finNueva.setDate(finNueva.getDate() + 6);
+  if (diaSeleccionado > finNueva.toISOString().slice(0, 10)) diaSeleccionado = weekStart;
+  cargarTurnos();
+}
+
 let slotsSemana = [];
 async function cargarTurnos() {
   document.getElementById('cs-name').textContent = tiendaActual.name;
+  renderWeekLabel();
   renderDias();
   const r = await fetch(`/api/turnos/public/disponibilidad?storeId=${tiendaActual.id}&weekStart=${weekStart}&rut=${encodeURIComponent(rut)}`).then(x => x.json());
   slotsSemana = r.ok ? r.slots : [];
