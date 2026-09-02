@@ -1,5 +1,5 @@
 {
-  "name": "bot-devoluciones",
+  "name": "portal-karri",
   "version": "1.0.0",
   "description": "Bot de WhatsApp para notificar devoluciones pendientes de Falabella",
   "main": "src/index.js",

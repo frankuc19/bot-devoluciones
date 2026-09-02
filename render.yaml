@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: bot-devoluciones
+    name: portal-karri
     runtime: docker
     plan: starter
     envVars:
