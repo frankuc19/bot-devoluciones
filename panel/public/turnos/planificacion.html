@@ -99,14 +99,29 @@
       <button class="btn-ghost" onclick="cerrarModalRango()"><i data-lucide="x" style="width:16px;height:16px;"></i></button>
     </div>
     <div class="modal-body">
-      <p style="font-size:12px;color:var(--text-muted);">Crea AM/PM/FULL para cada día del rango, con los cupos por defecto de la tienda. No duplica turnos que ya existan.</p>
       <div class="form-group"><p class="label mb-1">Desde</p><input type="date" class="input" id="f-rango-desde"></div>
       <div class="form-group"><p class="label mb-1">Hasta</p><input type="date" class="input" id="f-rango-hasta"></div>
       <p id="modal-rango-error" class="hidden" style="color:#dc2626;font-size:12px;"></p>
+
+      <div style="border-top:1px solid rgba(15,23,22,.07);margin-top:4px;padding-top:14px;">
+        <p style="font-size:12.5px;font-weight:600;color:var(--text);margin-bottom:4px;">Con cupos por defecto</p>
+        <p style="font-size:11.5px;color:var(--text-muted);margin-bottom:8px;">Crea AM/PM/FULL para cada día del rango con los cupos configurados en Tiendas. No duplica turnos que ya existan.</p>
+        <button class="btn-primary" id="btn-generar-rango" onclick="generarRango()" style="width:100%;justify-content:center;"><i data-lucide="calendar-range" style="width:13px;height:13px;"></i> Generar con cupos por defecto</button>
+      </div>
+
+      <div style="border-top:1px solid rgba(15,23,22,.07);margin-top:4px;padding-top:14px;">
+        <p style="font-size:12.5px;font-weight:600;color:var(--text);margin-bottom:4px;">Carga masiva de cupos (Excel)</p>
+        <p style="font-size:11.5px;color:var(--text-muted);margin-bottom:8px;">Descarga la plantilla del rango elegido, edita los cupos de Picker/Shopper/Driver que quieras, y vuelve a subirla.</p>
+        <div style="display:flex;gap:8px;">
+          <button class="btn-secondary" style="flex:1;justify-content:center;" onclick="descargarPlantilla()"><i data-lucide="file-down" style="width:13px;height:13px;"></i> Descargar plantilla</button>
+          <button class="btn-secondary" style="flex:1;justify-content:center;" onclick="document.getElementById('input-cargar-cupos').click()"><i data-lucide="file-up" style="width:13px;height:13px;"></i> Cargar cupos</button>
+          <input type="file" id="input-cargar-cupos" accept=".xlsx,.xls" style="display:none" onchange="cargarCuposExcel(this)">
+        </div>
+        <p id="carga-cupos-resultado" class="hidden" style="font-size:12px;margin-top:8px;"></p>
+      </div>
     </div>
     <div class="modal-footer">
-      <button class="btn-secondary" onclick="cerrarModalRango()">Cancelar</button>
-      <button class="btn-primary" id="btn-generar-rango" onclick="generarRango()"><i data-lucide="calendar-range" style="width:13px;height:13px;"></i> Generar</button>
+      <button class="btn-secondary" onclick="cerrarModalRango()">Cerrar</button>
     </div>
   </div>
 </div>
@@ -180,6 +195,7 @@ function abrirModalRango() {
   document.getElementById('f-rango-desde').value = fechaInputStr(d);
   document.getElementById('f-rango-hasta').value = fechaInputStr(fin);
   document.getElementById('modal-rango-error').classList.add('hidden');
+  document.getElementById('carga-cupos-resultado').classList.add('hidden');
   document.getElementById('modal-rango-bg').classList.remove('hidden');
   lucide.createIcons();
 }
@@ -187,25 +203,75 @@ function cerrarModalRango() { document.getElementById('modal-rango-bg').classLis
 function fechaInputStr(d) { return d.toISOString().slice(0, 10); }
 
 async function generarRango() {
-  const storeId = document.getElementById('sel-tienda').value;
-  const desde = document.getElementById('f-rango-desde').value;
-  const hasta = document.getElementById('f-rango-hasta').value;
-  const err = document.getElementById('modal-rango-error');
-  err.classList.add('hidden');
-  if (!desde || !hasta) { err.textContent = 'Completa ambas fechas'; err.classList.remove('hidden'); return; }
-  if (hasta < desde) { err.textContent = 'La fecha "hasta" no puede ser anterior a "desde"'; err.classList.remove('hidden'); return; }
+  const v = validarFechasRango();
+  if (!v) return;
 
   const btn = document.getElementById('btn-generar-rango');
   btn.disabled = true;
   const r = await fetch('/api/turnos/admin/slots/generar-rango', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ storeId, dateFrom: desde, dateTo: hasta }),
+    body: JSON.stringify({ storeId: v.storeId, dateFrom: v.desde, dateTo: v.hasta }),
   }).then(x => x.json());
   btn.disabled = false;
 
-  if (!r.ok) { err.textContent = r.error || 'No se pudo generar'; err.classList.remove('hidden'); return; }
+  if (!r.ok) {
+    const err = document.getElementById('modal-rango-error');
+    err.textContent = r.error || 'No se pudo generar';
+    err.classList.remove('hidden');
+    return;
+  }
   cerrarModalRango();
-  weekStart = mondayOf(new Date(desde + 'T00:00:00'));
+  weekStart = mondayOf(new Date(v.desde + 'T00:00:00'));
+  cargar();
+}
+
+function validarFechasRango() {
+  const storeId = document.getElementById('sel-tienda').value;
+  const desde = document.getElementById('f-rango-desde').value;
+  const hasta = document.getElementById('f-rango-hasta').value;
+  const err = document.getElementById('modal-rango-error');
+  err.classList.add('hidden');
+  if (!desde || !hasta) { err.textContent = 'Completa ambas fechas'; err.classList.remove('hidden'); return null; }
+  if (hasta < desde) { err.textContent = 'La fecha "hasta" no puede ser anterior a "desde"'; err.classList.remove('hidden'); return null; }
+  return { storeId, desde, hasta };
+}
+
+function descargarPlantilla() {
+  const v = validarFechasRango();
+  if (!v) return;
+  window.open(`/api/turnos/admin/slots/plantilla?storeId=${v.storeId}&dateFrom=${v.desde}&dateTo=${v.hasta}`, '_blank');
+}
+
+async function cargarCuposExcel(input) {
+  const storeId = document.getElementById('sel-tienda').value;
+  const file = input.files[0];
+  if (!file) return;
+
+  const resultado = document.getElementById('carga-cupos-resultado');
+  resultado.classList.remove('hidden');
+  resultado.style.color = 'var(--text-muted)';
+  resultado.textContent = 'Cargando...';
+
+  const form = new FormData();
+  form.append('storeId', storeId);
+  form.append('file', file);
+
+  const r = await fetch('/api/turnos/admin/slots/importar', { method: 'POST', body: form }).then(x => x.json());
+  input.value = '';
+
+  if (!r.ok) {
+    resultado.style.color = '#dc2626';
+    resultado.textContent = r.error || 'No se pudo cargar el archivo';
+    return;
+  }
+
+  const partes = [`${r.actualizados} turno(s) actualizados`, `${r.creados} nuevo(s)`];
+  if (r.errores?.length) partes.push(`${r.errores.length} fila(s) con error`);
+  resultado.style.color = r.errores?.length ? '#b45309' : '#059669';
+  resultado.textContent = partes.join(' · ');
+  if (r.errores?.length) {
+    resultado.textContent += ': ' + r.errores.slice(0, 5).map(e => `fila ${e.fila} (${e.motivo})`).join(', ');
+  }
   cargar();
 }
 

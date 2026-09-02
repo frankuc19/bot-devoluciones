@@ -1,7 +1,10 @@
 const { Router } = require('express');
 const XLSX = require('xlsx');
+const multer = require('multer');
 const store = require('./turnosStore');
 const altasStore = require('../onboarding/altasStore');
+
+const uploadCupos = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 
 const WHATSAPP_INSCRIPCION = 'https://wa.me/56941114635';
 function limpiarRutTurnos(rut) {
@@ -232,6 +235,126 @@ adminRouter.get('/slots/export', (req, res) => {
   res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
   res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
   res.send(buffer);
+});
+
+// Plantilla Excel prellenada con los turnos del rango pedido (o los cupos
+// por defecto de la tienda si esa fecha/turno todavía no existe) — para
+// editar los cupos por rol y volver a subirla en /slots/importar.
+adminRouter.get('/slots/plantilla', (req, res) => {
+  const { storeId, dateFrom, dateTo } = req.query;
+  if (!storeId || !dateFrom || !dateTo) return res.status(400).json({ ok: false, error: 'Faltan parámetros' });
+  const tienda = store.getTiendaById(storeId);
+  if (!tienda) return res.status(404).json({ ok: false, error: 'Tienda no encontrada' });
+
+  const existentes = new Map(
+    store.getSlots().filter(s => s.storeId === storeId).map(s => [`${s.date}|${s.shiftType}`, store.slotConInfo(s)])
+  );
+
+  const filas = [];
+  const inicio = new Date(dateFrom + 'T00:00:00');
+  const fin = new Date(dateTo + 'T00:00:00');
+  const dias = Math.round((fin - inicio) / (24 * 60 * 60 * 1000)) + 1;
+  for (let i = 0; i < Math.min(dias, 120); i++) {
+    const d = new Date(inicio); d.setDate(d.getDate() + i);
+    const dateStr = d.toISOString().slice(0, 10);
+    for (const tipo of ['AM', 'PM', 'FULL']) {
+      const existente = existentes.get(`${dateStr}|${tipo}`);
+      const cap = existente ? existente.porRol : { Picker: {capacity: tienda.capacity?.[tipo]?.Picker ?? 0}, Shopper: {capacity: tienda.capacity?.[tipo]?.Shopper ?? 0}, Driver: {capacity: tienda.capacity?.[tipo]?.Driver ?? 0} };
+      filas.push({
+        Fecha: dateStr,
+        Día: DIA_LABEL_XLSX[d.getDay()],
+        Turno: tipo,
+        'Cupos Picker': cap.Picker.capacity,
+        'Cupos Shopper': cap.Shopper.capacity,
+        'Cupos Driver': cap.Driver.capacity,
+      });
+    }
+  }
+
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.json_to_sheet(filas);
+  ws['!cols'] = [{ wch: 12 }, { wch: 12 }, { wch: 8 }, { wch: 13 }, { wch: 13 }, { wch: 13 }];
+  XLSX.utils.book_append_sheet(wb, ws, 'Cupos');
+
+  const wsInfo = XLSX.utils.aoa_to_sheet([
+    [`Plantilla de cupos — ${tienda.name}`],
+    [''],
+    ['1. No cambies las columnas Fecha ni Turno.'],
+    ['2. Edita solo Cupos Picker / Cupos Shopper / Cupos Driver.'],
+    ['3. Formato de Fecha: AAAA-MM-DD (ej: 2026-09-10).'],
+    ['4. Turno debe ser exactamente: AM, PM o FULL.'],
+    ['5. Si agregas una fila con Fecha/Turno que no existe todavía, se crea automáticamente al subirla.'],
+    ['6. Vuelve a subir este mismo archivo (ya editado) con el botón "Cargar cupos (Excel)" en Planificación.'],
+  ]);
+  wsInfo['!cols'] = [{ wch: 90 }];
+  XLSX.utils.book_append_sheet(wb, wsInfo, 'Instrucciones');
+
+  const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+  const filename = `plantilla_cupos_${tienda.code || tienda.name}.xlsx`.replace(/[^\w.\-]+/g, '_');
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+  res.send(buffer);
+});
+
+function parsearFechaImport(v) {
+  if (v instanceof Date && !isNaN(v)) return v.toISOString().slice(0, 10);
+  const s = String(v ?? '').trim();
+  let m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return `${m[1]}-${m[2]}-${m[3]}`;
+  m = s.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})/);
+  if (m) return `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`;
+  return null;
+}
+
+// Carga masiva de cupos por rol desde un Excel (mismo formato que la
+// plantilla). Actualiza los turnos que ya existan por Fecha+Turno, y crea
+// los que falten. Nunca duplica.
+adminRouter.post('/slots/importar', uploadCupos.single('file'), (req, res) => {
+  const { storeId } = req.body || {};
+  if (!storeId) return res.status(400).json({ ok: false, error: 'Falta la tienda' });
+  if (!req.file) return res.status(400).json({ ok: false, error: 'Falta el archivo' });
+  const tienda = store.getTiendaById(storeId);
+  if (!tienda) return res.status(404).json({ ok: false, error: 'Tienda no encontrada' });
+
+  let rows;
+  try {
+    const wb = XLSX.read(req.file.buffer, { type: 'buffer', cellDates: true });
+    const hoja = wb.SheetNames.find(n => n.toLowerCase() !== 'instrucciones') || wb.SheetNames[0];
+    rows = XLSX.utils.sheet_to_json(wb.Sheets[hoja], { defval: '' });
+  } catch (e) {
+    return res.status(400).json({ ok: false, error: 'No se pudo leer el Excel: ' + e.message });
+  }
+
+  const existentes = store.getSlots().filter(s => s.storeId === storeId);
+  let actualizados = 0, creados = 0;
+  const errores = [];
+
+  rows.forEach((row, i) => {
+    const numFila = i + 2; // fila 1 = encabezados
+    const fecha = parsearFechaImport(row['Fecha']);
+    const turno = String(row['Turno'] || '').trim().toUpperCase();
+    if (!fecha) { errores.push({ fila: numFila, motivo: `Fecha inválida: "${row['Fecha']}"` }); return; }
+    if (!['AM', 'PM', 'FULL'].includes(turno)) { errores.push({ fila: numFila, motivo: `Turno inválido: "${row['Turno']}" (debe ser AM, PM o FULL)` }); return; }
+
+    const capacity = {
+      Picker: Number(row['Cupos Picker']) || 0,
+      Shopper: Number(row['Cupos Shopper']) || 0,
+      Driver: Number(row['Cupos Driver']) || 0,
+    };
+
+    const slot = existentes.find(s => s.date === fecha && s.shiftType === turno);
+    if (slot) {
+      slot.capacity = capacity;
+      store.saveSlot(slot);
+      actualizados++;
+    } else {
+      const nuevo = store.createSlot({ storeId, shiftType: turno, date: fecha, capacity });
+      existentes.push(nuevo);
+      creados++;
+    }
+  });
+
+  res.json({ ok: true, actualizados, creados, filasLeidas: rows.length, errores });
 });
 
 adminRouter.post('/slots/generar-semana', (req, res) => {
