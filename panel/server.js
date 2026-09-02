@@ -969,9 +969,9 @@ function scheduleCleanup() {
   }, 24 * 60 * 60 * 1000);
 }
 
-// ─── Sincronización "Consolidado Altas OB" (cada 4h, resistente a reinicios) ──
-const ALTAS_SYNC_INTERVAL_MS = 4 * 60 * 60 * 1000; // 4 horas
-const ALTAS_SYNC_CHECK_MS    = 10 * 60 * 1000;      // revisa cada 10 min si ya toca
+// ─── Sincronización "Consolidado Altas OB" (cada 12h, resistente a reinicios) ──
+const ALTAS_SYNC_INTERVAL_MS = 12 * 60 * 60 * 1000; // 12 horas
+const ALTAS_SYNC_CHECK_MS    = 10 * 60 * 1000;       // revisa cada 10 min si ya toca
 
 function scheduleAltasSync() {
   const ejecutarSiCorresponde = () => {
