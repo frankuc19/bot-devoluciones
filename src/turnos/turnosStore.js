@@ -566,15 +566,8 @@ function setAsistencia(assignmentId, asistio, hora) {
   if (!getAsignacionById(assignmentId)) throw err('ASSIGNMENT_NOT_FOUND');
   const list = getAsistencias();
   const idx = list.findIndex(a => a.assignmentId === assignmentId);
-  const anterior = idx >= 0 ? list[idx] : null;
   const horaFinal = hora !== undefined ? (hora || null) : (asistio === null ? null : horaActualChile());
-  // Al desmarcar (asistio null) también sale de la Lista de Espera; si solo
-  // cambia entre Sí/No se conserva el estado "atendido" que ya tuviera.
-  const registro = {
-    assignmentId, asistio, hora: horaFinal,
-    atendido: asistio === null ? false : !!anterior?.atendido,
-    updatedAt: new Date().toISOString(),
-  };
+  const registro = { assignmentId, asistio, hora: horaFinal, updatedAt: new Date().toISOString() };
   if (idx >= 0) list[idx] = registro; else list.push(registro);
   writeJson(ASISTENCIA_FILE, list);
   return registro;
@@ -585,21 +578,8 @@ function setAsistenciaHora(assignmentId, hora) {
   if (!getAsignacionById(assignmentId)) throw err('ASSIGNMENT_NOT_FOUND');
   const list = getAsistencias();
   const idx = list.findIndex(a => a.assignmentId === assignmentId);
-  const anterior = idx >= 0 ? list[idx] : { assignmentId, asistio: null, atendido: false };
+  const anterior = idx >= 0 ? list[idx] : { assignmentId, asistio: null };
   const registro = { ...anterior, hora: hora || null, updatedAt: new Date().toISOString() };
-  if (idx >= 0) list[idx] = registro; else list.push(registro);
-  writeJson(ASISTENCIA_FILE, list);
-  return registro;
-}
-
-// Saca (o devuelve) a un Karrier de la Lista de Espera pública, sin tocar su
-// asistencia ni su hora — se usa cuando el coordinador ya lo atendió.
-function setAtendido(assignmentId, atendido) {
-  if (!getAsignacionById(assignmentId)) throw err('ASSIGNMENT_NOT_FOUND');
-  const list = getAsistencias();
-  const idx = list.findIndex(a => a.assignmentId === assignmentId);
-  const anterior = idx >= 0 ? list[idx] : { assignmentId, asistio: null, hora: null };
-  const registro = { ...anterior, atendido: !!atendido, updatedAt: new Date().toISOString() };
   if (idx >= 0) list[idx] = registro; else list.push(registro);
   writeJson(ASISTENCIA_FILE, list);
   return registro;
@@ -648,7 +628,6 @@ function listAsistenciaDia({ storeId, date }) {
         endTime: slot.endTime,
         asistio: asistencia ? asistencia.asistio : null,
         hora: asistencia ? (asistencia.hora || null) : null,
-        atendido: asistencia ? !!asistencia.atendido : false,
         observaciones: observacionesDeAsignacion(a.id),
       };
     })
@@ -701,7 +680,7 @@ module.exports = {
   tomarTurno, cancelarTurno, reasignarTurno,
   disponibilidadTienda, misTurnos, coberturaTienda, coberturaGeneral, dashboardKpis,
   slotConInfo,
-  getAsistenciaByAssignment, setAsistencia, setAsistenciaHora, setAtendido,
+  getAsistenciaByAssignment, setAsistencia, setAsistenciaHora,
   observacionesDeAsignacion, addObservacion,
   listAsistenciaDia, listBitacora,
   ERRORES,

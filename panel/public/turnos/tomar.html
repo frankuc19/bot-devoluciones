@@ -70,15 +70,6 @@ input:focus{border-color:#1c9996;box-shadow:0 0 0 3px rgba(28,153,150,0.1)}
 .mstatus.ACTIVE{background:#d1fae5;color:#059669}
 .mstatus.CANCELLED{background:#fee2e2;color:#dc2626}
 
-.we-row{display:flex;align-items:center;gap:12px;border:1px solid #e5e7eb;border-radius:12px;padding:12px 16px;margin-bottom:8px}
-.we-pos{flex-shrink:0;width:28px;height:28px;border-radius:50%;background:#f0fdfa;color:#1c9996;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center}
-.we-info{flex:1}
-.we-info .wname{font-size:14px;font-weight:700;color:#1f3444}
-.we-info .wturno{font-size:12px;color:#6b7280;margin-top:1px}
-.we-hora{font-size:14px;font-weight:700;color:#1c9996;padding:4px 10px;border-radius:8px;text-align:center}
-.we-hora.we-tarde{background:#fee2e2;color:#dc2626}
-.we-espera{font-size:10px;font-weight:600;color:#9ca3af;margin-top:2px;text-align:center}
-
 .empty{text-align:center;padding:40px 20px;color:#9ca3af;font-size:13px}
 
 .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:flex-end;justify-content:center;z-index:1000}
@@ -102,7 +93,6 @@ input:focus{border-color:#1c9996;box-shadow:0 0 0 3px rgba(28,153,150,0.1)}
   <div class="tabs hidden" id="tabs">
     <div class="tab active" data-tab="tomar" onclick="switchTab('tomar')">Tomar turno</div>
     <div class="tab" data-tab="mis" onclick="switchTab('mis')">Mis turnos</div>
-    <div class="tab" data-tab="espera" onclick="switchTab('espera')">Lista de Espera</div>
   </div>
 
   <!-- Login por RUT -->
@@ -153,13 +143,6 @@ input:focus{border-color:#1c9996;box-shadow:0 0 0 3px rgba(28,153,150,0.1)}
     <h2>Mis turnos</h2>
     <p class="sub">Próximos e historial</p>
     <div id="lista-mis"></div>
-  </div>
-
-  <!-- Lista de espera -->
-  <div class="page" id="page-espera">
-    <h2>Lista de Espera</h2>
-    <p class="sub" id="espera-sub">Orden de llegada de hoy, según la hora marcada por el coordinador.</p>
-    <div id="lista-espera"></div>
   </div>
 </div>
 
@@ -318,10 +301,8 @@ function seleccionarTienda(t) {
 
 function switchTab(tab) {
   document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
-  detenerAutoRefreshEspera();
   if (tab === 'tomar') { showPage('page-tomar'); cargarTurnos(); }
-  else if (tab === 'mis') { showPage('page-mis'); cargarMisTurnos(); }
-  else { showPage('page-espera'); cargarListaEspera(); iniciarAutoRefreshEspera(); }
+  else { showPage('page-mis'); cargarMisTurnos(); }
 }
 
 function renderDias() {
@@ -438,61 +419,6 @@ async function cargarMisTurnos() {
         ${puedeCancelar ? `<button class="btn btn-ghost btn-sm" style="margin-top:8px;" onclick='cancelarTurno(${JSON.stringify(t.id)})'>Cancelar turno</button>` : ''}
       </div>`;
   }).join('');
-}
-
-let esperaInterval = null;
-function iniciarAutoRefreshEspera() {
-  detenerAutoRefreshEspera();
-  esperaInterval = setInterval(cargarListaEspera, 20000);
-}
-function detenerAutoRefreshEspera() {
-  if (esperaInterval) { clearInterval(esperaInterval); esperaInterval = null; }
-}
-
-async function cargarListaEspera() {
-  if (!tiendaActual) return;
-  document.getElementById('espera-sub').textContent =
-    `Orden de llegada de hoy en ${tiendaActual.name}, según la hora marcada por el coordinador.`;
-  const r = await fetch(`/api/turnos/public/lista-espera?storeId=${tiendaActual.id}`).then(x => x.json());
-  const cont = document.getElementById('lista-espera');
-  const lista = r.ok ? r.lista : [];
-  if (lista.length === 0) {
-    cont.innerHTML = '<div class="empty">Todavía nadie ha marcado asistencia hoy.</div>';
-    return;
-  }
-  cont.innerHTML = lista.map((f, i) => {
-    const minutos = minutosDeEspera(f.hora);
-    const tarde = minutos !== null && minutos > 90;
-    return `
-    <div class="we-row">
-      <div class="we-pos">${i + 1}</div>
-      <div class="we-info">
-        <div class="wname">${f.karrierName}</div>
-        <div class="wturno">${TURNO_LABEL[f.shiftType]} · ${f.startTime}-${f.endTime}</div>
-      </div>
-      <div>
-        <div class="we-hora ${tarde ? 'we-tarde' : ''}">${f.hora || '—'}</div>
-        ${minutos !== null ? `<div class="we-espera" style="${tarde ? 'color:#dc2626' : ''}">${formatearEspera(minutos)}</div>` : ''}
-      </div>
-    </div>`;
-  }).join('');
-}
-
-// Minutos transcurridos desde la hora (HH:MM) que marcó el coordinador hasta ahora.
-function minutosDeEspera(hora) {
-  if (!hora) return null;
-  const [h, m] = hora.split(':').map(Number);
-  if (Number.isNaN(h) || Number.isNaN(m)) return null;
-  const marcado = new Date();
-  marcado.setHours(h, m, 0, 0);
-  const diffMs = Date.now() - marcado.getTime();
-  return Math.round(diffMs / 60000);
-}
-function formatearEspera(minutos) {
-  if (minutos < 0) return '';
-  if (minutos < 60) return `${minutos} min esperando`;
-  const h = Math.floor(minutos / 60), m = minutos % 60;
-  return `${h}h ${m}min esperando`;
 }
 
 async function cancelarTurno(assignmentId) {

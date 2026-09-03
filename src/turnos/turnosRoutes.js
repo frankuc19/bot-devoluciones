@@ -135,26 +135,6 @@ publicRouter.get('/mis-turnos', (req, res) => {
   res.json({ ok: true, turnos: store.misTurnos(rut.trim()) });
 });
 
-// Lista de espera: quiénes ya marcaron asistencia "Sí" hoy en la tienda,
-// ordenados por la hora de llegada que registró el coordinador — para que
-// los Karriers vean el orden real de atención. No expone RUT ni teléfono.
-publicRouter.get('/lista-espera', (req, res) => {
-  const { storeId } = req.query;
-  if (!storeId) return res.status(400).json({ ok: false, error: 'Falta la tienda' });
-  const hoy = new Date().toISOString().slice(0, 10);
-  const lista = store.listAsistenciaDia({ storeId, date: hoy })
-    .filter(f => f.asistio === true && !f.atendido)
-    .sort((a, b) => (a.hora || '99:99').localeCompare(b.hora || '99:99'))
-    .map(f => ({
-      karrierName: f.karrierName,
-      hora: f.hora,
-      shiftType: f.shiftType,
-      startTime: f.startTime,
-      endTime: f.endTime,
-    }));
-  res.json({ ok: true, date: hoy, lista });
-});
-
 // ─── Router administrativo (OPS/Admin, requiere sesión del panel) ─────────────────
 const adminRouter = Router();
 
@@ -527,16 +507,6 @@ adminRouter.put('/asistencia/:assignmentId/hora', (req, res) => {
   const { hora } = req.body || {};
   try {
     const registro = store.setAsistenciaHora(req.params.assignmentId, hora);
-    res.json({ ok: true, asistencia: registro });
-  } catch (e) {
-    res.status(400).json({ ok: false, error: e.message, code: e.code || 'ERROR' });
-  }
-});
-
-adminRouter.put('/asistencia/:assignmentId/atendido', (req, res) => {
-  const { atendido } = req.body || {};
-  try {
-    const registro = store.setAtendido(req.params.assignmentId, !!atendido);
     res.json({ ok: true, asistencia: registro });
   } catch (e) {
     res.status(400).json({ ok: false, error: e.message, code: e.code || 'ERROR' });
