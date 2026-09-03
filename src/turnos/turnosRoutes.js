@@ -135,6 +135,26 @@ publicRouter.get('/mis-turnos', (req, res) => {
   res.json({ ok: true, turnos: store.misTurnos(rut.trim()) });
 });
 
+// Lista de espera: quiénes ya marcaron asistencia "Sí" hoy en la tienda,
+// ordenados por la hora de llegada que registró el coordinador — para que
+// los Karriers vean el orden real de atención. No expone RUT ni teléfono.
+publicRouter.get('/lista-espera', (req, res) => {
+  const { storeId } = req.query;
+  if (!storeId) return res.status(400).json({ ok: false, error: 'Falta la tienda' });
+  const hoy = new Date().toISOString().slice(0, 10);
+  const lista = store.listAsistenciaDia({ storeId, date: hoy })
+    .filter(f => f.asistio === true)
+    .sort((a, b) => (a.hora || '99:99').localeCompare(b.hora || '99:99'))
+    .map(f => ({
+      karrierName: f.karrierName,
+      hora: f.hora,
+      shiftType: f.shiftType,
+      startTime: f.startTime,
+      endTime: f.endTime,
+    }));
+  res.json({ ok: true, date: hoy, lista });
+});
+
 // ─── Router administrativo (OPS/Admin, requiere sesión del panel) ─────────────────
 const adminRouter = Router();
 
