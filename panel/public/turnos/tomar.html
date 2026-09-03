@@ -75,7 +75,9 @@ input:focus{border-color:#1c9996;box-shadow:0 0 0 3px rgba(28,153,150,0.1)}
 .we-info{flex:1}
 .we-info .wname{font-size:14px;font-weight:700;color:#1f3444}
 .we-info .wturno{font-size:12px;color:#6b7280;margin-top:1px}
-.we-hora{font-size:14px;font-weight:700;color:#1c9996}
+.we-hora{font-size:14px;font-weight:700;color:#1c9996;padding:4px 10px;border-radius:8px;text-align:center}
+.we-hora.we-tarde{background:#fee2e2;color:#dc2626}
+.we-espera{font-size:10px;font-weight:600;color:#9ca3af;margin-top:2px;text-align:center}
 
 .empty{text-align:center;padding:40px 20px;color:#9ca3af;font-size:13px}
 
@@ -458,15 +460,39 @@ async function cargarListaEspera() {
     cont.innerHTML = '<div class="empty">Todavía nadie ha marcado asistencia hoy.</div>';
     return;
   }
-  cont.innerHTML = lista.map((f, i) => `
+  cont.innerHTML = lista.map((f, i) => {
+    const minutos = minutosDeEspera(f.hora);
+    const tarde = minutos !== null && minutos > 90;
+    return `
     <div class="we-row">
       <div class="we-pos">${i + 1}</div>
       <div class="we-info">
         <div class="wname">${f.karrierName}</div>
         <div class="wturno">${TURNO_LABEL[f.shiftType]} · ${f.startTime}-${f.endTime}</div>
       </div>
-      <div class="we-hora">${f.hora || '—'}</div>
-    </div>`).join('');
+      <div>
+        <div class="we-hora ${tarde ? 'we-tarde' : ''}">${f.hora || '—'}</div>
+        ${minutos !== null ? `<div class="we-espera" style="${tarde ? 'color:#dc2626' : ''}">${formatearEspera(minutos)}</div>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// Minutos transcurridos desde la hora (HH:MM) que marcó el coordinador hasta ahora.
+function minutosDeEspera(hora) {
+  if (!hora) return null;
+  const [h, m] = hora.split(':').map(Number);
+  if (Number.isNaN(h) || Number.isNaN(m)) return null;
+  const marcado = new Date();
+  marcado.setHours(h, m, 0, 0);
+  const diffMs = Date.now() - marcado.getTime();
+  return Math.round(diffMs / 60000);
+}
+function formatearEspera(minutos) {
+  if (minutos < 0) return '';
+  if (minutos < 60) return `${minutos} min esperando`;
+  const h = Math.floor(minutos / 60), m = minutos % 60;
+  return `${h}h ${m}min esperando`;
 }
 
 async function cancelarTurno(assignmentId) {
