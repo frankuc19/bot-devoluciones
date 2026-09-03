@@ -59,6 +59,9 @@
       <button class="btn-primary" onclick="abrirModalRango()">
         <i data-lucide="calendar-range" style="width:14px;height:14px;"></i> Planificar rango
       </button>
+      <button class="btn-secondary" onclick="abrirModalCapacitacion()">
+        <i data-lucide="graduation-cap" style="width:14px;height:14px;"></i> Capacitación
+      </button>
     </div>
   </header>
 
@@ -122,6 +125,28 @@
     </div>
     <div class="modal-footer">
       <button class="btn-secondary" onclick="cerrarModalRango()">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: turnos de Capacitación (sin cupos, no afectan la planificación) -->
+<div class="modal-bg hidden" id="modal-cap-bg">
+  <div class="modal">
+    <div class="modal-header">
+      <p style="font-size:14px;font-weight:700;">Capacitación</p>
+      <button class="btn-ghost" onclick="cerrarModalCapacitacion()"><i data-lucide="x" style="width:16px;height:16px;"></i></button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:11.5px;color:var(--text-muted);">Turnos de Capacitación sin límite de cupos — no suman ni afectan la cobertura de AM/PM/FULL. Aparecen en la toma de turnos y en Asistencia.</p>
+      <div style="display:flex;gap:8px;align-items:flex-end;">
+        <div class="form-group" style="flex:1;"><p class="label mb-1">Fecha</p><input type="date" class="input" id="f-cap-fecha"></div>
+        <button class="btn-primary" onclick="crearCapacitacion()"><i data-lucide="plus" style="width:13px;height:13px;"></i> Crear</button>
+      </div>
+      <p id="modal-cap-error" class="hidden" style="color:#dc2626;font-size:12px;"></p>
+      <div id="lista-capacitacion" style="display:flex;flex-direction:column;gap:6px;margin-top:6px;max-height:260px;overflow-y:auto;"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="cerrarModalCapacitacion()">Cerrar</button>
     </div>
   </div>
 </div>
@@ -337,6 +362,53 @@ async function eliminarSlot(id) {
   if (!confirm('¿Eliminar este turno? Se perderán las asignaciones asociadas.')) return;
   await fetch(`/api/turnos/admin/slots/${id}`, { method: 'DELETE' });
   cargar();
+}
+
+function abrirModalCapacitacion() {
+  const storeId = document.getElementById('sel-tienda').value;
+  if (!storeId) { alert('Selecciona una tienda primero'); return; }
+  document.getElementById('f-cap-fecha').value = new Date().toISOString().slice(0, 10);
+  document.getElementById('modal-cap-error').classList.add('hidden');
+  document.getElementById('modal-cap-bg').classList.remove('hidden');
+  cargarCapacitacion();
+  lucide.createIcons();
+}
+function cerrarModalCapacitacion() { document.getElementById('modal-cap-bg').classList.add('hidden'); }
+
+async function cargarCapacitacion() {
+  const storeId = document.getElementById('sel-tienda').value;
+  const r = await fetch(`/api/turnos/admin/slots/capacitacion?storeId=${storeId}`).then(x => x.json());
+  const cont = document.getElementById('lista-capacitacion');
+  const slots = r.ok ? r.slots : [];
+  if (slots.length === 0) {
+    cont.innerHTML = '<p style="font-size:12px;color:var(--text-faint);">Sin turnos de Capacitación programados.</p>';
+    return;
+  }
+  cont.innerHTML = slots.map(s => `
+    <div style="display:flex;align-items:center;justify-content:space-between;border:1px solid rgba(15,23,22,.07);border-radius:8px;padding:8px 10px;">
+      <span style="font-size:12.5px;">${fmtFecha(s.date)} · ${s.startTime}-${s.endTime} · ${s.taken} tomado(s)</span>
+      <button class="btn-ghost" onclick="eliminarCapacitacion('${s.id}')"><i data-lucide="trash-2" style="width:13px;height:13px;"></i></button>
+    </div>`).join('');
+  lucide.createIcons();
+}
+
+async function crearCapacitacion() {
+  const storeId = document.getElementById('sel-tienda').value;
+  const date = document.getElementById('f-cap-fecha').value;
+  const err = document.getElementById('modal-cap-error');
+  err.classList.add('hidden');
+  if (!date) { err.textContent = 'Elige una fecha'; err.classList.remove('hidden'); return; }
+  const r = await fetch('/api/turnos/admin/slots/capacitacion', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ storeId, date }),
+  }).then(x => x.json());
+  if (!r.ok) { err.textContent = r.error || 'No se pudo crear'; err.classList.remove('hidden'); return; }
+  cargarCapacitacion();
+}
+
+async function eliminarCapacitacion(id) {
+  if (!confirm('¿Eliminar este turno de Capacitación? Se perderán las asignaciones asociadas.')) return;
+  await fetch(`/api/turnos/admin/slots/${id}`, { method: 'DELETE' });
+  cargarCapacitacion();
 }
 
 initSidebar('tu-planif').then(async () => {

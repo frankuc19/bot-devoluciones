@@ -69,12 +69,13 @@ publicRouter.get('/settings', (_req, res) => {
   });
 });
 
+// Cupos disponibles de cada tienda a través de TODAS las fechas planificadas
+// a futuro (no solo la semana en curso) — Capacitación no tiene cupos, así
+// que no se suma a este total.
 publicRouter.get('/tiendas', (_req, res) => {
   const tiendas = store.getTiendas().filter(t => t.active);
-  const hoy = new Date().toISOString().slice(0, 10);
-  const weekStart = mondayOf(hoy);
   const withCounts = tiendas.map(t => {
-    const slots = store.disponibilidadTienda(t.id, weekStart);
+    const slots = store.disponibilidadTiendaCompleta(t.id).filter(s => s.shiftType !== 'CAPACITACION');
     const disponibles = slots.reduce((s, x) => s + x.available, 0);
     return { ...t, turnosDisponibles: disponibles };
   });
@@ -94,7 +95,8 @@ publicRouter.get('/disponibilidad', (req, res) => {
   if (rut) {
     const { rol } = store.determinarRolKarrier(rut);
     if (rol) {
-      slots = slots.map(s => ({
+      // Capacitación no tiene cupos por rol (porRol es null) — se deja tal cual.
+      slots = slots.map(s => !s.porRol ? s : ({
         ...s,
         role: rol,
         capacity: s.porRol[rol].capacity,
@@ -178,10 +180,35 @@ adminRouter.delete('/tiendas/:id', (req, res) => {
   }
 });
 
+// Planificación solo maneja AM/PM/FULL — Capacitación se administra aparte
+// (ver /slots/capacitacion) para no mezclarse con la cobertura por cupos.
 adminRouter.get('/slots', (req, res) => {
   const { storeId, weekStart } = req.query;
   if (!storeId || !weekStart) return res.status(400).json({ ok: false, error: 'Faltan parámetros' });
-  res.json({ ok: true, slots: store.disponibilidadTienda(storeId, weekStart) });
+  const slots = store.disponibilidadTienda(storeId, weekStart).filter(s => s.shiftType !== 'CAPACITACION');
+  res.json({ ok: true, slots });
+});
+
+// ─── Capacitación: turnos sin cupos, independientes de la planificación ────────
+adminRouter.get('/slots/capacitacion', (req, res) => {
+  const { storeId } = req.query;
+  if (!storeId) return res.status(400).json({ ok: false, error: 'Falta la tienda' });
+  const slots = store.disponibilidadTiendaCompleta(storeId).filter(s => s.shiftType === 'CAPACITACION');
+  res.json({ ok: true, slots });
+});
+adminRouter.post('/slots/capacitacion', (req, res) => {
+  const { storeId, date } = req.body || {};
+  if (!storeId || !date) return res.status(400).json({ ok: false, error: 'Faltan datos' });
+  const tienda = store.getTiendaById(storeId);
+  if (!tienda) return res.status(404).json({ ok: false, error: 'Tienda no encontrada' });
+  const existente = store.getSlots().find(s => s.storeId === storeId && s.date === date && s.shiftType === 'CAPACITACION');
+  if (existente) return res.json({ ok: true, slot: store.slotConInfo(existente) });
+  try {
+    const slot = store.createSlot({ storeId, shiftType: 'CAPACITACION', date, capacity: {} });
+    res.json({ ok: true, slot: store.slotConInfo(slot) });
+  } catch (e) {
+    res.status(400).json({ ok: false, error: e.message });
+  }
 });
 adminRouter.post('/slots', (req, res) => {
   const { storeId, shiftType, date, capacity } = req.body || {};
@@ -193,7 +220,7 @@ adminRouter.post('/slots', (req, res) => {
     res.status(400).json({ ok: false, error: e.message });
   }
 });
-const TURNO_LABEL_XLSX = { AM: 'Mañana (AM)', PM: 'Tarde (PM)', FULL: 'Jornada completa' };
+const TURNO_LABEL_XLSX = { AM: 'Mañana (AM)', PM: 'Tarde (PM)', FULL: 'Jornada completa', CAPACITACION: 'Capacitación' };
 const DIA_LABEL_XLSX = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
 adminRouter.get('/slots/export', (req, res) => {
@@ -202,7 +229,7 @@ adminRouter.get('/slots/export', (req, res) => {
   const tienda = store.getTiendaById(storeId);
   if (!tienda) return res.status(404).json({ ok: false, error: 'Tienda no encontrada' });
 
-  const slots = store.disponibilidadTienda(storeId, weekStart);
+  const slots = store.disponibilidadTienda(storeId, weekStart).filter(s => s.shiftType !== 'CAPACITACION');
   const filas = slots.map(s => {
     const dia = new Date(s.date + 'T00:00:00').getDay();
     const fila = {

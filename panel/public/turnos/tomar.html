@@ -163,7 +163,7 @@ input:focus{border-color:#1c9996;box-shadow:0 0 0 3px rgba(28,153,150,0.1)}
 <script>
 const DIAS_CORTO = ['DOM','LUN','MAR','MIÉ','JUE','VIE','SÁB'];
 const DIAS_LARGO = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
-const TURNO_LABEL = { AM: 'Mañana (AM)', PM: 'Tarde (PM)', FULL: 'Jornada completa' };
+const TURNO_LABEL = { AM: 'Mañana (AM)', PM: 'Tarde (PM)', FULL: 'Jornada completa', CAPACITACION: 'Capacitación' };
 
 let rut = localStorage.getItem('turnos_rut') || '';
 let karrier = null;
@@ -289,7 +289,7 @@ async function cargarTiendas() {
     <div class="store-card" onclick='seleccionarTienda(${JSON.stringify(t)})'>
       <div class="name">${t.name}</div>
       <div class="commune">${t.commune || ''}</div>
-      <div class="avail">${t.turnosDisponibles} turnos disponibles esta semana</div>
+      <div class="avail">${t.turnosDisponibles} turnos disponibles</div>
     </div>`).join('');
 }
 
@@ -362,8 +362,10 @@ function renderTurnosDelDia() {
     return;
   }
   cont.innerHTML = delDia.map(s => {
-    const cls = s.available === 0 ? 'full' : (s.coverage >= settings.minimumCoverageWarning ? 'warn' : 'ok');
-    const texto = s.available === 0 ? 'Completo' : `${s.available} / ${s.capacity} cupos`;
+    const sinCupo = s.shiftType === 'CAPACITACION';
+    const cls = sinCupo ? 'ok' : (s.available === 0 ? 'full' : (s.coverage >= settings.minimumCoverageWarning ? 'warn' : 'ok'));
+    const texto = sinCupo ? 'Sin límite de cupos' : (s.available === 0 ? 'Completo' : `${s.available} / ${s.capacity} cupos`);
+    const lleno = !sinCupo && s.available === 0;
     return `
       <div class="shift-card">
         <div>
@@ -371,7 +373,7 @@ function renderTurnosDelDia() {
           <div class="shrs">${s.startTime} - ${s.endTime}</div>
           <div class="scupos ${cls}">${texto}</div>
         </div>
-        <button class="btn btn-primary btn-sm" ${s.available === 0 ? 'disabled' : ''} onclick='abrirConfirmacion(${JSON.stringify(s)})'>Tomar</button>
+        <button class="btn btn-primary btn-sm" ${lleno ? 'disabled' : ''} onclick='abrirConfirmacion(${JSON.stringify(s)})'>Tomar</button>
       </div>`;
   }).join('');
 }

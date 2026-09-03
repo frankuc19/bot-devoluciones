@@ -18,7 +18,13 @@ const SHIFT_TYPES = {
   AM:   { code: 'AM',   name: 'Mañana',   startTime: '08:00', endTime: '14:00' },
   PM:   { code: 'PM',   name: 'Tarde',    startTime: '14:00', endTime: '20:00' },
   FULL: { code: 'FULL', name: 'Jornada completa', startTime: '08:00', endTime: '20:00' },
+  CAPACITACION: { code: 'CAPACITACION', name: 'Capacitación', startTime: '09:00', endTime: '11:00' },
 };
+
+// Tipos que participan en la planificación de cupos (Picker/Shopper/Driver) —
+// Capacitación queda afuera a propósito: no tiene cupos limitados y no debe
+// sumar ni afectar la cobertura/planificación de AM/PM/FULL.
+const TIPOS_PLANIFICABLES = ['AM', 'PM', 'FULL'];
 
 // Cupos y tomados se segmentan por rol operativo — el rol de cada Karrier se
 // detecta automáticamente a partir del campo "Cliente" de su ficha en Altas
@@ -50,7 +56,7 @@ function normalizarCapacidadRol(valor) {
 // Normaliza el objeto de capacidad de una tienda/turno completo: { AM, PM, FULL }
 function normalizarCapacidadTurnos(capacity) {
   const out = {};
-  for (const tipo of Object.keys(SHIFT_TYPES)) out[tipo] = normalizarCapacidadRol(capacity?.[tipo]);
+  for (const tipo of TIPOS_PLANIFICABLES) out[tipo] = normalizarCapacidadRol(capacity?.[tipo]);
   return out;
 }
 
@@ -308,6 +314,7 @@ function asignacionesActivasDeSlot(slotId, role) {
 // capacidad primero por si el slot quedó guardado con el formato viejo
 // (un solo número, sin segmentar por rol).
 function cuposDisponibles(slot, role) {
+  if (slot.shiftType === 'CAPACITACION') return Infinity; // sin límite de cupos
   const cap = normalizarCapacidadRol(slot.capacity)[role] || 0;
   return Math.max(0, cap - asignacionesActivasDeSlot(slot.id, role).length);
 }
@@ -373,15 +380,19 @@ function _validarYCrearAsignacion(slotId, rut, excludeAssignmentId) {
     .filter(s => s && s.date === slot.date);
   const tiposHoy = new Set(misSlotsHoy.map(s => s.shiftType));
 
+  // Capacitación es independiente de las reglas de exclusividad de AM/PM/FULL:
+  // se puede tomar el mismo día sin generar conflicto ni ser bloqueada por ellas.
   const settings = getSettings();
-  if (slot.shiftType === 'FULL' && (tiposHoy.has('AM') || tiposHoy.has('PM') || tiposHoy.has('FULL'))) {
-    if (tiposHoy.has('AM')) throw err('CONFLICT_AM_FULL');
-    if (tiposHoy.has('PM')) throw err('CONFLICT_PM_FULL');
-    throw err('CONFLICT_FULL');
+  if (slot.shiftType !== 'CAPACITACION') {
+    if (slot.shiftType === 'FULL' && (tiposHoy.has('AM') || tiposHoy.has('PM') || tiposHoy.has('FULL'))) {
+      if (tiposHoy.has('AM')) throw err('CONFLICT_AM_FULL');
+      if (tiposHoy.has('PM')) throw err('CONFLICT_PM_FULL');
+      throw err('CONFLICT_FULL');
+    }
+    if (tiposHoy.has('FULL')) throw err('CONFLICT_FULL');
+    if (slot.shiftType === 'AM' && tiposHoy.has('PM') && !settings.allowAmPmSameDay) throw err('CONFLICT_AM_PM');
+    if (slot.shiftType === 'PM' && tiposHoy.has('AM') && !settings.allowAmPmSameDay) throw err('CONFLICT_AM_PM');
   }
-  if (tiposHoy.has('FULL')) throw err('CONFLICT_FULL');
-  if (slot.shiftType === 'AM' && tiposHoy.has('PM') && !settings.allowAmPmSameDay) throw err('CONFLICT_AM_PM');
-  if (slot.shiftType === 'PM' && tiposHoy.has('AM') && !settings.allowAmPmSameDay) throw err('CONFLICT_AM_PM');
 
   const asignacion = {
     id: crypto.randomUUID(),
@@ -445,6 +456,16 @@ function reasignarTurno(assignmentId, newSlotId) {
 // taken/available/coverage sumados entre los 3 roles) para no romper las
 // pantallas que solo necesitan el número global (Dashboard, Asignaciones...).
 function slotConInfo(slot) {
+  // Capacitación no tiene cupos: siempre disponible, no participa en la
+  // cobertura/planificación de AM/PM/FULL.
+  if (slot.shiftType === 'CAPACITACION') {
+    const taken = asignacionesActivasDeSlot(slot.id).length;
+    return {
+      ...slot,
+      capacity: null, capacityPorRol: null, porRol: null,
+      taken, available: null, coverage: null, sinCupo: true,
+    };
+  }
   const capacityPorRol = normalizarCapacidadRol(slot.capacity);
   const porRol = {};
   let taken = 0, capacityTotal = 0;
@@ -474,6 +495,17 @@ function disponibilidadTienda(storeId, weekStartDate) {
   })();
   return getSlots()
     .filter(s => s.storeId === storeId && s.date >= weekStartDate && s.date <= weekEnd)
+    .map(slotConInfo)
+    .sort((a, b) => (a.date + a.shiftType).localeCompare(b.date + b.shiftType));
+}
+
+// Todos los turnos de una tienda desde hoy en adelante, sin acotar a una
+// semana — lo usa la toma de turnos pública para mostrar disponibilidad
+// completa (no solo la semana en curso).
+function disponibilidadTiendaCompleta(storeId) {
+  const hoy = new Date().toISOString().slice(0, 10);
+  return getSlots()
+    .filter(s => s.storeId === storeId && s.date >= hoy)
     .map(slotConInfo)
     .sort((a, b) => (a.date + a.shiftType).localeCompare(b.date + b.shiftType));
 }
@@ -524,7 +556,8 @@ function coberturaGeneral(weekStartDate, storeIdFiltro) {
   const tiendas = getTiendas().filter(t => !storeIdFiltro || t.id === storeIdFiltro);
   const filas = [];
   for (const tienda of tiendas) {
-    const slots = disponibilidadTienda(tienda.id, weekStartDate);
+    // Capacitación no tiene cupos y no debe sumar a la cobertura/planificación.
+    const slots = disponibilidadTienda(tienda.id, weekStartDate).filter(s => s.shiftType !== 'CAPACITACION');
     for (const s of slots) filas.push({ ...s, storeName: tienda.name });
   }
   const totales = filas.reduce((acc, f) => {
@@ -678,7 +711,7 @@ module.exports = {
   getSlots, getSlotById, saveSlot, deleteSlot, createSlot, generarSemana, generarRango,
   getAsignaciones, getAsignacionById, listAsignaciones,
   tomarTurno, cancelarTurno, reasignarTurno,
-  disponibilidadTienda, misTurnos, coberturaTienda, coberturaGeneral, dashboardKpis,
+  disponibilidadTienda, disponibilidadTiendaCompleta, misTurnos, coberturaTienda, coberturaGeneral, dashboardKpis,
   slotConInfo,
   getAsistenciaByAssignment, setAsistencia, setAsistenciaHora,
   observacionesDeAsignacion, addObservacion,
