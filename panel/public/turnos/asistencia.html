@@ -27,6 +27,7 @@
   .obs-add input { flex:1;background:#f4f5f6;border:1px solid rgba(15,23,22,.08);color:#12181a;border-radius:6px;padding:5px 8px;font-size:12px; }
   .obs-add button { background:#f1f3f2;border:1px solid rgba(15,23,22,.08);border-radius:6px;padding:5px 8px;cursor:pointer;color:#12181a; }
   .obs-add button:hover { background:#e3e6e5; }
+  .hora-input { background:#f4f5f6;border:1px solid rgba(15,23,22,.08);color:#12181a;border-radius:6px;padding:5px 8px;font-size:12px;width:90px; }
 </style>
 </head>
 <body class="flex h-screen overflow-hidden">
@@ -57,7 +58,7 @@
       <div class="tbl-wrap">
         <table>
           <thead><tr>
-            <th>Karrier</th><th>Tienda</th><th>Turno</th><th>Asistencia</th><th style="min-width:260px;">Observaciones (bitácora)</th>
+            <th>Karrier</th><th>Tienda</th><th>Turno</th><th>Asistencia</th><th>Hora</th><th style="min-width:260px;">Observaciones (bitácora)</th>
           </tr></thead>
           <tbody id="tbody-asistencia"></tbody>
         </table>
@@ -104,7 +105,7 @@ async function cargar() {
 function render() {
   const tbody = document.getElementById('tbody-asistencia');
   if (filas.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--text-faint);padding:24px;">Nadie agendado para este filtro.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--text-faint);padding:24px;">Nadie agendado para este filtro.</td></tr>`;
     if (window.lucide) lucide.createIcons();
     return;
   }
@@ -121,6 +122,9 @@ function render() {
           <button class="asist-btn si ${f.asistio === true ? 'active' : ''}" onclick='marcarAsistencia(${JSON.stringify(f.assignmentId)}, true)'>Sí</button>
           <button class="asist-btn no ${f.asistio === false ? 'active' : ''}" onclick='marcarAsistencia(${JSON.stringify(f.assignmentId)}, false)'>No</button>
         </div>
+      </td>
+      <td>
+        <input type="time" class="hora-input" value="${f.hora || ''}" onchange="guardarHora('${f.assignmentId}', this.value)">
       </td>
       <td>
         <div class="obs-list">
@@ -148,6 +152,14 @@ async function marcarAsistencia(assignmentId, asistio) {
     method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ asistio: nuevoValor }),
   }).then(x => x.json());
   if (!r.ok) { alert(r.error || 'No se pudo guardar'); return; }
+  cargar();
+}
+
+async function guardarHora(assignmentId, hora) {
+  const r = await fetch(`/api/turnos/admin/asistencia/${assignmentId}/hora`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ hora }),
+  }).then(x => x.json());
+  if (!r.ok) { alert(r.error || 'No se pudo guardar la hora'); return; }
   cargar();
 }
 

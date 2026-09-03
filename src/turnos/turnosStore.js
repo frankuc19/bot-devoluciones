@@ -493,7 +493,7 @@ function misTurnos(rut) {
 
 // Lista asignaciones (tomas de turno) con datos de tienda/slot embebidos,
 // para la pantalla administrativa de "Asignaciones".
-function listAsignaciones({ storeId, weekStartDate, status } = {}) {
+function listAsignaciones({ storeId, weekStartDate, status, role, date } = {}) {
   const weekEnd = weekStartDate ? (() => {
     const d = new Date(weekStartDate + 'T00:00:00');
     d.setDate(d.getDate() + 6);
@@ -511,6 +511,8 @@ function listAsignaciones({ storeId, weekStartDate, status } = {}) {
     .filter(a => !storeId || a.slot.storeId === storeId)
     .filter(a => !weekStartDate || (a.slot.date >= weekStartDate && a.slot.date <= weekEnd))
     .filter(a => !status || a.status === status)
+    .filter(a => !role || a.role === role)
+    .filter(a => !date || a.slot.date === date)
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
@@ -556,11 +558,28 @@ function getAsistencias() { return readJson(ASISTENCIA_FILE, []); }
 function getAsistenciaByAssignment(assignmentId) {
   return getAsistencias().find(a => a.assignmentId === assignmentId) || null;
 }
-function setAsistencia(assignmentId, asistio) {
+function horaActualChile() {
+  return new Date().toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'America/Santiago' });
+}
+
+function setAsistencia(assignmentId, asistio, hora) {
   if (!getAsignacionById(assignmentId)) throw err('ASSIGNMENT_NOT_FOUND');
   const list = getAsistencias();
   const idx = list.findIndex(a => a.assignmentId === assignmentId);
-  const registro = { assignmentId, asistio, updatedAt: new Date().toISOString() };
+  const horaFinal = hora !== undefined ? (hora || null) : (asistio === null ? null : horaActualChile());
+  const registro = { assignmentId, asistio, hora: horaFinal, updatedAt: new Date().toISOString() };
+  if (idx >= 0) list[idx] = registro; else list.push(registro);
+  writeJson(ASISTENCIA_FILE, list);
+  return registro;
+}
+
+// Permite editar manualmente la hora de asistencia sin tocar el estado Sí/No.
+function setAsistenciaHora(assignmentId, hora) {
+  if (!getAsignacionById(assignmentId)) throw err('ASSIGNMENT_NOT_FOUND');
+  const list = getAsistencias();
+  const idx = list.findIndex(a => a.assignmentId === assignmentId);
+  const anterior = idx >= 0 ? list[idx] : { assignmentId, asistio: null };
+  const registro = { ...anterior, hora: hora || null, updatedAt: new Date().toISOString() };
   if (idx >= 0) list[idx] = registro; else list.push(registro);
   writeJson(ASISTENCIA_FILE, list);
   return registro;
@@ -608,6 +627,7 @@ function listAsistenciaDia({ storeId, date }) {
         startTime: slot.startTime,
         endTime: slot.endTime,
         asistio: asistencia ? asistencia.asistio : null,
+        hora: asistencia ? (asistencia.hora || null) : null,
         observaciones: observacionesDeAsignacion(a.id),
       };
     })
@@ -654,7 +674,7 @@ module.exports = {
   tomarTurno, cancelarTurno, reasignarTurno,
   disponibilidadTienda, misTurnos, coberturaTienda, coberturaGeneral, dashboardKpis,
   slotConInfo,
-  getAsistenciaByAssignment, setAsistencia,
+  getAsistenciaByAssignment, setAsistencia, setAsistenciaHora,
   observacionesDeAsignacion, addObservacion,
   listAsistenciaDia, listBitacora,
   ERRORES,

@@ -41,16 +41,25 @@
       <select class="input" id="filtro-tienda" style="width:180px;" onchange="cargar()">
         <option value="">Todas las tiendas</option>
       </select>
+      <select class="input" id="filtro-rol" style="width:130px;" onchange="cargar()">
+        <option value="">Todos los roles</option>
+        <option value="Picker">Picker</option>
+        <option value="Shopper">Shopper</option>
+        <option value="Driver">Driver</option>
+      </select>
       <select class="input" id="filtro-estado" style="width:130px;" onchange="cargar()">
         <option value="ACTIVE">Activos</option>
         <option value="CANCELLED">Cancelados</option>
         <option value="">Todos</option>
       </select>
-      <div class="week-nav">
+      <input type="date" class="input" id="filtro-dia" style="width:150px;" onchange="cargar()">
+      <button class="btn-ghost" id="btn-limpiar-dia" onclick="limpiarDia()" title="Volver a vista por semana" style="display:none;"><i data-lucide="x" style="width:13px;height:13px;"></i> Día</button>
+      <div class="week-nav" id="week-nav">
         <button class="week-btn" onclick="cambiarSemana(-7)"><i data-lucide="chevron-left" style="width:14px;height:14px;"></i></button>
         <button class="btn-secondary" onclick="irHoy()">Hoy</button>
         <button class="week-btn" onclick="cambiarSemana(7)"><i data-lucide="chevron-right" style="width:14px;height:14px;"></i></button>
       </div>
+      <a class="btn-secondary" id="btn-descargar" href="#" target="_blank"><i data-lucide="download" style="width:13px;height:13px;"></i> Descargar</a>
     </div>
   </header>
 
@@ -123,6 +132,7 @@ function cambiarSemana(dias) {
   cargar();
 }
 function irHoy() { weekStart = mondayOf(new Date()); cargar(); }
+function limpiarDia() { document.getElementById('filtro-dia').value = ''; cargar(); }
 
 async function cargarTiendas() {
   const r = await fetch('/api/turnos/admin/tiendas').then(x => x.json());
@@ -136,15 +146,29 @@ async function cargarTiendas() {
 async function cargar() {
   const storeId = document.getElementById('filtro-tienda').value;
   const status = document.getElementById('filtro-estado').value;
+  const role = document.getElementById('filtro-rol').value;
+  const dia = document.getElementById('filtro-dia').value;
 
-  const d = new Date(weekStart + 'T00:00:00');
-  const fin = new Date(d); fin.setDate(fin.getDate() + 6);
-  document.getElementById('rango-semana').textContent =
-    `Semana del ${d.getDate()}/${d.getMonth()+1} al ${fin.getDate()}/${fin.getMonth()+1}`;
+  document.getElementById('week-nav').style.display = dia ? 'none' : 'flex';
+  document.getElementById('btn-limpiar-dia').style.display = dia ? 'inline-flex' : 'none';
 
-  const params = new URLSearchParams({ weekStart });
+  const params = new URLSearchParams();
+  if (dia) {
+    params.set('date', dia);
+    document.getElementById('rango-semana').textContent = `Día ${fmtFecha(dia)}`;
+  } else {
+    params.set('weekStart', weekStart);
+    const d = new Date(weekStart + 'T00:00:00');
+    const fin = new Date(d); fin.setDate(fin.getDate() + 6);
+    document.getElementById('rango-semana').textContent =
+      `Semana del ${d.getDate()}/${d.getMonth()+1} al ${fin.getDate()}/${fin.getMonth()+1}`;
+  }
   if (storeId) params.set('storeId', storeId);
   if (status) params.set('status', status);
+  if (role) params.set('role', role);
+
+  document.getElementById('btn-descargar').href = `/api/turnos/admin/asignaciones/export?${params}`;
+
   const r = await fetch(`/api/turnos/admin/asignaciones?${params}`).then(x => x.json());
   asignaciones = r.ok ? r.asignaciones : [];
   render();

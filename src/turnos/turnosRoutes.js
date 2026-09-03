@@ -428,8 +428,38 @@ adminRouter.get('/dashboard', (req, res) => {
 });
 
 adminRouter.get('/asignaciones', (req, res) => {
-  const { storeId, weekStart, status } = req.query;
-  res.json({ ok: true, asignaciones: store.listAsignaciones({ storeId: storeId || null, weekStartDate: weekStart || null, status: status || null }) });
+  const { storeId, weekStart, status, role, date } = req.query;
+  res.json({ ok: true, asignaciones: store.listAsignaciones({ storeId: storeId || null, weekStartDate: weekStart || null, status: status || null, role: role || null, date: date || null }) });
+});
+
+adminRouter.get('/asignaciones/export', (req, res) => {
+  const { storeId, weekStart, status, role, date } = req.query;
+  const asignaciones = store.listAsignaciones({ storeId: storeId || null, weekStartDate: weekStart || null, status: status || null, role: role || null, date: date || null });
+
+  const ESTADO_LABEL = { ACTIVE: 'Activo', CANCELLED: 'Cancelado' };
+  const filas = asignaciones.map(a => ({
+    Karrier: a.karrierName,
+    RUT: a.karrierRut,
+    Rol: a.role || '—',
+    Tienda: a.tienda?.name || '—',
+    Fecha: a.slot.date,
+    Turno: TURNO_LABEL_XLSX[a.slot.shiftType] || a.slot.shiftType,
+    Horario: `${a.slot.startTime}-${a.slot.endTime}`,
+    Estado: ESTADO_LABEL[a.status] || a.status,
+    'Registrado el': new Date(a.createdAt).toLocaleString('es-CL'),
+  }));
+
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.json_to_sheet(filas);
+  const headers = filas.length ? Object.keys(filas[0]) : [];
+  ws['!cols'] = headers.map(h => ({ wch: Math.max(12, h.length + 2) }));
+  XLSX.utils.book_append_sheet(wb, ws, 'Asignaciones');
+  const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+
+  const filename = `asignaciones_${date || weekStart || 'todas'}.xlsx`.replace(/[^\w.\-]+/g, '_');
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+  res.send(buffer);
 });
 
 adminRouter.post('/asignaciones/:id/cancelar', async (req, res) => {
@@ -464,9 +494,19 @@ adminRouter.get('/asistencia', (req, res) => {
 });
 
 adminRouter.put('/asistencia/:assignmentId', (req, res) => {
-  const { asistio } = req.body || {};
+  const { asistio, hora } = req.body || {};
   try {
-    const registro = store.setAsistencia(req.params.assignmentId, asistio === null ? null : !!asistio);
+    const registro = store.setAsistencia(req.params.assignmentId, asistio === null ? null : !!asistio, hora);
+    res.json({ ok: true, asistencia: registro });
+  } catch (e) {
+    res.status(400).json({ ok: false, error: e.message, code: e.code || 'ERROR' });
+  }
+});
+
+adminRouter.put('/asistencia/:assignmentId/hora', (req, res) => {
+  const { hora } = req.body || {};
+  try {
+    const registro = store.setAsistenciaHora(req.params.assignmentId, hora);
     res.json({ ok: true, asistencia: registro });
   } catch (e) {
     res.status(400).json({ ok: false, error: e.message, code: e.code || 'ERROR' });
