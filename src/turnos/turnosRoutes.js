@@ -536,6 +536,7 @@ adminRouter.get('/bitacora/export', (req, res) => {
       Karrier: o.karrierName,
       RUT: o.karrierRut,
       Asistencia: o.asistio === null || o.asistio === undefined ? 'Sin marcar' : (o.asistio ? 'Sí' : 'No'),
+      Hora: o.hora || '—',
       Observación: o.texto,
       'Registrado el': new Date(o.createdAt).toLocaleString('es-CL'),
     }));
@@ -544,7 +545,7 @@ adminRouter.get('/bitacora/export', (req, res) => {
   const ws = XLSX.utils.json_to_sheet(filas);
   ws['!cols'] = [
     { wch: 12 }, { wch: 8 }, { wch: 18 }, { wch: 20 }, { wch: 13 },
-    { wch: 11 }, { wch: 40 }, { wch: 18 },
+    { wch: 11 }, { wch: 8 }, { wch: 40 }, { wch: 18 },
   ];
   XLSX.utils.book_append_sheet(wb, ws, 'Bitácora');
   const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });

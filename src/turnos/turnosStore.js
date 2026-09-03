@@ -635,32 +635,38 @@ function listAsistenciaDia({ storeId, date }) {
     .sort((a, b) => (a.storeName + a.shiftType + a.karrierName).localeCompare(b.storeName + b.shiftType + b.karrierName));
 }
 
-// Bitácora completa (todas las observaciones, con contexto de Karrier/tienda/
-// fecha) para exportar — opcionalmente filtrada por tienda y/o rango de fechas.
+// Bitácora completa para exportar: una fila por cada turno agendado (activo)
+// dentro del rango, con su estado de asistencia, hora y observaciones —
+// opcionalmente filtrada por tienda y/o rango de fechas. No se limita a los
+// turnos que tengan alguna observación, para que la asistencia y la hora
+// queden siempre reflejadas en el archivo.
 function listBitacora({ storeId, dateFrom, dateTo } = {}) {
-  return getObservaciones()
-    .map(o => {
-      const asig = getAsignacionById(o.assignmentId);
-      if (!asig) return null;
-      const slot = getSlotById(asig.slotId);
+  return getAsignaciones()
+    .filter(a => a.status === 'ACTIVE')
+    .map(a => {
+      const slot = getSlotById(a.slotId);
       if (!slot) return null;
       if (storeId && slot.storeId !== storeId) return null;
       if (dateFrom && slot.date < dateFrom) return null;
       if (dateTo && slot.date > dateTo) return null;
       const tienda = getTiendaById(slot.storeId);
-      const asistencia = getAsistenciaByAssignment(asig.id);
+      const asistencia = getAsistenciaByAssignment(a.id);
+      const observaciones = observacionesDeAsignacion(a.id);
       return {
-        ...o,
-        karrierName: asig.karrierName,
-        karrierRut: asig.karrierRut,
+        assignmentId: a.id,
+        karrierName: a.karrierName,
+        karrierRut: a.karrierRut,
         storeName: tienda?.name || '—',
         date: slot.date,
         shiftType: slot.shiftType,
         asistio: asistencia ? asistencia.asistio : null,
+        hora: asistencia ? (asistencia.hora || null) : null,
+        texto: observaciones.map(o => o.texto).join(' | '),
+        createdAt: asistencia?.updatedAt || a.createdAt,
       };
     })
     .filter(Boolean)
-    .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    .sort((a, b) => (a.date + a.storeName + a.karrierName).localeCompare(b.date + b.storeName + b.karrierName));
 }
 
 module.exports = {
