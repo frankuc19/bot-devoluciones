@@ -6,6 +6,7 @@
 <title>Karri — Control Operacional de Turnos</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/styles.css">
 <style>
@@ -23,6 +24,11 @@
   .week-nav { display:flex;align-items:center;gap:6px; }
   .week-btn { width:30px;height:30px;border-radius:8px;border:1px solid rgba(15,23,22,.08);background:#f1f3f2;color:#12181a;cursor:pointer;display:inline-flex;align-items:center;justify-content:center; }
   .week-btn:hover { background:#f4f5f6; }
+  .fila-tienda { cursor:pointer; }
+  .fila-tienda:hover td { background:rgba(15,23,22,.03); }
+  .chev { width:13px;height:13px;display:inline-block;vertical-align:middle;margin-right:6px;transition:transform .15s; }
+  .chev.abierto { transform:rotate(90deg); }
+  .fila-detalle td:first-child { padding-left:34px;color:var(--text-muted); }
 </style>
 </head>
 <body class="flex h-screen overflow-hidden">
@@ -74,10 +80,24 @@
       </div>
     </div>
 
+    <!-- Gráfico: cupos, agendados y cobertura por tienda -->
+    <div class="card" style="overflow:hidden;">
+      <div style="padding:16px 20px;border-bottom:1px solid rgba(15,23,22,.07);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+        <p style="font-size:13px;font-weight:600;color:var(--text);">Cupos, agendados y cobertura por tienda</p>
+        <select class="input" id="filtro-tipo" style="width:180px;" onchange="renderGrafico()">
+          <option value="">Todos los tipos</option>
+        </select>
+      </div>
+      <div style="padding:16px 20px;height:340px;">
+        <canvas id="chart-cobertura"></canvas>
+      </div>
+    </div>
+
     <!-- Tabla de cobertura -->
     <div class="card" style="overflow:hidden;">
       <div style="padding:16px 20px;border-bottom:1px solid rgba(15,23,22,.07);">
         <p style="font-size:13px;font-weight:600;color:var(--text);">Cobertura por tienda, día y turno</p>
+        <p style="font-size:11px;color:var(--text-muted);margin-top:2px;">Click en una tienda para expandir el detalle por día y turno</p>
       </div>
       <div style="padding:0 20px 16px;">
         <div class="tbl-wrap" style="margin-top:16px;">
@@ -97,9 +117,19 @@
 <script src="/sidebar.js"></script>
 <script>
 const DIAS = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
-const TURNO_LABEL = { AM:'AM', PM:'PM', FULL:'FULL' };
+const TURNO_LABEL = { AM:'AM', PM:'PM', FULL:'FULL', CAPACITACION:'Capacitación' };
 let weekStart = mondayOf(new Date());
 let settings = { minimumCoverageWarning: 80, minimumCoverageTarget: 95 };
+let tiendasAll = [];
+let ultimasFilas = [];
+let chartInstance = null;
+let tiendasAbiertas = new Set();
+
+// El "tipo" de tienda se infiere de la primera palabra del nombre
+// (Walmart, Tottus, Meli, etc.) — no requiere configuración adicional.
+function tipoDeTienda(nombre) {
+  return String(nombre || '').trim().split(/\s+/)[0] || '—';
+}
 
 function mondayOf(d) {
   const day = d.getDay();
@@ -133,11 +163,105 @@ function irHoy() { weekStart = mondayOf(new Date()); cargarTodo(); }
 
 async function cargarTiendas() {
   const r = await fetch('/api/turnos/admin/tiendas').then(x => x.json());
+  tiendasAll = r.tiendas || [];
   const sel = document.getElementById('filtro-tienda');
   const actual = sel.value;
   sel.innerHTML = '<option value="">Todas las tiendas</option>' +
-    r.tiendas.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+    tiendasAll.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
   sel.value = actual;
+
+  const tipos = [...new Set(tiendasAll.map(t => tipoDeTienda(t.name)))].sort();
+  const selTipo = document.getElementById('filtro-tipo');
+  const tipoActual = selTipo.value;
+  selTipo.innerHTML = '<option value="">Todos los tipos</option>' +
+    tipos.map(t => `<option value="${t}">${t}</option>`).join('');
+  selTipo.value = tipoActual;
+}
+
+// Agrupa las filas planas (tienda+fecha+turno) en totales por tienda.
+function agruparPorTienda(filas) {
+  const map = new Map();
+  for (const f of filas) {
+    if (!map.has(f.storeName)) map.set(f.storeName, { storeName: f.storeName, requeridos: 0, tomados: 0, disponibles: 0, detalle: [] });
+    const g = map.get(f.storeName);
+    g.requeridos += f.capacity;
+    g.tomados += f.taken;
+    g.disponibles += f.available;
+    g.detalle.push(f);
+  }
+  return Array.from(map.values()).map(g => ({
+    ...g,
+    coverage: g.requeridos > 0 ? Math.round((g.tomados / g.requeridos) * 100) : 0,
+  }));
+}
+
+function renderCobertura(filas) {
+  const grupos = agruparPorTienda(filas);
+  const tbody = document.getElementById('tbody-cobertura');
+  if (grupos.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--text-faint);padding:24px;">
+      No hay turnos planificados para esta semana. Ve a <b>Planificación</b> para generarlos.</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = grupos.map((g, i) => {
+    const abierta = tiendasAbiertas.has(g.storeName);
+    return `
+    <tr class="fila-tienda" onclick="toggleTienda(${JSON.stringify(g.storeName)})">
+      <td style="font-weight:600;"><i data-lucide="chevron-right" class="chev ${abierta ? 'abierto' : ''}"></i>${g.storeName}</td>
+      <td colspan="2" style="color:var(--text-muted);font-weight:400;">${g.detalle.length} turno(s)</td>
+      <td>${g.requeridos}</td>
+      <td>${g.tomados}</td>
+      <td>${g.disponibles}</td>
+      <td><span class="cov-cell ${covClass(g.coverage)}">${g.coverage}%</span></td>
+    </tr>
+    ${abierta ? g.detalle.map(f => `
+      <tr class="fila-detalle">
+        <td>${f.storeName}</td>
+        <td>${fmtFecha(f.date)}</td>
+        <td>${TURNO_LABEL[f.shiftType] || f.shiftType}</td>
+        <td>${f.capacity}</td>
+        <td>${f.taken}</td>
+        <td>${f.available}</td>
+        <td><span class="cov-cell ${covClass(f.coverage)}">${f.coverage}%</span></td>
+      </tr>`).join('') : ''}`;
+  }).join('');
+  if (window.lucide) lucide.createIcons({ el: tbody });
+}
+
+function toggleTienda(storeName) {
+  if (tiendasAbiertas.has(storeName)) tiendasAbiertas.delete(storeName);
+  else tiendasAbiertas.add(storeName);
+  renderCobertura(ultimasFilas);
+}
+
+function renderGrafico() {
+  const tipo = document.getElementById('filtro-tipo').value;
+  let grupos = agruparPorTienda(ultimasFilas);
+  if (tipo) grupos = grupos.filter(g => tipoDeTienda(g.storeName) === tipo);
+  grupos.sort((a, b) => a.storeName.localeCompare(b.storeName));
+
+  const ctx = document.getElementById('chart-cobertura').getContext('2d');
+  if (chartInstance) chartInstance.destroy();
+  if (grupos.length === 0) return;
+  chartInstance = new Chart(ctx, {
+    data: {
+      labels: grupos.map(g => g.storeName),
+      datasets: [
+        { type: 'bar', label: 'Cupos', data: grupos.map(g => g.requeridos), backgroundColor: '#1c9996', yAxisID: 'y' },
+        { type: 'bar', label: 'Agendados', data: grupos.map(g => g.tomados), backgroundColor: '#2563eb', yAxisID: 'y' },
+        { type: 'line', label: '% Cobertura', data: grupos.map(g => g.coverage), borderColor: '#dc2626', backgroundColor: '#dc2626', yAxisID: 'y1', tension: .3 },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      scales: {
+        y:  { beginAtZero: true, position: 'left',  title: { display: true, text: 'Turnos' } },
+        y1: { beginAtZero: true, max: 100, position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: '% Cobertura' } },
+      },
+    },
+  });
 }
 
 async function cargarTodo() {
@@ -159,22 +283,9 @@ async function cargarTodo() {
 
   const url = `/api/turnos/admin/cobertura?weekStart=${weekStart}` + (storeId ? `&storeId=${storeId}` : '');
   const cov = await fetch(url).then(x => x.json());
-  const tbody = document.getElementById('tbody-cobertura');
-  if (!cov.ok || cov.cobertura.filas.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--text-faint);padding:24px;">
-      No hay turnos planificados para esta semana. Ve a <b>Planificación</b> para generarlos.</td></tr>`;
-  } else {
-    tbody.innerHTML = cov.cobertura.filas.map(f => `
-      <tr>
-        <td>${f.storeName}</td>
-        <td>${fmtFecha(f.date)}</td>
-        <td>${TURNO_LABEL[f.shiftType]}</td>
-        <td>${f.capacity}</td>
-        <td>${f.taken}</td>
-        <td>${f.available}</td>
-        <td><span class="cov-cell ${covClass(f.coverage)}">${f.coverage}%</span></td>
-      </tr>`).join('');
-  }
+  ultimasFilas = cov.ok ? cov.cobertura.filas : [];
+  renderCobertura(ultimasFilas);
+  renderGrafico();
   if (window.lucide) lucide.createIcons();
 }
 
